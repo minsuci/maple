@@ -280,6 +280,11 @@ button:disabled{cursor:not-allowed;opacity:.45;}
 .hrow.on .hn{color:var(--gold);}
 .hrow .hcd{font-family:'Bebas Neue',sans-serif;font-size:17px;color:var(--dim);white-space:nowrap;}
 .hrow.ready .hcd{color:var(--ok);}
+.hrow.boss{position:relative;overflow:hidden;}
+.hrow .bar{position:absolute;left:0;top:0;bottom:0;width:var(--p,0%);background:linear-gradient(90deg,#FF4D6A44,#FFC94A55);
+  pointer-events:none;transition:width .06s linear;}
+.hrow.fighting{border-color:var(--bad);}
+.hrow.cleared .hn::after{content:"\2713";color:var(--ok);font-size:11px;margin-left:5px;}
 .hnote{margin:12px 0 0;font-size:11.5px;color:var(--dimmer);line-height:1.7;}
 .hnote b{color:var(--gold);}
 @media (max-width:700px){.hunt{grid-template-columns:1fr;}}
@@ -468,7 +473,7 @@ button:disabled{cursor:not-allowed;opacity:.45;}
     <h2>랭킹</h2>
     <div class="rankwrap">
       <table class="rank">
-        <thead><tr><th></th><th>아이디</th><th>최고 성수치</th><th>잠재</th><th>최고 전투력</th><th>파괴</th><th>강화 시도</th></tr></thead>
+        <thead><tr><th></th><th>아이디</th><th>최고 성수치</th><th>잠재</th><th>최고 전투력</th><th>최고 보스</th><th>파괴</th><th>강화 시도</th></tr></thead>
         <tbody id="rankBody"></tbody>
       </table>
     </div>
@@ -582,11 +587,24 @@ const MAPS=[
   {n:'검은 마법사의 성', req:600, rate:22000}
 ];
 const BOSSES=[
-  {n:'자쿰',     req:0,   cd:15,  mul:70,   base:12000},
-  {n:'혼테일',   req:150, cd:40,  mul:250,  base:40000},
-  {n:'매그너스', req:280, cd:90,  mul:700,  base:120000},
-  {n:'스우',     req:450, cd:180, mul:1700, base:400000}
+  {n:'발록',        req:50,  cd:12,  mul:40,   base:7000},
+  {n:'자쿰',        req:90,  cd:20,  mul:70,   base:14000},
+  {n:'혼테일',      req:130, cd:35,  mul:140,  base:30000},
+  {n:'핑크빈',      req:180, cd:50,  mul:240,  base:52000},
+  {n:'매그너스',    req:230, cd:75,  mul:400,  base:90000},
+  {n:'루시드',      req:290, cd:100, mul:620,  base:150000},
+  {n:'윌',          req:350, cd:130, mul:900,  base:230000},
+  {n:'검은 마법사', req:430, cd:180, mul:1600, base:400000}
 ];
+// 전투력이 요구치의 절반이면 도전조차 못 하고, 1.2배면 확정 클리어.
+// 딱 맞추면 71% — 어중간한 전투력으로 상위 보스를 노리는 게 도박이 되도록.
+function clearRate(i,p){
+  const b=BOSSES[i]; if(!b) return 0;
+  const r=(p||0)/b.req;
+  if(r>=1.2) return 1;
+  if(r<0.5) return 0;
+  return (r-0.5)/0.7;
+}
 // 전투력이 요구치에 못 미치면 제곱으로 깎인다 — 무리한 상위 사냥터가 늘 이득은 아니게
 function mapEff(i,p){ const m=MAPS[i]; if(!m) return 0; if(!m.req) return 1;
   const r=Math.min(1,(p||0)/m.req); return r*r; }
@@ -599,7 +617,7 @@ const NAMES=['여명의 장검','심연의 대검','폭풍의 창','서리꽃 �
 /* ---------- 상태 ---------- */
 const DEF=()=>({
   meso:300000, star:0, ig:0, lines:[], broken:false, name:NAMES[0],
-  useProt:false, useSafe:false, map:0, bcd:[0,0,0,0], evT:0, evCd:180,
+  useProt:false, useSafe:false, map:0, bcd:[0,0,0,0,0,0,0,0], bk:[0,0,0,0,0,0,0,0], evT:0, evCd:180,
   st:{try:0,suc:0,keep:0,down:0,des:0,max:0,mg:0,cube:0,up:0,spent:0,best:0,hall:0}
 });
 let S=DEF();
@@ -1029,8 +1047,8 @@ function buildHunt(){
   const bl=$('bossList'); bl.innerHTML='';
   BOSSES.forEach(function(bs,i){
     const b=document.createElement('button');
-    b.className='hrow'; b.dataset.boss=i;
-    b.innerHTML='<span class="hn">'+bs.n+'</span>'+
+    b.className='hrow boss'; b.dataset.boss=i;
+    b.innerHTML='<span class="bar"></span><span class="hn">'+bs.n+'</span>'+
       '<span class="hr">요구 '+bs.req+' · '+bs.cd+'초</span><span class="hcd">—</span>';
     b.addEventListener('click',function(){ ac(); fightBoss(i); });
     bl.appendChild(b);
@@ -1051,28 +1069,71 @@ function updateHunt(){
     if(i!==best&&tag) tag.remove();
   });
   $('bossList').querySelectorAll('.hrow').forEach(function(el,i){
-    const bs=BOSSES[i], cd=(S.bcd&&S.bcd[i])||0, ok=p>=bs.req;
-    el.disabled=S.broken||!ok||cd>0;
-    el.classList.toggle('ready',ok&&cd<=0&&!S.broken);
-    el.querySelector('.hcd').textContent = !ok ? '전투력 부족' : cd>0 ? Math.ceil(cd)+'초' : '+'+fmt(bossReward(i));
+    const bs=BOSSES[i], cd=(S.bcd&&S.bcd[i])||0, cr=clearRate(i,p);
+    const cleared=(S.bk&&S.bk[i])>0;
+    el.disabled=S.broken||cr<=0||cd>0||fighting>=0;
+    el.classList.toggle('ready',cr>0&&cd<=0&&!S.broken&&fighting<0);
+    el.classList.toggle('cleared',cleared);
+    el.querySelector('.hr').textContent='요구 '+bs.req+' · '+bs.cd+'초 · 클리어 '+Math.round(cr*100)+'%';
+    el.querySelector('.hcd').textContent =
+      fighting===i ? '교전 중…' :
+      cr<=0 ? '전투력 부족' :
+      cd>0 ? Math.ceil(cd)+'초' :
+      (cleared?'+':'첫 클리어 +')+fmt(bossReward(i)+(cleared?0:bs.base*5));
   });
   const m=MAPS[S.map||0];
   $('huntNote').innerHTML='지금 <b>'+m.n+'</b>에서 사냥 중 · 효율 <b>'+Math.round(mapEff(S.map||0,p)*100)+
     '%</b> · 초당 <b>'+fmt(mapIncome(S.map||0,p))+'</b> 메소<br>'+
     '전투력이 오르면 위 사냥터가 열린다. 보스는 각자 쿨타임이 따로 도니까 돌려가며 잡는 게 이득이다.';
 }
+let fighting=-1;
 function fightBoss(i){
   const bs=BOSSES[i];
-  if(!bs||S.broken) return;
-  if(!S.bcd) S.bcd=[0,0,0,0];
-  if(S.bcd[i]>0||power()<bs.req) return;
-  const r=bossReward(i);
-  S.meso+=r; S.bcd[i]=bs.cd;
-  SND.coin();
+  if(!bs||S.broken||fighting>=0) return;
+  if(!S.bcd||S.bcd.length!==BOSSES.length) S.bcd=BOSSES.map(function(){return 0;});
+  if(!S.bk||S.bk.length!==BOSSES.length) S.bk=BOSSES.map(function(){return 0;});
+  const cr=clearRate(i,power());
+  if(S.bcd[i]>0||cr<=0) return;
+  fighting=i; updateHunt();
   const el=$('bossList').querySelectorAll('.hrow')[i];
-  if(el){ const q=el.getBoundingClientRect();
-    burst(i>=2?60:26,'#FFD66B',{x:q.left+q.width/2,y:q.top+q.height/2,sp:i>=2?1.2:.7}); }
-  log('<b>'+bs.n+'</b> 격파 — <b>+'+fmt(r)+'</b> 메소', i>=2?'ok':'');
+  const dur=2000, t0=Date.now();
+  el.classList.add('fighting');
+  const iv=setInterval(function(){
+    const k=Math.min(1,(Date.now()-t0)/dur);
+    el.style.setProperty('--p',(k*100)+'%');
+  },60);
+  tone(160,300,.5,'sawtooth',.03);
+  setTimeout(function(){
+    clearInterval(iv);
+    el.classList.remove('fighting'); el.style.removeProperty('--p');
+    resolveBoss(i,cr);
+  },dur);
+}
+function resolveBoss(i,cr){
+  const bs=BOSSES[i];
+  fighting=-1;
+  const el=$('bossList').querySelectorAll('.hrow')[i];
+  const q=el?el.getBoundingClientRect():null;
+  if(Math.random()<cr){
+    const first=!(S.bk[i]>0);
+    let r=bossReward(i);
+    if(first) r+=bs.base*5;
+    S.bk[i]++; S.meso+=r; S.bcd[i]=bs.cd;
+    SND.coin();
+    if(q) burst(first?90:(i>=4?55:26),'#FFD66B',{x:q.left+q.width/2,y:q.top+q.height/2,sp:first?1.4:.8});
+    if(first){
+      SND.up();
+      flash(bs.n+' 격파','첫 클리어 보너스 +'+fmt(bs.base*5),'#FFD66B');
+      log('<b>'+bs.n+' 첫 클리어!</b> 보너스 포함 <b>+'+fmt(r)+'</b> 메소','up');
+    } else {
+      log(bs.n+' 격파 — <b>+'+fmt(r)+'</b> 메소', i>=4?'ok':'');
+    }
+    S.st.best=Math.max(S.st.best,power());
+  } else {
+    S.bcd[i]=Math.ceil(bs.cd/2);
+    SND.fail();
+    log(bs.n+' 토벌 실패 — 쿨타임 절반만 돌고 재도전할 수 있다','fail');
+  }
   renderTop(); updateHunt(); save();
 }
 
@@ -1169,9 +1230,10 @@ async function pwHash(id,pw){
 const authOf=id=>lsGet(LK.auth(id),null);
 const lockOf=id=>{ const e=BOARD.find(x=>x.id===id); return (e&&e.h)||null; };
 
+const topBoss=function(){ let b=0; if(S.bk) for(let i=0;i<S.bk.length;i++) if(S.bk[i]>0) b=i+1; return b; };
 function myRec(){
   return {id:USER, star:S.st.max|0, grade:Math.max(S.st.mg||0,potGrade())|0, power:S.st.best|0,
-          hall:S.st.hall?1:0, des:S.st.des|0, tries:S.st.try|0, ts:Date.now(), h:authOf(USER)||null};
+          hall:S.st.hall?1:0, des:S.st.des|0, tries:S.st.try|0, boss:topBoss(), ts:Date.now(), h:authOf(USER)||null};
 }
 function mergeBoard(){
   const m=new Map(), lock=new Map();
@@ -1179,7 +1241,8 @@ function mergeBoard(){
     if(!e||!okId(String(e.id))) continue;
     const id=String(e.id);
     const r={id:id, star:Math.min(36,+e.star||0), grade:Math.min(3,+e.grade||0),
-             power:+e.power||0, hall:e.hall?1:0, des:+e.des||0, tries:+e.tries||0, ts:+e.ts||0};
+             power:+e.power||0, hall:e.hall?1:0, des:+e.des||0, tries:+e.tries||0,
+             boss:Math.min(8,+e.boss||0), ts:+e.ts||0};
     // 잠금(h)은 가장 먼저 등록된 것을 끝까지 유지한다 — 나중 사람이 바꿔치기 못 하도록
     if(typeof e.h==='string'&&e.h){
       const cur=lock.get(id);
@@ -1206,7 +1269,7 @@ function note(t){ $('rankNote').textContent=t; }
 function renderRank(){
   const body=$('rankBody');
   if(!BOARD.length){
-    body.innerHTML='<tr><td class="empty" colspan="7">아직 등록된 기록이 없다. 별을 올리고 아래 버튼으로 등록해보자.</td></tr>';
+    body.innerHTML='<tr><td class="empty" colspan="8">아직 등록된 기록이 없다. 별을 올리고 아래 버튼으로 등록해보자.</td></tr>';
   } else {
     body.innerHTML=BOARD.map((e,i)=>
       '<tr class="'+(e.id===USER?'me':'')+'">'+
@@ -1215,6 +1278,7 @@ function renderRank(){
       '<td class="num sv">'+e.star+'★</td>'+
       '<td>'+GNAME[e.grade]+'</td>'+
       '<td class="num">'+e.power.toLocaleString('ko-KR')+'</td>'+
+      '<td>'+(e.boss?esc(BOSSES[e.boss-1].n):'—')+'</td>'+
       '<td class="num">'+e.des+'</td>'+
       '<td class="num">'+e.tries+'</td></tr>').join('');
   }
@@ -1389,7 +1453,8 @@ function loop(t){
   const dt=Math.min(.05,(t-last)/1000); last=t;
   if(!USER){ fxStep(dt); requestAnimationFrame(loop); return; }
   S.meso+=income()*dt;   // 파괴 상태에서도 기본 수입은 흐른다
-  if(!S.bcd) S.bcd=[0,0,0,0];
+  if(!S.bcd||S.bcd.length!==BOSSES.length) S.bcd=BOSSES.map(function(){return 0;});
+  if(!S.bk||S.bk.length!==BOSSES.length) S.bk=BOSSES.map(function(){return 0;});
   for(let i=0;i<S.bcd.length;i++) if(S.bcd[i]>0) S.bcd[i]=Math.max(0,S.bcd[i]-dt);
   if(S.evT>0){
     S.evT-=dt;
