@@ -493,6 +493,19 @@ button:disabled{cursor:not-allowed;opacity:.45;}
   </section>
 </div>
 
+<div class="compare" id="drop" hidden>
+  <div class="cmpcard">
+    <h2 id="dropTitle">장비 드롭</h2>
+    <div class="cmpbody" id="dropBody"></div>
+    <div class="cmpbtns" style="flex-wrap:wrap">
+      <button class="btn gold" id="dropMove">스타포스 이전</button>
+      <button class="btn" id="dropWear">그대로 착용</button>
+      <button class="btn" id="dropMelt" style="flex:0 0 auto">분해</button>
+    </div>
+    <p class="lnote" style="margin-top:12px">갈아타면 잠재능력은 초기화된다. 성수치를 지키려면 스타포스 이전을 쓰자 (2성 손실).</p>
+  </div>
+</div>
+
 <div class="compare" id="compare" hidden>
   <div class="cmpcard">
     <h2>블랙 큐브 — 어느 쪽을 남길까</h2>
@@ -612,6 +625,13 @@ function mapIncome(i,p){ const m=MAPS[i]; return m?Math.round(m.rate*mapEff(i,p)
 function bestMap(p){ let b=0,v=-1; for(let i=0;i<MAPS.length;i++){ const x=mapIncome(i,p); if(x>v){v=x;b=i;} } return b; }
 const bossReward=i=>{ const b=BOSSES[i]; return b?Math.round(power()*b.mul)+b.base:0; };
 
+// 보스 장비 드롭 — 상위 보스일수록 좋은 등급이 자주 나온다
+const DROPS=[
+  {g:0,p:.15},{g:0,p:.15},{g:1,p:.10},{g:1,p:.12},
+  {g:2,p:.06},{g:2,p:.08},{g:2,p:.12},{g:2,p:.20}
+];
+const meltValue=g=>(g+1)*11000;
+const moveCost=()=>Math.round(starCost(S.star)*3/10)*10;
 const NAMES=['여명의 장검','심연의 대검','폭풍의 창','서리꽃 도','붉은 달의 검','고요한 사냥칼','별무리 검','재의 언월도'];
 
 /* ---------- 상태 ---------- */
@@ -827,7 +847,7 @@ function renderCubes(){
   ub.disabled=busy||S.broken||!up||S.meso<(up?up.cost:0);
   ub.innerHTML='<span class="ic">\u2191</span><span><span class="nm">장비 승급 — '+
     (up?IGNAME[S.ig]+' → '+IGNAME[up.to]:'유니크 (최고 등급)')+'</span><span class="rt">'+
-    (up?'성공 '+up.p+'% · 실패해도 장비는 안전하다. 등급이 높을수록 좋은 잠재가 뜬다'
+    (up?'성공 '+up.p+'% · 성수치와 잠재를 그대로 유지한다. 보스 드롭은 공짜지만 성수치를 잃는다'
        :'더 올릴 등급이 없다')+'</span></span><span class="pr">'+(up?fmt(up.cost):'—')+'</span>';
   if(up) ub.addEventListener('click',upgradeItem);
   L.appendChild(ub);
@@ -1032,6 +1052,45 @@ function upgradeItem(){
 }
 
 /* ---------- 보스 ---------- */
+/* ---------- 보스 장비 드롭 ---------- */
+function rollDrop(i,bossName){
+  const d=DROPS[i]; if(!d||Math.random()>=d.p) return;
+  if(d.g>(S.ig||0) && $('drop').hidden){ showDrop(d.g,bossName); return; }
+  const m=meltValue(d.g); S.meso+=m;                      // 지금 것보다 낮으면 분해
+  log(bossName+' — '+IGNAME[d.g]+' 장비 드롭, 분해해서 <b>+'+fmt(m)+'</b> 메소','');
+}
+function showDrop(g,bossName){
+  const box=$('drop'), cost=moveCost(), keep=Math.max(0,S.star-2);
+  const side=function(t,gr,star,sub){
+    return '<div class="cside"><h3>'+t+'</h3><span class="gradetag '+GKEY[gr]+'">'+IGNAME[gr]+' 장비</span>'+
+      '<div class="cpow" style="font-size:26px;font-family:\'Bebas Neue\',sans-serif">'+star+'\u2605</div>'+
+      '<div class="rt" style="font-size:11px;color:var(--dimmer)">'+sub+'</div></div>';
+  };
+  $('dropTitle').textContent=bossName+'이(가) '+IGNAME[g]+' 장비를 떨궜다';
+  $('dropBody').innerHTML=side('지금 장비',S.ig||0,S.star,'잠재 '+(potGrade()<0?'없음':GNAME[potGrade()]))+
+    side('떨어진 장비',g,0,'잠재 없음');
+  const wear=$('dropWear'), move=$('dropMove'), melt=$('dropMelt');
+  wear.textContent='그대로 착용 (0\u2605)';
+  move.textContent='스타포스 이전 \u2014 '+fmt(cost)+' 메소 ('+keep+'\u2605)';
+  move.disabled=S.meso<cost||S.star<3;
+  melt.textContent='분해 (+'+fmt(meltValue(g))+')';
+  const take=function(star){
+    S.ig=g; S.star=star; S.lines=[]; S.broken=false;
+    S.name=NAMES[(Math.random()*NAMES.length)|0];
+    S.st.max=Math.max(S.st.max,star);
+    box.hidden=true; SND.up(); burst(120,'#5CE68A',{sp:1.3});
+    flash(IGNAME[g]+' 장비',star?('스타포스 이전 \u2014 '+star+'\u2605로 시작'):'0\u2605부터 다시','#5CE68A');
+    log('<b>'+IGNAME[g]+' 장비</b>로 갈아탔다 \u2014 '+star+'\u2605, 잠재는 초기화','up');
+    renderAll(); save();
+  };
+  wear.onclick=function(){ take(0); };
+  move.onclick=function(){ if(S.meso<cost) return; S.meso-=cost; S.st.spent+=cost; take(keep); };
+  melt.onclick=function(){ const m=meltValue(g); S.meso+=m; box.hidden=true;
+    log(IGNAME[g]+' 장비를 분해했다 \u2014 <b>+'+fmt(m)+'</b> 메소','');
+    renderTop(); save(); };
+  box.hidden=false;
+}
+
 /* ---------- 사냥터 · 보스 ---------- */
 let huntBuilt=false;
 function buildHunt(){
@@ -1084,7 +1143,7 @@ function updateHunt(){
   const m=MAPS[S.map||0];
   $('huntNote').innerHTML='지금 <b>'+m.n+'</b>에서 사냥 중 · 효율 <b>'+Math.round(mapEff(S.map||0,p)*100)+
     '%</b> · 초당 <b>'+fmt(mapIncome(S.map||0,p))+'</b> 메소<br>'+
-    '전투력이 오르면 위 사냥터가 열린다. 보스는 각자 쿨타임이 따로 도니까 돌려가며 잡는 게 이득이다.';
+    '전투력이 오르면 위 사냥터가 열린다. 보스는 쿨타임이 따로 도니까 돌려가며 잡는 게 이득이고, <b>상위 보스일수록 좋은 등급의 장비를 떨군다.</b>';
 }
 let fighting=-1;
 function fightBoss(i){
@@ -1129,6 +1188,7 @@ function resolveBoss(i,cr){
       log(bs.n+' 격파 — <b>+'+fmt(r)+'</b> 메소', i>=4?'ok':'');
     }
     S.st.best=Math.max(S.st.best,power());
+    rollDrop(i,bs.n);
   } else {
     S.bcd[i]=Math.ceil(bs.cd/2);
     SND.fail();
