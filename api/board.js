@@ -79,7 +79,7 @@ async function board() {
   const all = await readAll();
   return Object.keys(all)
     .map(id => publicRow(id, all[id]))
-    .filter(r => r.ts)
+    .filter(r => r.ts && (r.star > 0 || r.tries > 0 || r.boss > 0))   // 아직 아무것도 안 한 계정은 랭킹에 안 띄운다
     .sort((a, b) =>
       (b.hall - a.hall) || (b.star - a.star) || (b.grade - a.grade) ||
       (b.power - a.power) || (a.ts - b.ts))
