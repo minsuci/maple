@@ -726,7 +726,7 @@ const LK={last:'byeol:lastId', ids:'byeol:ids', board:'byeol:board',
   save:id=>'byeol:save:'+id, auth:id=>'byeol:auth:'+id};
 function lsGet(k,d){ try{ const v=localStorage.getItem(k); return v?JSON.parse(v):d; }catch(e){ return d; } }
 function lsSet(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} }
-function save(){ if(USER){ lsSet(LK.save(USER),S); netDirty=true; } }
+function save(){ if(USER){ S.ts=Date.now(); lsSet(LK.save(USER),S); netDirty=true; } }
 
 /* ---------- 수치 ---------- */
 const cur=()=>S.items[S.sel||0];
@@ -1424,12 +1424,22 @@ async function apiPost(payload){
 function absorb(j){                       // 서버 응답에서 랭킹을 흡수한다
   if(j&&Array.isArray(j.board)){ BOARD=mergeBoard(j.board); lsSet(LK.board,BOARD); renderRank(); }
 }
+function saveBlob(){                   // 잘린 JSON 을 보내면 복구 불가라, 넘치면 아예 안 보낸다
+  const j=JSON.stringify(S);
+  return j.length<=20000 ? j : undefined;
+}
 async function pushSave(force){
   if(!SRV||!TOKEN||!USER) return;
   if(!force&&!netDirty) return;
   netDirty=false;
-  const {status,j}=await apiPost({action:'submit',id:USER,token:TOKEN,rec:myRec(),save:JSON.stringify(S).slice(0,6000)});
-  if(status===401){ setOnline('readonly'); note('로그인이 만료됐다. 아이디 변경에서 다시 들어가자.'); TOKEN=null; return; }
+  const {status,j}=await apiPost({action:'submit',id:USER,token:TOKEN,rec:myRec(),save:saveBlob()});
+  if(status===401){
+    netDirty=true;                       // 다시 시도할 수 있게 되돌린다
+    setOnline('readonly');
+    note('서버 저장이 막혔다 — 아이디 변경에서 다시 로그인해야 기록이 올라간다.');
+    showResult('bad','서버 저장 실패 — 다시 로그인해야 기록이 남는다');
+    TOKEN=null; return;
+  }
   absorb(j);
 }
 const okId=v=>/^[가-힣A-Za-z0-9_]{2,10}$/.test(v);
@@ -1578,7 +1588,7 @@ async function postRank(){
   if(SRV){
     if(!TOKEN){ note('로그인이 필요하다. 아이디 변경에서 다시 들어가자.'); posting=false; return; }
     note('등록 중…'); $('postBtn').disabled=true;
-    const {status,j}=await apiPost({action:'submit',id:USER,token:TOKEN,rec:myRec(),save:JSON.stringify(S).slice(0,6000)});
+    const {status,j}=await apiPost({action:'submit',id:USER,token:TOKEN,rec:myRec(),save:saveBlob()});
     if(status===200&&j&&j.ok){ absorb(j); note('랭킹에 등록했다. 이 주소를 연 사람 모두에게 보인다.'); setOnline('ok'); }
     else if(status===401){ TOKEN=null; setOnline('readonly'); note('로그인이 만료됐다. 아이디 변경에서 다시 들어가자.'); }
     else if(status===429) note('요청이 너무 잦다. 잠시 뒤에 다시.');
@@ -1660,9 +1670,16 @@ function enter(raw,serverSave){
   const id=String(raw||'').trim();
   if(!okId(id)) return;
   USER=id; rememberId(id); lsSet(LK.last,id);
-  let sv=null;
-  if(typeof serverSave==='string'&&serverSave){ try{ sv=JSON.parse(serverSave); }catch(e){ sv=null; } }
-  if(!sv) sv=lsGet(LK.save(id),null);
+  // 서버본과 이 기기 저장본 중 더 최신인 쪽을 쓴다.
+  // 예전엔 서버본이 무조건 이겨서, 서버 저장이 한 번 실패하면 옛 데이터로 덮였다.
+  let svS=null, svL=lsGet(LK.save(id),null);
+  if(typeof serverSave==='string'&&serverSave){
+    try{ svS=JSON.parse(serverSave); }catch(e){ svS=null; }
+  }
+  const age=o=>o&&typeof o.ts==='number'?o.ts:0;
+  let sv = (age(svS)>=age(svL)) ? (svS||svL) : (svL||svS);
+  if(svS&&svL&&age(svS)!==age(svL))
+    setTimeout(function(){ log('세이브 두 벌 중 '+(sv===svS?'서버':'이 기기')+' 것이 더 최신이라 그걸 불러왔다',''); },50);
   if(!sv){                                   // 아이디 붙이기 전에 하던 기록을 첫 아이디로 옮긴다
     const old=lsGet(OLD_KEY,null);
     if(old&&typeof old.meso==='number'){ sv=old; try{ localStorage.removeItem(OLD_KEY); }catch(e){} }
@@ -1709,7 +1726,7 @@ function loop(t){
   acc+=dt;
   if(acc>.12){ acc=0; renderTop(); renderEvent(); updateHunt(); if(!busy) renderStarPane(); }
   saveT+=dt; if(saveT>5){ saveT=0; save(); }
-  netT+=dt; if(netT>25){ netT=0; pushSave(false); }
+  netT+=dt; if(netT>8){ netT=0; pushSave(false); }
 
   fxStep(dt);
   requestAnimationFrame(loop);

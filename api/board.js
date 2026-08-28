@@ -134,7 +134,9 @@ module.exports = async (req, res) => {
       }
       if (!same(hash(pw, u.salt), u.hash)) return res.status(401).json({ error: 'wrong_pw' });
 
-      u.token = newToken();                       // 로그인할 때마다 새 토큰
+      // 토큰을 매번 갈아치우면 다른 탭/기기의 세션이 즉시 죽고, 그쪽 자동 저장이
+      // 조용히 401로 실패해 진행 상황이 유실된다. 이미 있으면 그대로 쓴다.
+      u.token = u.token || newToken();
       await writeUser(id, u);
       return res.status(200).json({ ok: true, created: false, token: u.token, rec: u.rec, save: u.save, board: await board() });
     }
