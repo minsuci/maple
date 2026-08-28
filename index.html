@@ -261,6 +261,29 @@ button:disabled{cursor:not-allowed;opacity:.45;}
   text-shadow:0 0 30px var(--fc),0 6px 0 #0008;}
 .flash .sub{position:relative;margin-top:10px;font-size:14px;letter-spacing:.3em;color:#fff;font-weight:900;text-align:center;}
 
+/* ---------- 사냥 ---------- */
+.hunt{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.hunt h3{margin:0 0 9px;font-size:10px;letter-spacing:.2em;color:var(--dimmer);font-weight:900;}
+.hlist{display:flex;flex-direction:column;gap:6px;}
+.hrow{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;text-align:left;
+  background:#15122C;border:1px solid var(--edge);border-radius:10px;padding:9px 12px;
+  transition:border-color .15s,background .15s;}
+.hrow:hover:not(:disabled){border-color:var(--edge2);background:#1B1638;}
+.hrow.on{border-color:var(--gold);background:#241C05;}
+.hrow:disabled{opacity:.4;}
+.hrow .hn{font-weight:900;font-size:13px;display:flex;align-items:center;gap:6px;min-width:0;}
+.hrow .best{font-size:9px;letter-spacing:.1em;color:#2A1A00;background:var(--gold);
+  padding:2px 6px;border-radius:99px;font-weight:900;flex:0 0 auto;}
+.hrow .hr{font-size:10.5px;color:var(--dimmer);font-weight:700;white-space:nowrap;}
+.hrow .hv{font-family:'Bebas Neue',sans-serif;font-size:19px;color:var(--meso);white-space:nowrap;}
+.hrow .hv small{font-family:'Gothic A1',sans-serif;font-size:10px;color:var(--dimmer);font-weight:700;}
+.hrow.on .hn{color:var(--gold);}
+.hrow .hcd{font-family:'Bebas Neue',sans-serif;font-size:17px;color:var(--dim);white-space:nowrap;}
+.hrow.ready .hcd{color:var(--ok);}
+.hnote{margin:12px 0 0;font-size:11.5px;color:var(--dimmer);line-height:1.7;}
+.hnote b{color:var(--gold);}
+@media (max-width:700px){.hunt{grid-template-columns:1fr;}}
+
 /* ---------- 아이디 · 랭킹 ---------- */
 .idbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:12.5px;padding:0 4px;}
 .idbar .who{font-weight:700;color:var(--dimmer);display:flex;align-items:center;gap:8px;}
@@ -344,7 +367,7 @@ button:disabled{cursor:not-allowed;opacity:.45;}
       <span class="lbl">전투력</span>
       <span class="val pow" id="powV">0</span>
     </div>
-    <button class="btn boss" id="bossBtn">보스 격파</button>
+    <div class="cell"><span class="lbl">사냥터</span><span class="val" id="mapV" style="font-size:20px">—</span></div>
   </div>
 
   <div class="event" id="eventBar">
@@ -425,6 +448,21 @@ button:disabled{cursor:not-allowed;opacity:.45;}
       <div class="log" id="log"></div>
     </section>
   </div>
+
+  <section class="card">
+    <h2>사냥</h2>
+    <div class="hunt">
+      <div>
+        <h3>사냥터 — 전투력이 모자라면 효율이 떨어진다</h3>
+        <div class="hlist" id="mapList"></div>
+      </div>
+      <div>
+        <h3>보스 — 쿨타임이 길수록 크게 준다</h3>
+        <div class="hlist" id="bossList"></div>
+      </div>
+    </div>
+    <p class="hnote" id="huntNote"></p>
+  </section>
 
   <section class="card">
     <h2>랭킹</h2>
@@ -535,12 +573,33 @@ const CUBES=[
   {k:'choice',n:'초이스 큐브', c:'#B15CFF', ic:'\u25c8', cost:50000, d:'고른 한 줄만 재설정 · 나머지는 그대로'},
   {k:'black',n:'블랙 큐브',   c:'#FFC94A', ic:'\u2726', cost:150000, d:'세 줄 재설정 후 이전/이후를 골라 적용'}
 ];
+const MAPS=[
+  {n:'개미굴',          req:0,   rate:2000},
+  {n:'마계 폐허',        req:120, rate:4000},
+  {n:'커닝시티 지하',    req:200, rate:6500},
+  {n:'시간의 신전',      req:300, rate:10000},
+  {n:'츄츄 아일랜드',    req:420, rate:15000},
+  {n:'검은 마법사의 성', req:600, rate:22000}
+];
+const BOSSES=[
+  {n:'자쿰',     req:0,   cd:15,  mul:70,   base:12000},
+  {n:'혼테일',   req:150, cd:40,  mul:250,  base:40000},
+  {n:'매그너스', req:280, cd:90,  mul:700,  base:120000},
+  {n:'스우',     req:450, cd:180, mul:1700, base:400000}
+];
+// 전투력이 요구치에 못 미치면 제곱으로 깎인다 — 무리한 상위 사냥터가 늘 이득은 아니게
+function mapEff(i,p){ const m=MAPS[i]; if(!m) return 0; if(!m.req) return 1;
+  const r=Math.min(1,(p||0)/m.req); return r*r; }
+function mapIncome(i,p){ const m=MAPS[i]; return m?Math.round(m.rate*mapEff(i,p)):0; }
+function bestMap(p){ let b=0,v=-1; for(let i=0;i<MAPS.length;i++){ const x=mapIncome(i,p); if(x>v){v=x;b=i;} } return b; }
+const bossReward=i=>{ const b=BOSSES[i]; return b?Math.round(power()*b.mul)+b.base:0; };
+
 const NAMES=['여명의 장검','심연의 대검','폭풍의 창','서리꽃 도','붉은 달의 검','고요한 사냥칼','별무리 검','재의 언월도'];
 
 /* ---------- 상태 ---------- */
 const DEF=()=>({
   meso:300000, star:0, ig:0, lines:[], broken:false, name:NAMES[0],
-  useProt:false, useSafe:false, bossCd:0, evT:0, evCd:180,
+  useProt:false, useSafe:false, map:0, bcd:[0,0,0,0], evT:0, evCd:180,
   st:{try:0,suc:0,keep:0,down:0,des:0,max:0,mg:0,cube:0,up:0,spent:0,best:0,hall:0}
 });
 let S=DEF();
@@ -561,8 +620,7 @@ const cpOf=l=>{ const d=POT.find(o=>o.k===l.k); return d?d.cp(l.v):0; };
 function potMult(){ return 1+S.lines.reduce((a,l)=>a+cpOf(l),0)/100; }
 const potGrade=()=>S.lines.length?S.lines[0].g:-1;          // 표시 등급은 첫 줄 기준
 const power=()=>S.broken?0:Math.round(100*starMult()*potMult());
-const income=()=>Math.round(400+power()*8);
-const bossReward=()=>Math.round(power()*500)+20000;
+const income=()=>S.broken?300:Math.max(300,mapIncome(S.map||0,power()));
 
 const fmt=n=>{
   n=Math.floor(n);
@@ -687,9 +745,7 @@ function renderTop(){
   $('mesoV').textContent=fmt(S.meso);
   $('incV').innerHTML=fmt(income())+'<small>/초</small>';
   $('powV').textContent=power().toLocaleString('ko-KR');
-  const b=$('bossBtn');
-  if(S.bossCd>0){ b.disabled=true; b.textContent=Math.ceil(S.bossCd)+'초'; }
-  else { b.disabled=S.broken; b.textContent=S.broken?'장비 없음':'보스 격파 +'+fmt(bossReward()); }
+  $('mapV').textContent=S.broken?'장비 없음':MAPS[S.map||0].n;
   const rb=$('repBtn'); if(rb) rb.disabled=S.meso<restoreCost();
 }
 function renderEvent(){
@@ -784,6 +840,8 @@ function renderRecs(){
 function renderAll(){
   renderItem();renderTop();renderEvent();renderStarPane();
   if(S.broken) repairUI(); else renderCubes();
+  if(!huntBuilt) buildHunt();
+  updateHunt();
   renderRecs();
 }
 
@@ -956,16 +1014,68 @@ function upgradeItem(){
 }
 
 /* ---------- 보스 ---------- */
-function boss(){
-  if(S.bossCd>0||S.broken) return;
-  const r=bossReward();
-  S.meso+=r; S.bossCd=20;
-  SND.coin();
-  const b=$('bossBtn').getBoundingClientRect();
-  burst(26,'#FFD66B',{x:b.left+b.width/2,y:b.top+b.height/2,sp:.7});
-  log('보스 격파 — <b>+'+fmt(r)+'</b> 메소','');
-  renderTop(); save();
+/* ---------- 사냥터 · 보스 ---------- */
+let huntBuilt=false;
+function buildHunt(){
+  const ml=$('mapList'); ml.innerHTML='';
+  MAPS.forEach(function(m,i){
+    const b=document.createElement('button');
+    b.className='hrow'; b.dataset.map=i;
+    b.innerHTML='<span class="hn">'+m.n+'</span>'+
+      '<span class="hr">요구 '+m.req+'</span><span class="hv">0<small>/초</small></span>';
+    b.addEventListener('click',function(){ S.map=i; updateHunt(); renderTop(); save(); });
+    ml.appendChild(b);
+  });
+  const bl=$('bossList'); bl.innerHTML='';
+  BOSSES.forEach(function(bs,i){
+    const b=document.createElement('button');
+    b.className='hrow'; b.dataset.boss=i;
+    b.innerHTML='<span class="hn">'+bs.n+'</span>'+
+      '<span class="hr">요구 '+bs.req+' · '+bs.cd+'초</span><span class="hcd">—</span>';
+    b.addEventListener('click',function(){ ac(); fightBoss(i); });
+    bl.appendChild(b);
+  });
+  huntBuilt=true;
 }
+function updateHunt(){
+  if(!huntBuilt) return;
+  const p=power(), best=bestMap(p);
+  $('mapList').querySelectorAll('.hrow').forEach(function(el,i){
+    const v=mapIncome(i,p);
+    el.classList.toggle('on',(S.map||0)===i);
+    el.querySelector('.hv').innerHTML=fmt(v)+'<small>/초</small>';
+    el.querySelector('.hr').textContent='요구 '+MAPS[i].req+' · 효율 '+Math.round(mapEff(i,p)*100)+'%';
+    const nm=el.querySelector('.hn');
+    const tag=nm.querySelector('.best');
+    if(i===best&&!tag) nm.insertAdjacentHTML('beforeend','<span class="best">추천</span>');
+    if(i!==best&&tag) tag.remove();
+  });
+  $('bossList').querySelectorAll('.hrow').forEach(function(el,i){
+    const bs=BOSSES[i], cd=(S.bcd&&S.bcd[i])||0, ok=p>=bs.req;
+    el.disabled=S.broken||!ok||cd>0;
+    el.classList.toggle('ready',ok&&cd<=0&&!S.broken);
+    el.querySelector('.hcd').textContent = !ok ? '전투력 부족' : cd>0 ? Math.ceil(cd)+'초' : '+'+fmt(bossReward(i));
+  });
+  const m=MAPS[S.map||0];
+  $('huntNote').innerHTML='지금 <b>'+m.n+'</b>에서 사냥 중 · 효율 <b>'+Math.round(mapEff(S.map||0,p)*100)+
+    '%</b> · 초당 <b>'+fmt(mapIncome(S.map||0,p))+'</b> 메소<br>'+
+    '전투력이 오르면 위 사냥터가 열린다. 보스는 각자 쿨타임이 따로 도니까 돌려가며 잡는 게 이득이다.';
+}
+function fightBoss(i){
+  const bs=BOSSES[i];
+  if(!bs||S.broken) return;
+  if(!S.bcd) S.bcd=[0,0,0,0];
+  if(S.bcd[i]>0||power()<bs.req) return;
+  const r=bossReward(i);
+  S.meso+=r; S.bcd[i]=bs.cd;
+  SND.coin();
+  const el=$('bossList').querySelectorAll('.hrow')[i];
+  if(el){ const q=el.getBoundingClientRect();
+    burst(i>=2?60:26,'#FFD66B',{x:q.left+q.width/2,y:q.top+q.height/2,sp:i>=2?1.2:.7}); }
+  log('<b>'+bs.n+'</b> 격파 — <b>+'+fmt(r)+'</b> 메소', i>=2?'ok':'');
+  renderTop(); updateHunt(); save();
+}
+
 
 /* ---------- 파괴 후 처리 ---------- */
 const restoreCost=()=>Math.round(starCost(12)*10/1000)*1000;
@@ -1279,7 +1389,8 @@ function loop(t){
   const dt=Math.min(.05,(t-last)/1000); last=t;
   if(!USER){ fxStep(dt); requestAnimationFrame(loop); return; }
   S.meso+=income()*dt;   // 파괴 상태에서도 기본 수입은 흐른다
-  if(S.bossCd>0){ S.bossCd=Math.max(0,S.bossCd-dt); }
+  if(!S.bcd) S.bcd=[0,0,0,0];
+  for(let i=0;i<S.bcd.length;i++) if(S.bcd[i]>0) S.bcd[i]=Math.max(0,S.bcd[i]-dt);
   if(S.evT>0){
     S.evT-=dt;
     if(S.evT<=0){ S.evT=0; S.evCd=180; log('럭키데이 종료','') ; renderAll(); }
@@ -1290,7 +1401,7 @@ function loop(t){
       flash('럭키데이','60초 동안 성공 확률이 두 배','#FFC94A'); renderAll(); }
   }
   acc+=dt;
-  if(acc>.12){ acc=0; renderTop(); renderEvent(); if(!busy) renderStarPane(); }
+  if(acc>.12){ acc=0; renderTop(); renderEvent(); updateHunt(); if(!busy) renderStarPane(); }
   saveT+=dt; if(saveT>5){ saveT=0; save(); }
   netT+=dt; if(netT>25){ netT=0; pushSave(false); }
 
@@ -1300,7 +1411,6 @@ function loop(t){
 
 /* ---------- 이벤트 ---------- */
 $('starBtn').addEventListener('click',()=>{ ac(); starClick(); });
-$('bossBtn').addEventListener('click',()=>{ ac(); boss(); });
 addEventListener('keydown',e=>{
   if(e.key===' '){
     e.preventDefault();
@@ -1334,7 +1444,7 @@ $('switchBtn').addEventListener('click',()=>{ save(); USER=null; $('whoV').textC
 addEventListener('visibilitychange',()=>{ if(document.hidden){ save(); pushSave(true); } });
 
 /* ---------- 시작 ---------- */
-buildStars();
+buildStars(); buildHunt();
 BOARD=mergeBoard(lsGet(LK.board,[]));
 renderAll(); renderRank();
 const lastId=lsGet(LK.last,null);
