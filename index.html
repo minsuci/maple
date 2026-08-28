@@ -273,10 +273,13 @@ button:disabled{cursor:not-allowed;opacity:.45;}
 .chip b{font-family:'Bebas Neue',sans-serif;font-size:14px;}
 .chip.on{color:var(--gold);border-color:var(--gold);background:#241C05;}
 .btnrow{display:flex;gap:8px;}
-.btnrow .btn{flex:1;}
+/* .btn.big 의 width:100% 가 확정 강화까지 먹어서 강화 버튼이 찌그러졌었다 */
+.btnrow .btn{width:auto;min-width:0;}
+.btnrow #starBtn{flex:1 1 auto;white-space:nowrap;}
 .btn.sure{flex:0 0 auto;background:linear-gradient(180deg,#7FE3A8,#2FA968);color:#06301A;
-  border-color:#B6F5D0;box-shadow:0 5px 0 #14603A;font-size:15px;padding:16px 14px;}
+  border-color:#B6F5D0;box-shadow:0 5px 0 #14603A;font-size:14px;padding:16px 13px;white-space:nowrap;}
 .btn.sure:active:not(:disabled){box-shadow:0 1px 0 #14603A;}
+.btn.sure[hidden]{display:none;}
 .hrow .ht{font-size:9px;font-weight:900;letter-spacing:.08em;padding:1px 6px;border-radius:99px;
   border:1px solid var(--edge2);color:var(--dim);margin-left:6px;}
 
@@ -482,7 +485,7 @@ button:disabled{cursor:not-allowed;opacity:.45;}
         <div class="cost" id="starCost"><span>강화 비용</span><b>600</b></div>
         <div class="btnrow">
           <button class="btn gold big" id="starBtn">강화하기</button>
-          <button class="btn big sure" id="sureBtn">확정 강화</button>
+          <button class="btn big sure" id="sureBtn" hidden>확정 강화</button>
         </div>
         <div class="result" id="resultBar">강화 결과가 여기 바로 뜬다</div>
         <div class="opt">
@@ -952,9 +955,10 @@ function renderStarPane(){
   if(!S.inv) S.inv={cube:0,sh:0,sure:0};
   $('invBar').innerHTML=[['큐브 교환권',S.inv.cube],['쉴드 교환권',S.inv.sh],['확정 성공권',S.inv.sure]]
     .map(function(x){ return '<span class="chip'+(x[1]>0?' on':'')+'">'+x[0]+' <b>'+x[1]+'</b></span>'; }).join('');
-  const sb=$('sureBtn');
-  sb.disabled=busy||it.broken||it.star>=MAXSTAR||S.inv.sure<=0||S.meso<cost();
-  sb.textContent='확정 강화 ('+S.inv.sure+')';
+  const sb=$('sureBtn'), hasSure=S.inv.sure>0;
+  sb.hidden=!hasSure;                       // 성공권이 없으면 자리도 차지하지 않는다
+  sb.disabled=busy||it.broken||it.star>=MAXSTAR||!hasSure||S.meso<cost();
+  sb.textContent='확정 강화 '+S.inv.sure;
   $('oS').textContent=O.suc.toFixed(1);
   $('oK').textContent=O.keep.toFixed(1);
   $('oW').textContent=O.down.toFixed(1);
