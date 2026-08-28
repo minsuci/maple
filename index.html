@@ -472,6 +472,7 @@ button:disabled{cursor:not-allowed;opacity:.45;}
       <div class="tabs" role="tablist">
         <button class="tab" role="tab" id="tabStar" aria-selected="true" aria-controls="paneStar">스타포스</button>
         <button class="tab" role="tab" id="tabCube" aria-selected="false" aria-controls="paneCube">잠재능력 큐브</button>
+        <button class="tab" role="tab" id="tabShop" aria-selected="false" aria-controls="paneShop">상점</button>
       </div>
 
       <div class="pane" id="paneStar" role="tabpanel" aria-labelledby="tabStar">
@@ -501,6 +502,11 @@ button:disabled{cursor:not-allowed;opacity:.45;}
       <div class="pane" id="paneCube" role="tabpanel" aria-labelledby="tabCube" hidden>
         <div class="cubes" id="cubeList"></div>
         <p class="pity" id="pityV"></p>
+      </div>
+
+      <div class="pane" id="paneShop" role="tabpanel" aria-labelledby="tabShop" hidden>
+        <div class="cubes" id="shopList"></div>
+        <p class="pity" id="shopNote"></p>
       </div>
 
       <div class="log" id="log"></div>
@@ -1024,6 +1030,7 @@ function renderRecs(){
 function renderAll(){
   renderSlots();renderItem();renderTop();renderEvent();renderStarPane();
   if(cur().broken) repairUI(); else renderCubes();
+  renderShop();
   if(!huntBuilt) buildHunt();
   updateHunt();
   renderRecs();
@@ -1269,6 +1276,56 @@ function showDrop(slot,g,bossName){
     log(IGNAME[g]+' 장비를 분해했다 — <b>+'+fmt(m)+'</b> 메소','');
     renderTop(); save(); };
   box.hidden=false;
+}
+
+/* ---------- 상점 ----------
+   메소를 태워서 지루한 구간을 건너뛰거나, 보스 보상을 돈으로 사는 자리.
+   큐브 교환권은 일부러 안 판다 — 그걸 팔면 큐브형 보스를 잡을 이유가 사라진다.
+   ------------------------------------------------------- */
+const SHOP=[
+  {k:'sf15', n:'스타포스 15성 주문서',
+   d:function(){ const it=cur(); return SLOTS[S.sel||0].n+'을(를) 즉시 15★로 만든다'+
+     (it.star>=15?' · 이미 15★ 이상이다':it.broken?' · 부서진 장비엔 못 쓴다':' · 지금 '+it.star+'★'); },
+   price:function(){ return Math.round(300000*SLOTS[S.sel||0].cost/1000)*1000; },
+   can:function(){ const it=cur(); return !it.broken&&it.star<15; },
+   buy:function(){ const it=cur(), nm=SLOTS[S.sel||0].n;
+     it.star=15; S.st.max=Math.max(S.st.max,15);
+     SND.up(); burst(90,'#FFC94A');
+     flash('15 ★',nm+' 스타포스 15성','#FFC94A');
+     showResult('ok','15성 주문서 — <b>'+nm+' 15★</b>');
+     log('<b>15성 주문서</b> — '+nm+'을(를) 즉시 15★로','up'); }},
+  {k:'sh', n:'쉴드 교환권',
+   d:function(){ return '다음 강화 1회 쉴드 비용 면제 · 지금 '+S.inv.sh+'장 · 반 레온도 떨군다'; },
+   price:function(){ return 250000; }, can:function(){ return true; },
+   buy:function(){ S.inv.sh++; SND.coin(); log('쉴드 교환권을 샀다',''); }},
+  {k:'sure', n:'확정 성공권',
+   d:function(){ return '강화 1회 무조건 성공 · 지금 '+S.inv.sure+'장 · 윌도 떨군다'; },
+   price:function(){ return 2500000; }, can:function(){ return true; },
+   buy:function(){ S.inv.sure++; SND.coin(); log('<b>확정 성공권</b>을 샀다','ok'); }},
+  {k:'ev', n:'럭키데이 소환',
+   d:function(){ return EV()?'이미 진행 중이다':'성공 확률 2배 · 강화 비용 30% 할인을 60초 동안'; },
+   price:function(){ return 800000; }, can:function(){ return !EV(); },
+   buy:function(){ S.evT=60; S.evCd=180; SND.up();
+     flash('럭키데이','60초 동안 성공 확률이 두 배','#FFC94A');
+     log('<b>럭키데이를 불렀다</b> — 60초','up'); }}
+];
+function renderShop(){
+  const L=$('shopList'); L.innerHTML='';
+  SHOP.forEach(function(x){
+    const p=x.price(), ok=x.can()&&S.meso>=p&&!busy;
+    const b=document.createElement('button');
+    b.className='cube'; b.style.setProperty('--c','#FFD66B');
+    b.disabled=!ok;
+    b.innerHTML='<span class="ic">₩</span><span><span class="nm">'+x.n+'</span>'+
+      '<span class="rt">'+x.d()+'</span></span><span class="pr">'+fmt(p)+'</span>';
+    b.addEventListener('click',function(){
+      if(!x.can()||S.meso<p||busy) return;
+      ac(); S.meso-=p; S.st.spent+=p; x.buy();
+      renderAll(); save();
+    });
+    L.appendChild(b);
+  });
+  $('shopNote').innerHTML='큐브 교환권은 상점에 없다 — 그건 <b>파풀라투스·아카이럼·진 힐라</b>를 잡아야 나온다.';
 }
 
 /* ---------- 사냥터 · 보스 ---------- */
@@ -1748,11 +1805,13 @@ addEventListener('keydown',e=>{
 $('swSafe').addEventListener('click',()=>{ S.useSafe=!S.useSafe; renderStarPane(); save(); });
 [0,1,2].forEach(i=>$('p'+i).addEventListener('click',()=>pickLine(i)));
 $('swProt').addEventListener('click',()=>{ S.useProt=!S.useProt; renderStarPane(); save(); });
-[['tabStar','paneStar'],['tabCube','paneCube']].forEach(([tb,pn],i)=>{
-  $(tb).addEventListener('click',()=>{
-    $('tabStar').setAttribute('aria-selected',String(i===0));
-    $('tabCube').setAttribute('aria-selected',String(i===1));
-    $('paneStar').hidden=i!==0; $('paneCube').hidden=i!==1;
+const TABS=[['tabStar','paneStar'],['tabCube','paneCube'],['tabShop','paneShop']];
+TABS.forEach(function(pair,i){
+  $(pair[0]).addEventListener('click',function(){
+    TABS.forEach(function(q,j){
+      $(q[0]).setAttribute('aria-selected',String(i===j));
+      $(q[1]).hidden=i!==j;
+    });
   });
 });
 $('resetBtn').addEventListener('click',()=>{
