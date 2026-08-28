@@ -283,6 +283,48 @@ button:disabled{cursor:not-allowed;opacity:.45;}
 .hrow .ht{font-size:9px;font-weight:900;letter-spacing:.08em;padding:1px 6px;border-radius:99px;
   border:1px solid var(--edge2);color:var(--dim);margin-left:6px;}
 
+/* ---------- 보스 전투 ---------- */
+.battle{position:fixed;inset:0;z-index:88;display:grid;place-items:center;padding:18px;
+  background:radial-gradient(80% 60% at 50% 45%, rgba(60,14,30,.86), rgba(9,6,18,.94));cursor:pointer;}
+.battle[hidden]{display:none;}
+.bcard{width:min(560px,100%);text-align:center;}
+.bfield{display:grid;grid-template-columns:1fr auto 1fr;gap:12px;align-items:end;}
+.bside{display:flex;flex-direction:column;align-items:center;gap:8px;}
+.bavatar{width:96px;height:96px;position:relative;transition:transform .16s cubic-bezier(.34,1.56,.64,1);}
+.bside.me.hit .bavatar{transform:translateX(38%) rotate(14deg);}
+.bside.foe.hit .bavatar{transform:translateX(-38%) scale(1.06);}
+.bside.dmg .bavatar{animation:bshake .22s;}
+@keyframes bshake{25%{transform:translateX(-7px)}50%{transform:translateX(7px)}75%{transform:translateX(-4px)}}
+.borb{width:96px;height:96px;border-radius:50%;position:relative;
+  background:radial-gradient(circle at 36% 30%, var(--bc2), var(--bc) 62%, #100A1E 100%);
+  box-shadow:0 0 34px -6px var(--bc), inset 0 0 24px #0008;}
+.borb i{position:absolute;top:38px;width:15px;height:8px;border-radius:50%;background:#FFF;
+  box-shadow:0 0 12px #FFF;}
+.borb i:nth-child(1){left:20px;transform:rotate(12deg);}
+.borb i:nth-child(2){right:20px;transform:rotate(-12deg);}
+.borb.t0{--bc:#4FA8FF;--bc2:#9CD2FF;}
+.borb.t1{--bc:#B15CFF;--bc2:#DDB4FF;}
+.borb.t2{--bc:#FF7A3D;--bc2:#FFC49C;}
+.borb.t3{--bc:#FF4D6A;--bc2:#FFB0BC;}
+.bname{font-family:'Gowun Batang',serif;font-weight:700;font-size:15px;color:var(--text);}
+.bhp{width:100%;max-width:190px;height:9px;border-radius:99px;background:#1B1030;
+  border:1px solid var(--edge);overflow:hidden;}
+.bhp span{display:block;height:100%;width:100%;border-radius:99px;transition:width .18s;}
+.bside.me .bhp span{background:linear-gradient(90deg,#3FE07A,#7FE3A8);}
+.bside.foe .bhp span{background:linear-gradient(90deg,#FF4D6A,#FF8A96);}
+.bvs{font-family:'Bebas Neue',sans-serif;font-size:26px;color:var(--dimmer);padding-bottom:26px;letter-spacing:.08em;}
+.bdmg{position:absolute;font-family:'Gothic A1',sans-serif;font-weight:900;font-size:20px;
+  pointer-events:none;animation:bfloat .75s ease-out forwards;text-shadow:0 2px 0 #0009;}
+@keyframes bfloat{0%{opacity:0;transform:translateY(0) scale(.7)}
+  20%{opacity:1;transform:translateY(-14px) scale(1.15)}100%{opacity:0;transform:translateY(-46px) scale(1)}}
+.bresult{margin-top:20px;min-height:52px;font-family:'Gowun Batang',serif;font-weight:700;
+  font-size:34px;line-height:1.2;}
+.bresult.win{color:#FFC94A;text-shadow:0 0 26px #FFC94A88;}
+.bresult.lose{color:#FF4D6A;text-shadow:0 0 26px #FF4D6A66;}
+.bhint{margin-top:8px;font-size:11.5px;color:var(--dimmer);letter-spacing:.06em;}
+.animtog{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:10px;
+  font-size:11.5px;color:var(--dimmer);font-weight:700;}
+
 /* ---------- 장비 슬롯 ---------- */
 .slotbar{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;margin-bottom:12px;}
 .slot{display:flex;flex-direction:column;align-items:center;gap:3px;padding:9px 3px;border-radius:10px;
@@ -526,6 +568,9 @@ button:disabled{cursor:not-allowed;opacity:.45;}
       </div>
     </div>
     <p class="hnote" id="huntNote"></p>
+    <div class="animtog">전투 연출
+      <button class="sw" id="animTog" role="switch" aria-checked="true" aria-label="전투 연출"></button>
+    </div>
   </section>
 
   <section class="card">
@@ -562,6 +607,33 @@ button:disabled{cursor:not-allowed;opacity:.45;}
       <button class="btn" id="dropMelt" style="flex:0 0 auto">분해</button>
     </div>
     <p class="lnote" style="margin-top:12px">갈아타면 잠재능력은 초기화된다. 성수치를 지키려면 스타포스 이전을 쓰자 (2성 손실).</p>
+  </div>
+</div>
+
+<div class="battle" id="battle" hidden>
+  <div class="bcard">
+    <div class="bfield">
+      <div class="bside me" id="bMe">
+        <div class="bavatar">
+          <svg viewBox="0 0 64 64" width="96" height="96" aria-hidden="true">
+            <path d="M32 3 L39 15 L39 39 L32 46 L25 39 L25 15 Z" fill="#CFE2FF" stroke="#2A2450" stroke-width="1.6"/>
+            <rect x="16" y="40" width="32" height="6" rx="3" fill="#C98A2E" stroke="#5E3C0C" stroke-width="1.4"/>
+            <rect x="29" y="46" width="6" height="12" rx="2.4" fill="#8A5A18" stroke="#4A2E06" stroke-width="1.3"/>
+            <circle cx="32" cy="60" r="3.6" fill="#FFC94A" stroke="#5E3C0C" stroke-width="1.3"/>
+          </svg>
+        </div>
+        <div class="bname">나</div>
+        <div class="bhp"><span id="myHp"></span></div>
+      </div>
+      <div class="bvs">VS</div>
+      <div class="bside foe" id="bFoe">
+        <div class="bavatar"><div class="borb t0" id="bOrb"><i></i><i></i></div></div>
+        <div class="bname" id="bName">보스</div>
+        <div class="bhp"><span id="foeHp"></span></div>
+      </div>
+    </div>
+    <div class="bresult" id="bResult"></div>
+    <div class="bhint">아무 데나 누르면 건너뛴다</div>
   </div>
 </div>
 
@@ -724,7 +796,7 @@ const NAMES=[['여명의 장검','심연의 대검','폭풍의 창','재의 언�
 const newItem=i=>({star:0, ig:0, lines:[], broken:false, name:NAMES[i][0]});
 const DEF=()=>({
   meso:300000, sel:0, items:[0,1,2,3,4].map(newItem),
-  useProt:false, useSafe:false, map:0,
+  useProt:false, useSafe:false, map:0, anim:true,
   bcd:BOSSES.map(function(){return 0;}), bk:BOSSES.map(function(){return 0;}),
   inv:{cube:0, sh:0, sure:0}, evT:0, evCd:180,
   st:{try:0,suc:0,keep:0,down:0,des:0,max:0,mg:0,cube:0,up:0,spent:0,best:0,hall:0}
@@ -1328,6 +1400,64 @@ function renderShop(){
   $('shopNote').innerHTML='큐브 교환권은 상점에 없다 — 그건 <b>파풀라투스·아카이럼·진 힐라</b>를 잡아야 나온다.';
 }
 
+/* ---------- 보스 전투 연출 ---------- */
+let battleTimers=[], battleDone=null;
+function endBattle(){
+  battleTimers.forEach(clearTimeout); battleTimers=[];
+  $('battle').hidden=true;
+  const f=battleDone; battleDone=null;
+  if(f) f();
+}
+function bdmg(side,txt,color){
+  const host=$(side==='me'?'bFoe':'bMe').querySelector('.bavatar');
+  const el=document.createElement('span');
+  el.className='bdmg'; el.textContent=txt; el.style.color=color;
+  el.style.left=(20+Math.random()*40)+'%'; el.style.top='24%';
+  host.appendChild(el);
+  setTimeout(function(){ el.remove(); },780);
+}
+function bossBattle(i,win,done){
+  const bs=BOSSES[i];
+  battleDone=done; battleTimers=[];
+  $('bName').textContent=bs.n;
+  $('bOrb').className='borb t'+Math.min(3,Math.floor(i/3));
+  $('bResult').textContent=''; $('bResult').className='bresult';
+  $('myHp').style.width='100%'; $('foeHp').style.width='100%';
+  $('battle').hidden=false;
+  const N=6, bStep=(win?100:58)/N, pStep=(win?42:100)/N;
+  let bhp=100, php=100, t=0;
+  const at=function(ms,fn){ battleTimers.push(setTimeout(fn,ms)); };
+  for(let r=0;r<N;r++){
+    // 내 공격
+    t+=230;
+    at(t,function(){
+      bhp=Math.max(0,bhp-bStep); $('foeHp').style.width=bhp+'%';
+      $('bMe').classList.add('hit'); $('bFoe').classList.add('dmg');
+      bdmg('me','-'+Math.round(bStep*120+rnd(-40,40)),'#FFE9A8');
+      tone(520,760,.07,'square',.035);
+      at(150,function(){ $('bMe').classList.remove('hit'); $('bFoe').classList.remove('dmg'); });
+    });
+    if(win&&r===N-1) break;          // 이기면 마지막은 내 타격으로 끝난다
+    // 보스 반격
+    t+=230;
+    at(t,function(){
+      php=Math.max(0,php-pStep); $('myHp').style.width=php+'%';
+      $('bFoe').classList.add('hit'); $('bMe').classList.add('dmg');
+      bdmg('foe','-'+Math.round(pStep*90+rnd(-30,30)),'#FFB0BC');
+      tone(220,140,.09,'sawtooth',.035);
+      at(150,function(){ $('bFoe').classList.remove('hit'); $('bMe').classList.remove('dmg'); });
+    });
+  }
+  t+=320;
+  at(t,function(){
+    const R=$('bResult');
+    R.className='bresult '+(win?'win':'lose');
+    R.textContent=win?(bs.n+' 격파!'):'토벌 실패';
+    if(win){ SND.up(); burst(70,'#FFD66B',{sp:1.1}); } else SND.des();
+  });
+  at(t+950,endBattle);
+}
+
 /* ---------- 사냥터 · 보스 ---------- */
 let huntBuilt=false;
 function buildHunt(){
@@ -1377,6 +1507,7 @@ function updateHunt(){
       (cleared?'+':'첫 클리어 +')+fmt(bossReward(i)+(cleared?0:BOSSES[i].base*5));
   });
   const m=MAPS[S.map||0];
+  $('animTog').setAttribute('aria-checked',String(S.anim!==false));
   $('huntNote').innerHTML='지금 <b>'+m.n+'</b>에서 사냥 중 · 효율 <b>'+Math.round(mapEff(S.map||0,p)*100)+
     '%</b> · 초당 <b>'+fmt(mapIncome(S.map||0,p))+'</b> 메소 (메소획득량 +'+Math.round((mesoMult()-1)*100)+'%)<br>'+
     '보스는 쿨타임이 따로 도니까 돌려가며 잡는 게 이득이고, <b>상위 보스일수록 좋은 장비를 떨군다</b> (드롭률 +'+Math.round((dropMult()-1)*100)+'%).';
@@ -1389,26 +1520,29 @@ function fightBoss(i){
   if(!S.bk||S.bk.length!==BOSSES.length) S.bk=BOSSES.map(function(){return 0;});
   const cr=clearRate(i,power());
   if(S.bcd[i]>0||cr<=0) return;
+  const win=Math.random()<cr;              // 결과를 먼저 정하고 연출을 거기에 맞춘다
   fighting=i; updateHunt();
-  const el=$('bossList').querySelectorAll('.hrow')[i];
-  const dur=2000, t0=Date.now();
-  el.classList.add('fighting');
-  const iv=setInterval(function(){
-    el.style.setProperty('--p',(Math.min(1,(Date.now()-t0)/dur)*100)+'%');
-  },60);
-  tone(160,300,.5,'sawtooth',.03);
-  setTimeout(function(){
-    clearInterval(iv);
-    el.classList.remove('fighting'); el.style.removeProperty('--p');
-    resolveBoss(i,cr);
-  },dur);
+  if(S.anim===false){                      // 연출을 끈 경우엔 진행바만
+    const el=$('bossList').querySelectorAll('.hrow')[i];
+    const dur=700, t0=Date.now();
+    el.classList.add('fighting');
+    const iv=setInterval(function(){
+      el.style.setProperty('--p',(Math.min(1,(Date.now()-t0)/dur)*100)+'%');
+    },60);
+    setTimeout(function(){
+      clearInterval(iv); el.classList.remove('fighting'); el.style.removeProperty('--p');
+      resolveBoss(i,win);
+    },dur);
+    return;
+  }
+  bossBattle(i,win,function(){ resolveBoss(i,win); });
 }
-function resolveBoss(i,cr){
+function resolveBoss(i,win){
   const bs=BOSSES[i];
   fighting=-1;
   const el=$('bossList').querySelectorAll('.hrow')[i];
   const q=el?el.getBoundingClientRect():null;
-  if(Math.random()<cr){
+  if(win){
     const first=!(S.bk[i]>0);
     let r=bossReward(i);
     if(first) r+=Math.round(bs.base*5*mesoMult());
@@ -1828,6 +1962,8 @@ $('enterBtn').addEventListener('click',submitLogin);
 });
 $('idInput').addEventListener('input',()=>{ $('lerr').textContent=''; loginMode(); });
 $('switchBtn').addEventListener('click',()=>{ save(); USER=null; $('whoV').textContent='—'; showLogin(); });
+$('battle').addEventListener('click',function(){ if(!$('battle').hidden) endBattle(); });
+$('animTog').addEventListener('click',function(){ S.anim=(S.anim===false); updateHunt(); save(); });
 addEventListener('visibilitychange',()=>{ if(document.hidden){ save(); pushSave(true); } });
 
 /* ---------- 시작 ---------- */
