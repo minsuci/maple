@@ -638,10 +638,12 @@ const GCAP=[1,2,3];
 // 공식 문구대로 큐브 종류는 기능만 다르고 확률은 전부 같다.
 const UPRATE=[0.06,0.018,0.004];
 const UPGRADE=[{to:1,p:40,cost:200000},{to:2,p:25,cost:800000}];
+// 초이스 큐브가 셋 중 가장 강하다 — 좋은 줄 둘을 지키고 나쁜 줄 하나만 바꾸니까.
+// 그래서 값도 제일 비싸다.
 const CUBES=[
   {k:'susp',  n:'수상한 큐브', c:'#4FA8FF', ic:'◆', cost:15000,  d:'세 줄 전부 재설정 · 결과 그대로 적용'},
-  {k:'choice',n:'초이스 큐브', c:'#B15CFF', ic:'◈', cost:50000,  d:'고른 한 줄만 재설정 · 나머지는 그대로'},
-  {k:'black', n:'블랙 큐브',  c:'#FFC94A', ic:'✦', cost:150000, d:'세 줄 재설정 후 이전/이후를 골라 적용'}
+  {k:'black', n:'블랙 큐브',  c:'#FFC94A', ic:'✦', cost:60000,  d:'세 줄 재설정 후 이전/이후를 골라 적용'},
+  {k:'choice',n:'초이스 큐브', c:'#B15CFF', ic:'◈', cost:250000, d:'고른 한 줄만 재설정 · 나머지 두 줄은 그대로. 등급이 오르면 그 줄이 첫 줄로 온다'}
 ];
 const MAPS=[
   {n:'개미굴',          req:0,   rate:2000},
@@ -1082,7 +1084,12 @@ function spendCube(cb,only){
   const before=it.lines.map(function(l){ return Object.assign({},l); });
   const g=nextGrade(it);
   let after;
-  if(only>=0){ after=before.map(function(l){ return Object.assign({},l); }); after[only]=rollLine(slot,g); }
+  if(only>=0){
+    after=before.map(function(l){ return Object.assign({},l); });
+    after[only]=rollLine(slot,g);
+    // 공식 규칙: 2·3번째 줄을 골랐는데 등급이 오르면 그 줄이 첫번째로 이동한다
+    if(g>(before[0]?before[0].g:-1)&&only>0) after.unshift(after.splice(only,1)[0]);
+  }
   else after=[rollLine(slot,g),rollLine(slot,g),rollLine(slot,g)];
   const stops=[420,700,980];
   for(let i=0;i<3;i++){
