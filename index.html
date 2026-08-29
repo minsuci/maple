@@ -2214,10 +2214,14 @@ const BOSS_ART=[
 let battleTimers=[], battleDone=null;
 function endBattle(win,dmg){
   battleTimers.forEach(clearTimeout); battleTimers=[];
+  battleSkip=null;
   $('battle').hidden=true;
   const f=battleDone; battleDone=null;
   if(f) f(win,dmg||0);
 }
+// 건너뛰기 — 남은 합을 그 자리에서 굴려 진짜 결과로 끝낸다.
+// 예전엔 승패가 미리 정해져 있어 창만 닫으면 됐지만, 이제는 결과가 전투 중에 정해진다.
+let battleSkip=null;
 function bdmg(side,txt,color){
   const host=$(side==='me'?'bFoe':'bMe').querySelector('.bavatar');
   const el=document.createElement('span');
@@ -2242,6 +2246,12 @@ function bossBattle(i,done){
   const m=dmgMean(power()/bossReq(i));
   let bhp=100, php=100, skUsed=-1, over=false, round=0;
   const at=function(ms,fn){ battleTimers.push(setTimeout(fn,ms)); };
+  battleSkip=function(){
+    if(over) return;
+    while(round<BROUNDS&&bhp>0){ round++; bhp-=m*(0.4+Math.random()*1.2); }
+    over=true;
+    endBattle(bhp<=0, skUsed<0?0:SKILLS[skUsed].dmg);
+  };
 
   // 스킬은 전투 중에만, 한 번만. 장전 같은 건 없다 — 싸우는 걸 보고 쓴다.
   buildBattleSkills(function(k){
@@ -3354,7 +3364,7 @@ $('enterBtn').addEventListener('click',submitLogin);
 $('idInput').addEventListener('input',()=>{ $('lerr').textContent=''; });
 $('newBtn').addEventListener('click',()=>{ setNewMode(!newMode); $('idInput').focus(); });
 $('switchBtn').addEventListener('click',()=>{ save(); USER=null; $('whoV').textContent='—'; showLogin(); });
-$('battle').addEventListener('click',function(){ if(!$('battle').hidden) endBattle(); });
+$('battle').addEventListener('click',function(){ if(!$('battle').hidden&&battleSkip) battleSkip(); });
 $('animTog').addEventListener('click',function(){ S.anim=(S.anim===false); updateHunt(); save(); });
 // 연출을 끄면 스킬을 쓸 자리가 없다. 빠르게 도는 대신 스킬을 포기하는 맞바꿈이다.
 $('burger').addEventListener('click',function(){ $('menu').hidden=false; });
