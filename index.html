@@ -334,6 +334,12 @@ button:disabled{cursor:not-allowed;opacity:.45;}
 .swipehint.l{left:12px;} .swipehint.r{right:12px;}
 .swipehint.go{color:#2A1A00;background:var(--gold);}
 
+/* 보스 줄에 붙는 작은 그림 — 열두 줄이 글씨뿐이면 읽는 게 아니라 훑게 된다 */
+.bic{width:26px;height:26px;flex:0 0 26px;overflow:visible;
+  filter:drop-shadow(0 1px 2px #000A);}
+.bic.hard{filter:drop-shadow(0 0 4px #FF4D6A) drop-shadow(0 1px 2px #000A);}
+.hrow .bnm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+
 /* ---------- 구역 탭 ---------- */
 .ztabs{display:grid;grid-template-columns:repeat(2,1fr);gap:5px;margin-bottom:8px;}
 .ztab{position:relative;padding:7px 8px;border-radius:9px;text-align:left;
@@ -2155,7 +2161,9 @@ function buildHunt(){
   BOSSES.forEach(function(bs,i){
     const b=document.createElement('button');
     b.className='hrow boss'; b.dataset.boss=i;
-    b.innerHTML='<span class="bar"></span><span class="hn">'+bs.n+'<span class="ht">'+bs.t+'</span></span>'+
+    b.innerHTML='<span class="bar"></span><span class="hn">'+
+      '<svg class="bic" viewBox="0 0 64 64" aria-hidden="true">'+(BOSS_ART[i]||'')+'</svg>'+
+      '<span class="bnm">'+bs.n+'</span><span class="ht">'+bs.t+'</span></span>'+
       '<span class="hr">—</span><span class="hcd">—</span>';
     b.addEventListener('click',function(){ ac(); fightBoss(i); });
     bl.appendChild(b);
@@ -2195,8 +2203,8 @@ function updateHunt(){
   $('bossList').querySelectorAll('.hrow').forEach(function(el,i){
     const bs=BOSSES[i], cd=(S.bcd&&S.bcd[i])||0, cr=clearRate(i,p);
     const cleared=S.hard?((S.bkh&&S.bkh[i])>0):((S.bk&&S.bk[i])>0);
-    const hn=el.querySelector('.hn');
-    if(hn.firstChild&&hn.firstChild.nodeType===3) hn.firstChild.nodeValue=bossName(i);
+    el.querySelector('.bnm').textContent=bossName(i);
+    el.querySelector('.bic').classList.toggle('hard',!!S.hard);
     el.disabled=cr<=0||cd>0||fighting>=0;
     el.classList.toggle('ready',cr>0&&cd<=0&&fighting<0);
     el.classList.toggle('cleared',cleared);
@@ -2616,15 +2624,36 @@ function enter(raw,serverSave){
   log(S.st.try? '<b>'+esc(id)+'</b> — 저장된 기록을 불러왔다' : '<b>'+esc(id)+'</b> — 메소 30만으로 시작한다','');
   showView(S.view||'up');
   renderRank(); save();
+  lastWall=Date.now();
   if(sv&&sv.ts) offerOffline((Date.now()-sv.ts)/1000);
   if($('offline').hidden&&attState().can){ renderDaily(); $('attend').hidden=false; }
 }
 
+/* ---------- 자리 비운 시간 메꾸기 ---------- */
+// 탭이 뒤로 가면 requestAnimationFrame 이 멈춘다. 돌아왔을 때 실제로 흐른 시간을
+// 계산해서 그만큼 채워준다. 창을 닫은 게 아니라 돌고 있어야 했을 시간이라
+// 오프라인(절반)과 달리 전액을 준다. 상한은 오프라인과 같은 8시간.
+function catchUp(sec){
+  const el=Math.min(OFF_CAP,sec);
+  if(el<3) return;
+  const m=income()*el, xp=xpRate()*el;
+  S.meso+=m; gainXp(xp);
+  if(Array.isArray(S.bcd)) for(let i=0;i<S.bcd.length;i++) if(S.bcd[i]>0) S.bcd[i]=Math.max(0,S.bcd[i]-el);
+  if(S.evT>0){ S.evT=0; S.evCd=180; }        // 자리 비운 사이 럭키데이는 지나갔다
+  else S.evCd=Math.max(5,S.evCd-(el%180));
+  const h=Math.floor(el/3600), mi=Math.floor(el%3600/60), s=Math.floor(el%60);
+  const dur=h?(h+'시간 '+mi+'분'):(mi?(mi+'분'):(s+'초'));
+  log('자리를 비운 <b>'+dur+'</b> 동안 <b>+'+fmt(Math.round(m))+'</b> 메소를 벌어뒀다','ok');
+  renderAll(); save();
+}
+
 /* ---------- 루프 ---------- */
-let last=performance.now(), acc=0, saveT=0;
+let last=performance.now(), acc=0, saveT=0, lastWall=Date.now();
 function loop(t){
   const dt=Math.min(.05,(t-last)/1000); last=t;
-  if(!USER){ fxStep(dt); requestAnimationFrame(loop); return; }
+  if(!USER){ lastWall=Date.now(); fxStep(dt); requestAnimationFrame(loop); return; }
+  const nw=Date.now(), gap=(nw-lastWall)/1000; lastWall=nw;
+  if(gap>2) catchUp(gap);       // 프레임이 멈춰 있었다 — 백그라운드거나 절전
   S.meso+=income()*dt;
   gainXp(xpRate()*dt);   // 파괴 상태에서도 기본 수입은 흐른다
   if(!S.bcd||S.bcd.length!==BOSSES.length) S.bcd=BOSSES.map(function(){return 0;});
@@ -2708,7 +2737,7 @@ initOnline();
 
 // 균형 점검용 노출 (게임 동작에는 영향 없음)
 try{ window.__CFG={SF,MAXSTAR,starCost,SHIELD,SLOTS,OPT,POOL,GCAP,UPRATE,UPGRADE,CUBES,
-  MAPS,ZONES,zoneOf,mapOpen,xpRate,BOSS_ART,BOSSES,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
+  MAPS,ZONES,zoneOf,mapOpen,xpRate,BOSS_ART,catchUp,BOSSES,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
   get state(){return S;}, cur, power, income, mesoMult, dropMult, starMult, potMultOf, odds, potGrade, topGrade, totalStars, sfBonus}; }catch(e){}
 })();
 </script>
