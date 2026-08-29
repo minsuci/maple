@@ -41,6 +41,7 @@ function cleanRec(r) {
     boss:  n(r.boss, 24),
     ach:   n(r.ach, 99),
     lv:    n(r.lv, 300),
+    job:   n(r.job, 2),
     ig:    n(r.ig, 2),
     power: n(r.power, 100000),
     hall:  r.hall ? 1 : 0,
@@ -56,7 +57,8 @@ const better = (a, b) =>
   a.grade !== b.grade ? a.grade > b.grade :
   a.power > b.power;
 
-const publicRow = (id, u) => Object.assign({ id }, u.rec || {});
+// seen 은 마지막 활동 시각. hash/salt/token/save 는 절대 나가지 않는다.
+const publicRow = (id, u) => Object.assign({ id }, u.rec || {}, { seen: u.seen || (u.rec && u.rec.ts) || 0 });
 
 async function readAll() {
   const flat = await redis(['HGETALL', HKEY]);
@@ -130,7 +132,7 @@ module.exports = async (req, res) => {
       let u = await readUser(id);
       if (!u) {                                   // 처음 쓰는 아이디 → 그대로 등록
         const salt = crypto.randomBytes(16).toString('hex');
-        u = { salt, hash: hash(pw, salt), token: newToken(), rec: null, save: null, at: Date.now() };
+        u = { salt, hash: hash(pw, salt), token: newToken(), rec: null, save: null, at: Date.now(), seen: Date.now() };
         await writeUser(id, u);
         return res.status(200).json({ ok: true, created: true, token: u.token, rec: null, save: null, board: await board() });
       }
@@ -139,6 +141,7 @@ module.exports = async (req, res) => {
       // 토큰을 매번 갈아치우면 다른 탭/기기의 세션이 즉시 죽고, 그쪽 자동 저장이
       // 조용히 401로 실패해 진행 상황이 유실된다. 이미 있으면 그대로 쓴다.
       u.token = u.token || newToken();
+      u.seen = Date.now();
       await writeUser(id, u);
       return res.status(200).json({ ok: true, created: false, token: u.token, rec: u.rec, save: u.save, board: await board() });
     }
@@ -170,6 +173,7 @@ module.exports = async (req, res) => {
         if (u.rec) { u.rec.boss = keep.boss; u.rec.ach = keep.ach; u.rec.lv = keep.lv; }
       }
       if (typeof body.save === 'string' && body.save.length <= MAX_SAVE) u.save = body.save;
+      u.seen = Date.now();
       await writeUser(id, u);
       return res.status(200).json({ ok: true, rec: u.rec, board: await board() });
     }

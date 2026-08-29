@@ -354,6 +354,23 @@ button:disabled{cursor:not-allowed;opacity:.45;}
 .ntab:not([aria-current="true"]):hover{color:var(--text);border-color:var(--edge2);}
 @media (max-width:360px){ .nav{gap:3px;padding:4px;} .ntab{font-size:11.5px;padding:8px 1px;} }
 
+/* ---------- 직업 ---------- */
+.joblist{display:flex;flex-direction:column;gap:7px;}
+.jobcard{display:grid;grid-template-columns:44px 1fr auto;gap:11px;align-items:center;text-align:left;
+  background:#15122C;border:1px solid var(--edge);border-radius:11px;padding:11px 13px;}
+.jobcard:hover:not(:disabled){border-color:var(--edge2);background:#1B1638;}
+.jobcard[aria-current="true"]{border-color:var(--gold);background:#241C05;}
+.jobcard:disabled{opacity:.45;}
+.jobcard svg{width:44px;height:44px;overflow:visible;filter:drop-shadow(0 2px 3px #000A);}
+.jobcard .jn{font-weight:900;font-size:14px;color:var(--text);}
+.jobcard[aria-current="true"] .jn{color:var(--gold);}
+.jobcard .jw{font-size:10px;font-weight:900;letter-spacing:.08em;color:var(--dimmer);margin-left:6px;}
+.jobcard .jd{display:block;font-size:11px;color:var(--dim);margin-top:3px;line-height:1.5;}
+.jobcard .jc{font-family:'Bebas Neue',sans-serif;font-size:16px;color:var(--meso);white-space:nowrap;}
+td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
+.jobtag{font-size:10.5px;font-weight:900;letter-spacing:.06em;color:var(--gold);
+  border:1px solid var(--gold);border-radius:99px;padding:2px 8px;margin-left:7px;}
+
 /* ---------- 구역 탭 ---------- */
 .ztabs{display:grid;grid-template-columns:repeat(2,1fr);gap:5px;margin-bottom:8px;}
 .ztab{position:relative;padding:7px 8px;border-radius:9px;text-align:left;
@@ -542,7 +559,7 @@ button:disabled{cursor:not-allowed;opacity:.45;}
 
 <div class="wrap">
   <div class="idbar">
-    <span class="who">강화 중인 사람 <b id="whoV">—</b></span>
+    <span class="who">강화 중인 사람 <b id="whoV">—</b><span class="jobtag" id="jobV" hidden></span></span>
     <span class="online" id="onlineV">랭킹 확인 중</span>
     <button class="switch" id="switchBtn">아이디 변경</button>
     <button class="burger" id="burger" aria-label="메뉴"><span></span><span></span><span></span></button>
@@ -693,7 +710,7 @@ button:disabled{cursor:not-allowed;opacity:.45;}
     <h2>랭킹</h2>
     <div class="rankwrap">
       <table class="rank">
-        <thead><tr><th></th><th>아이디</th><th>최고 성수치</th><th>잠재</th><th>레벨</th><th>최고 전투력</th><th>최고 보스</th><th>업적</th><th>파괴</th><th>강화 시도</th></tr></thead>
+        <thead><tr><th></th><th>아이디</th><th>직업</th><th>최고 성수치</th><th>잠재</th><th>레벨</th><th>최고 전투력</th><th>최고 보스</th><th>업적</th><th>파괴</th><th>강화 시도</th><th>마지막 접속</th></tr></thead>
         <tbody id="rankBody"></tbody>
       </table>
     </div>
@@ -753,10 +770,22 @@ button:disabled{cursor:not-allowed;opacity:.45;}
 
 <div class="swipehint" id="swipeHint" hidden></div>
 
+<div class="compare" id="jobPick" hidden>
+  <div class="cmpcard">
+    <h2 id="jobTitle">직업</h2>
+    <div class="joblist" id="jobList"></div>
+    <p class="attnote" id="jobNote"></p>
+    <div class="cmpbtns">
+      <button class="btn" id="jobClose">닫기</button>
+    </div>
+  </div>
+</div>
+
 <div class="menu" id="menu" hidden>
   <div class="mcard">
     <button class="mitem" data-v="up" aria-selected="true">강화<small>장비창 · 스타포스 · 큐브 · 상점</small></button>
     <button class="mitem" data-v="hunt">사냥<small>사냥터 16곳 · 보스 12종</small></button>
+    <button class="mitem" id="mJob">직업<small id="mJobSub">전사</small></button>
     <button class="mitem" id="mAtt">출석<span class="badge" id="attBadge" hidden></span><small>하루 한 번 · 7일 주기</small></button>
     <button class="mitem" data-v="ach">업적<small>41종</small></button>
     <button class="mitem" data-v="rank">랭킹<small>길드 기록</small></button>
@@ -769,14 +798,9 @@ button:disabled{cursor:not-allowed;opacity:.45;}
     <div class="bfield">
       <div class="bside me" id="bMe">
         <div class="bavatar">
-          <svg viewBox="0 0 64 64" width="96" height="96" aria-hidden="true">
-            <path d="M32 3 L39 15 L39 39 L32 46 L25 39 L25 15 Z" fill="#CFE2FF" stroke="#2A2450" stroke-width="1.6"/>
-            <rect x="16" y="40" width="32" height="6" rx="3" fill="#C98A2E" stroke="#5E3C0C" stroke-width="1.4"/>
-            <rect x="29" y="46" width="6" height="12" rx="2.4" fill="#8A5A18" stroke="#4A2E06" stroke-width="1.3"/>
-            <circle cx="32" cy="60" r="3.6" fill="#FFC94A" stroke="#5E3C0C" stroke-width="1.3"/>
-          </svg>
+          <svg id="meArt" viewBox="0 0 64 64" width="96" height="96" aria-hidden="true"></svg>
         </div>
-        <div class="bname">나</div>
+        <div class="bname" id="meName">나</div>
         <div class="bhp"><span id="myHp"></span></div>
       </div>
       <div class="bvs">VS</div>
@@ -868,7 +892,7 @@ const SLOTS=[
 const OPT={
   acc:{n:'명중률',       u:'%',v:[3,4.9,6,7.2],             cp:v=>v*0.25},
   pdm:{n:'물리대미지',    u:'%',v:[5.9,13.7,18.2,20.7],     cp:v=>v*1.00},
-  mdm:{n:'마법대미지',    u:'%',v:[5.9,13.7,18.2,20.7],     cp:v=>v*0.05},
+  mdm:{n:'마법대미지',    u:'%',v:[5.9,13.7,18.2,20.7],     cp:v=>v*1.00},
   crr:{n:'치명타확률',    u:'%',v:[4.1,6.3,8.5,10],         cp:v=>v*0.70},
   bat:{n:'보스공격력',    u:'%',v:[4,12.1,16.2,18.7],       cp:v=>v*0.90},
   bdf:{n:'보스방어력',    u:'%',v:[3.6,6.6,9,10.8],         cp:v=>v*0.20},
@@ -882,11 +906,14 @@ const OPT={
   mes:{n:'메소획득량',    u:'%',v:[6.1,8.2,12.2,14.7],      cp:v=>0, gold:1},
   drp:{n:'아이템 드롭률', u:'%',v:[6.1,8.2,12.2,14.7],      cp:v=>0, drop:1}
 };
+// 직업마다 정답 줄이 다르니, 그 줄들이 뜨는 확률을 서로 맞춰놨다.
+// 무기 물리=마법 15.65 · 한벌옷 HP=MP=치명타저항 14.7 · 모자 HP=MP=치명타확률 21.13
+// · 신발 HP=MP=회피율 21.13 · 장갑은 셋 다 보스공격력이라 손댈 게 없다.
 const POOL=[
-  [['acc',19.1],['pdm',16.7],['mdm',14.6],['crr',12.8],['hp',11.2],['mp',9.8],['hpr',8.6],['mpr',7.5]],
-  [['bdf',19.1],['cre',16.7],['hp',14.6],['mp',12.8],['hpr',11.2],['mpr',9.8],['mes',8.6],['drp',7.5]],
-  [['crr',25.1],['hp',20.9],['mp',17.4],['hpr',14.5],['mpr',12.1],['exp',10.1]],
-  [['evd',25.1],['hp',20.9],['mp',17.4],['hpr',14.5],['mpr',12.1],['mes',10.1]],
+  [['acc',19.1],['pdm',15.65],['mdm',15.65],['crr',12.8],['hp',11.2],['mp',9.8],['hpr',8.6],['mpr',7.5]],
+  [['bdf',19.1],['cre',14.7],['hp',14.7],['mp',14.7],['hpr',11.2],['mpr',9.8],['mes',8.6],['drp',7.5]],
+  [['crr',21.13],['hp',21.13],['mp',21.13],['hpr',14.5],['mpr',12.1],['exp',10.1]],
+  [['evd',21.13],['hp',21.13],['mp',21.13],['hpr',14.5],['mpr',12.1],['mes',10.1]],
   [['acc',25.1],['bat',20.9],['hp',17.4],['mp',14.5],['hpr',12.1],['mpr',10.1]]
 ];
 const PSUM=POOL.map(p=>p.reduce((a,x)=>a+x[1],0));
@@ -992,11 +1019,44 @@ const dropGrade=req=>req<160?0:req<640?1:2;
 // 총 스타포스 누적 보너스 — 다섯 부위 성수치를 합친 만큼 전투력이 통째로 오른다
 const SFTIERS=[[30,3],[60,7],[90,12],[120,18],[150,25],[180,35]];
 const meltValue=g=>(g+1)*11000;
+/* ---------- 직업 ---------- */
+// 같은 잠재 줄이라도 직업마다 값어치가 다르다. 부위별 '정답 줄'의 천장을 셋 다 똑같이
+// 맞췄고 (무기 20.7 · 한벌옷/모자/신발 9.95 · 장갑 16.83), 정답 줄이 뜨는 확률도
+// POOL 에서 맞춰놨다. 그래서 직업 선택이 유불리가 아니라 취향이 된다.
+//   전사   무기 물리대미지 · 한벌옷/모자/신발 최대HP · 장갑 보스공격력
+//   마법사 무기 마법대미지 · 한벌옷/모자/신발 최대MP · 장갑 보스공격력
+//   도적   무기 물리대미지 · 한벌옷 치명타저항 · 모자 치명타확률 · 신발 회피율 · 장갑 보스공격력
+// 시뮬레이션 결과 천장 3098 / 3097 / 3098, 정답 줄 등장률은 셋 다 동일.
+// 나중에 전직을 붙일 때는 m 표만 갈아끼우면 된다 (JOBS 항목을 늘리거나 tier 를 더하거나).
+const JOBS=[
+  {k:'war', n:'전사',   w:'한손검', d:'물리대미지 · 최대HP · 보스공격력',
+   m:{mdm:0.05, crr:0.60}},
+  {k:'mag', n:'마법사', w:'스태프', d:'마법대미지 · 최대MP · 보스공격력',
+   m:{pdm:0.05, mp:4.17, hp:0.55, crr:0.60, mpr:1.5}},
+  {k:'thf', n:'도적',   w:'단검',   d:'물리대미지 · 치명타 · 회피율',
+   m:{mdm:0.05, cre:9.09, crr:1.42, evd:1.92, hp:0.55}}
+];
+const jobKey=()=>((S&&S.job)||'war');
+const jobIdx=()=>{ const i=JOBS.findIndex(function(j){return j.k===jobKey();}); return i<0?0:i; };
+const curJob=()=>JOBS[jobIdx()];
+const jobW=k=>{ const m=curJob().m, v=m[k]; return v===undefined?1:v; };
+// 직업을 바꾸는 값 — 공짜면 굴린 결과에 맞춰 갈아타버려서 선택이 무의미해진다
+const jobCost=()=>Math.max(10000000, Math.round(income()*1800/1e5)*1e5);
+
 const NAMES=[['여명의 장검','심연의 대검','폭풍의 창','재의 언월도'],
              ['별빛 로브','흑룡의 갑주','서리꽃 예복','재의 흉갑'],
              ['여명의 투구','심연의 관','폭풍의 두건','별무리 모자'],
              ['질풍의 장화','심연의 부츠','서리꽃 신','별무리 구두'],
              ['여명의 건틀릿','심연의 손아귀','폭풍의 장갑','재의 완갑']];
+// 무기 이름은 직업을 따라간다
+const WNAMES={
+  war:['여명의 장검','심연의 대검','폭풍의 창','재의 언월도'],
+  mag:['별빛 스태프','심연의 마도서','서리꽃 완드','재의 지팡이'],
+  thf:['여명의 단검','심연의 쌍검','폭풍의 표창','재의 아대']
+};
+const slotNames=i=>(i===0?(WNAMES[jobKey()]||WNAMES.war):NAMES[i]);
+const pickName=i=>{ const a=slotNames(i); return a[(Math.random()*a.length)|0]; };
+
 
 // 캐릭터 레벨 — 모자의 경험치획득량 옵션이 여기서 값을 한다
 const MAXLV=300;
@@ -1065,10 +1125,12 @@ const DAILY=[
 const dayIdx=()=>Math.floor((Date.now()-new Date().getTimezoneOffset()*60000)/86400000);
 
 /* ---------- 상태 ---------- */
-const newItem=i=>({star:0, ig:0, lines:[], broken:false, name:NAMES[i][0]});
+// let S=DEF() 안에서 불리므로 직업을 물어보면 안 된다 (S 가 아직 없다).
+// 직업을 고르는 순간 setJob 이 무기 이름을 갈아준다.
+const newItem=i=>({star:0, ig:0, lines:[], broken:false, name:(i===0?WNAMES.war:NAMES[i])[0]});
 const DEF=()=>({
   meso:300000, sel:0, items:[0,1,2,3,4].map(newItem),
-  useProt:false, useSafe:false, map:0, zone:0, mv:0, anim:true, hard:false, view:'up', lv:1, xp:0, ach:{},
+  job:'war', useProt:false, useSafe:false, map:0, zone:0, mv:0, anim:true, hard:false, view:'up', lv:1, xp:0, ach:{},
   att:{last:0, day:0, total:0},
   bcd:BOSSES.map(function(){return 0;}), bk:BOSSES.map(function(){return 0;}),
   inv:{cube:0, sh:0, sure:0}, evT:0, evCd:180,
@@ -1089,7 +1151,7 @@ function starMult(star){
   for(let i=1;i<=star;i++) m += i<=15?4 : i<=25?7 : 11;
   return 1+m/100;
 }
-const cpOf=l=>{ const d=OPT[l.k]; return d?d.cp(l.v):0; };
+const cpOf=l=>{ const d=OPT[l.k]; return d?d.cp(l.v)*jobW(l.k):0; };
 const potMultOf=lines=>1+lines.reduce((a,l)=>a+cpOf(l),0)/100;
 const slotPow=i=>{ const it=S.items[i]; if(!it||it.broken) return 0;
   return SLOTS[i].base*starMult(it.star)*potMultOf(it.lines); };
@@ -1211,6 +1273,33 @@ function flash(txt,sub,color){
 const ART_DEF='<defs><linearGradient id="bl" x1="0" y1="0" x2="0" y2="1">'+
   '<stop offset="0" stop-color="#FFFFFF"/><stop offset=".45" stop-color="#CFE2FF"/>'+
   '<stop offset="1" stop-color="#7D8FC4"/></linearGradient></defs>';
+// 무기 그림도 직업을 따라간다
+const WEAPON_ART={
+  // 한손검
+  war: ART_DEF+
+  '<path d="M32 3 L39 15 L39 39 L32 46 L25 39 L25 15 Z" fill="url(#bl)" stroke="#2A2450" stroke-width="1.6"/>'+
+  '<path d="M32 3 L32 46" stroke="#8FA6DA" stroke-width="1.1" opacity=".8"/>'+
+  '<rect x="16" y="40" width="32" height="6" rx="3" fill="#C98A2E" stroke="#5E3C0C" stroke-width="1.4"/>'+
+  '<rect x="29" y="46" width="6" height="12" rx="2.4" fill="#8A5A18" stroke="#4A2E06" stroke-width="1.3"/>'+
+  '<circle cx="32" cy="60" r="3.6" fill="#FFC94A" stroke="#5E3C0C" stroke-width="1.3"/>',
+  // 스태프
+  mag: ART_DEF+
+  '<rect x="29" y="24" width="6" height="34" rx="3" fill="#8A5A18" stroke="#4A2E06" stroke-width="1.4"/>'+
+  '<path d="M22 28 q10 5 20 0" fill="none" stroke="#4A2E06" stroke-width="1.2" opacity=".5"/>'+
+  '<path d="M20 22 Q22 10 32 6 Q42 10 44 22 Q38 18 32 18 Q26 18 20 22 Z" '+
+  'fill="#C98A2E" stroke="#5E3C0C" stroke-width="1.4"/>'+
+  '<circle cx="32" cy="20" r="8" fill="url(#bl)" stroke="#2A2450" stroke-width="1.6"/>'+
+  '<circle cx="29.5" cy="17.5" r="2.4" fill="#FFF" opacity=".9"/>'+
+  '<path d="M32 30 l2.6 4 -2.6 4 -2.6 -4 z" fill="#FFC94A" opacity=".9"/>'+
+  '<circle cx="32" cy="60" r="3.4" fill="#FFC94A" stroke="#5E3C0C" stroke-width="1.3"/>',
+  // 단검
+  thf: ART_DEF+
+  '<path d="M32 6 L38 19 L36 37 L32 43 L28 37 L26 19 Z" fill="url(#bl)" stroke="#2A2450" stroke-width="1.6"/>'+
+  '<path d="M32 6 L32 43" stroke="#8FA6DA" stroke-width="1.1" opacity=".8"/>'+
+  '<path d="M17 38 Q32 46 47 38 L45 43 Q32 50 19 43 Z" fill="#C98A2E" stroke="#5E3C0C" stroke-width="1.4"/>'+
+  '<rect x="29" y="45" width="6" height="10" rx="2.4" fill="#5A3A22" stroke="#2A1608" stroke-width="1.3"/>'+
+  '<path d="M32 54 l4.2 3.4 -4.2 4.2 -4.2 -4.2 z" fill="#FFC94A" stroke="#5E3C0C" stroke-width="1.2"/>'
+};
 const SLOT_ART=[
   // 무기 — 검
   ART_DEF+
@@ -1301,10 +1390,11 @@ function renderItem(){
   const it=cur();
   document.querySelectorAll('.st').forEach(function(el){ el.classList.toggle('on',(+el.dataset.i)<it.star); });
   $('starV').textContent=it.star;
-  const art=$('itemArt'), si=String(S.sel||0);
+  const art=$('itemArt'), si=String(S.sel||0)+'/'+jobKey();   // 직업을 바꾸면 무기도 다시 그린다
   if(art.dataset.slot!==si){
     const sc=[1,1.1,1.05,1.05,1.2][S.sel||0];   // 검 기준으로 다른 부위 크기를 맞춘다
-    art.innerHTML='<g transform="translate(32,32) scale('+sc+') translate(-32,-32)">'+SLOT_ART[S.sel||0]+'</g>';
+    const g=(S.sel||0)===0?(WEAPON_ART[jobKey()]||WEAPON_ART.war):SLOT_ART[S.sel||0];
+    art.innerHTML='<g transform="translate(32,32) scale('+sc+') translate(-32,-32)">'+g+'</g>';
     art.dataset.slot=si;
   }
   $('inameV').textContent=it.broken?'부서진 잔해':it.name;
@@ -1449,6 +1539,8 @@ function renderAll(){
   renderSlots();renderItem();renderTop();renderEvent();renderStarPane();
   if(cur().broken) repairUI(); else renderCubes();
   renderShop(); renderLevel(); renderDaily(); checkAch(); renderAch();
+  const jv=$('jobV'); jv.hidden=!USER; jv.textContent=curJob().n;
+  $('mJobSub').textContent=curJob().n+' · '+curJob().w;
   if(!huntBuilt) buildHunt();
   updateHunt();
   renderRecs();
@@ -1682,7 +1774,7 @@ function showDrop(slot,g,bossName){
   melt.textContent='분해 (+'+fmt(meltValue(g))+')';
   const take=function(star){
     it.ig=g; it.star=star; it.lines=[]; it.broken=false;
-    it.name=NAMES[slot][(Math.random()*NAMES[slot].length)|0];
+    it.name=pickName(slot);
     S.st.max=Math.max(S.st.max,star);
     box.hidden=true; SND.up(); burst(120,'#5CE68A',{sp:1.3});
     flash(IGNAME[g]+' '+SLOTS[slot].n,star?('스타포스 이전 — '+star+'★'):'0★부터 다시','#5CE68A');
@@ -1915,6 +2007,8 @@ function bdmg(side,txt,color){
 function bossBattle(i,win,done){
   const bs=BOSSES[i];
   battleDone=done; battleTimers=[];
+  $('meArt').innerHTML=WEAPON_ART[jobKey()]||WEAPON_ART.war;
+  $('meName').textContent=curJob().n;
   $('bName').textContent=bossName(i);
   const art=$('bArt');
   art.innerHTML=BOSS_ART[i]||BOSS_ART[0];
@@ -2124,6 +2218,50 @@ function renderNav(){
     b.setAttribute('aria-current',String(b.dataset.v===k));
   });
 }
+
+/* ---------- 직업 고르기 ---------- */
+let jobMode='pick';                       // 'pick' 처음 고를 때 · 'change' 바꿀 때
+function renderJobs(){
+  const L=$('jobList'); L.innerHTML='';
+  const change=jobMode==='change', cost=jobCost();
+  JOBS.forEach(function(j){
+    const b=document.createElement('button');
+    b.className='jobcard'; b.dataset.k=j.k;
+    b.setAttribute('aria-current',String(j.k===jobKey()));
+    const mine=j.k===jobKey();
+    b.disabled=change&&(mine||S.meso<cost);
+    b.innerHTML='<svg viewBox="0 0 64 64" aria-hidden="true">'+(WEAPON_ART[j.k]||'')+'</svg>'+
+      '<span><span class="jn">'+j.n+'<span class="jw">'+j.w+'</span></span>'+
+      '<span class="jd">'+j.d+'</span></span>'+
+      '<span class="jc">'+(mine?'지금':(change?fmt(cost):'선택'))+'</span>';
+    b.addEventListener('click',function(){ ac(); setJob(j.k); });
+    L.appendChild(b);
+  });
+  $('jobTitle').textContent=change?'직업 바꾸기':'직업을 고르자';
+  $('jobNote').innerHTML=change
+    ? '바꾸면 <b>'+fmt(cost)+' 메소</b>가 든다 (30분치 수입) · 무기는 새 직업 것으로 바뀌고 <b>잠재와 성수치는 그대로</b>다.'
+    : '직업마다 <b>값을 하는 잠재 줄이 다르다.</b> 천장은 셋 다 똑같으니 마음에 드는 걸 고르면 된다.<br>나중에 메뉴에서 바꿀 수 있다.';
+  $('jobClose').textContent=change?'닫기':'전사로 시작';
+}
+function setJob(k){
+  if(k===jobKey()){ if(jobMode!=='change') $('jobPick').hidden=true; return; }
+  const j=JOBS.find(function(x){return x.k===k;});
+  if(!j) return;
+  if(jobMode==='change'){
+    const c=jobCost();
+    if(S.meso<c) return;
+    S.meso-=c; S.st.spent+=c;
+  }
+  S.job=k;
+  const wp=S.items[0];
+  if(wp) wp.name=pickName(0);             // 무기 이름을 새 직업 것으로
+  $('jobPick').hidden=true;
+  SND.up(); burst(70,'#FFD66B',{sp:1.1});
+  flash(j.n,j.w+' · '+j.d,'#FFC94A');
+  log('<b>'+j.n+'</b>(으)로 '+(jobMode==='change'?'전직했다':'시작한다')+' — '+j.d,'up');
+  renderAll(); save();
+}
+function openJobs(mode){ jobMode=mode||'change'; renderJobs(); $('jobPick').hidden=false; }
 
 /* ---------- 화면 넘기기 — 스와이프 ---------- */
 // 손가락을 따라 화면이 밀리고, 충분히 밀면 넘어간다. 안 밀면 제자리로 돌아온다.
@@ -2364,7 +2502,7 @@ function repairUI(){
   b.textContent='새 장비 받기 (무료 · 전부 초기화)';
   b.addEventListener('click',function(){
     it.broken=false; repairShown=false; it.star=0; it.ig=0; it.lines=[];
-    it.name=NAMES[S.sel||0][(Math.random()*NAMES[S.sel||0].length)|0];
+    it.name=pickName(S.sel||0);
     log('새 '+nm+' <b>'+it.name+'</b> 를 받았다','');
     renderAll(); save();
   });
@@ -2447,7 +2585,7 @@ const topBoss=function(){ let b=0;
 function myRec(){
   return {id:USER, star:S.st.max|0, grade:Math.max(S.st.mg||0,topGrade())|0, power:S.st.best|0,
           hall:S.st.hall?1:0, des:S.st.des|0, tries:S.st.try|0, boss:topBoss(),
-          ach:Object.keys(S.ach||{}).length, lv:S.lv||1, ts:Date.now(), h:authOf(USER)||null};
+          ach:Object.keys(S.ach||{}).length, lv:S.lv||1, job:jobIdx(), ts:Date.now(), h:authOf(USER)||null};
 }
 function mergeBoard(){
   const m=new Map(), lock=new Map();
@@ -2480,15 +2618,26 @@ function setOnline(st){
 }
 function note(t){ $('rankNote').textContent=t; }
 
+// 마지막 접속을 "3시간 전" 처럼 읽히게
+function ago(ts){
+  if(!ts) return '—';
+  const s=Math.max(0,(Date.now()-ts)/1000);
+  if(s<90) return '방금';
+  if(s<3600) return Math.round(s/60)+'분 전';
+  if(s<86400) return Math.round(s/3600)+'시간 전';
+  const d=Math.round(s/86400);
+  return d<30?(d+'일 전'):(Math.round(d/30)+'달 전');
+}
 function renderRank(){
   const body=$('rankBody');
   if(!BOARD.length){
-    body.innerHTML='<tr><td class="empty" colspan="10">아직 등록된 기록이 없다. 별을 올리고 아래 버튼으로 등록해보자.</td></tr>';
+    body.innerHTML='<tr><td class="empty" colspan="12">아직 등록된 기록이 없다. 별을 올리고 아래 버튼으로 등록해보자.</td></tr>';
   } else {
     body.innerHTML=BOARD.map((e,i)=>
       '<tr class="'+(e.id===USER?'me':'')+'">'+
       '<td class="no">'+(i+1)+'</td>'+
       '<td>'+esc(e.id)+(e.hall?'<span class="hall">명예의 전당</span>':'')+'</td>'+
+      '<td>'+((JOBS[e.job|0]||JOBS[0]).n)+'</td>'+
       '<td class="num sv">'+e.star+'★</td>'+
       '<td>'+GNAME[e.grade]+'</td>'+
       '<td class="num">'+(e.lv||1)+'</td>'+
@@ -2496,7 +2645,8 @@ function renderRank(){
       '<td>'+(e.boss?(e.boss>12?esc(BOSSES[e.boss-13].n)+' 하드':esc(BOSSES[e.boss-1].n)):'—')+'</td>'+
       '<td class="num">'+(e.ach||0)+'</td>'+
       '<td class="num">'+e.des+'</td>'+
-      '<td class="num">'+e.tries+'</td></tr>').join('');
+      '<td class="num">'+e.tries+'</td>'+
+      '<td class="num seen">'+ago(e.seen||e.ts)+'</td></tr>').join('');
   }
   const btn=$('postBtn');
   if(!USER){ btn.disabled=true; return; }
@@ -2687,7 +2837,8 @@ function enter(raw,serverSave){
   renderRank(); save();
   lastWall=Date.now();
   if(sv&&sv.ts) offerOffline((Date.now()-sv.ts)/1000);
-  if($('offline').hidden&&attState().can){ renderDaily(); $('attend').hidden=false; }
+  if(!sv||!sv.job){ openJobs('pick'); }
+  else if($('offline').hidden&&attState().can){ renderDaily(); $('attend').hidden=false; }
 }
 
 /* ---------- 자리 비운 시간 메꾸기 ---------- */
@@ -2777,6 +2928,8 @@ $('battle').addEventListener('click',function(){ if(!$('battle').hidden) endBatt
 $('animTog').addEventListener('click',function(){ S.anim=(S.anim===false); updateHunt(); save(); });
 $('burger').addEventListener('click',function(){ $('menu').hidden=false; });
 $('mAtt').addEventListener('click',function(){ $('menu').hidden=true; renderDaily(); $('attend').hidden=false; });
+$('mJob').addEventListener('click',function(){ $('menu').hidden=true; openJobs('change'); });
+$('jobClose').addEventListener('click',function(){ $('jobPick').hidden=true; save(); });
 $('attBtn').addEventListener('click',function(){ ac(); claimDaily(); });
 $('attClose').addEventListener('click',function(){ $('attend').hidden=true; });
 $('menu').addEventListener('click',function(e){ if(e.target===$('menu')) $('menu').hidden=true; });
@@ -2798,7 +2951,7 @@ initOnline();
 
 // 균형 점검용 노출 (게임 동작에는 영향 없음)
 try{ window.__CFG={SF,MAXSTAR,starCost,SHIELD,SLOTS,OPT,POOL,GCAP,UPRATE,UPGRADE,CUBES,
-  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,upRate,nextGrade,BOSS_ART,catchUp,BOSSES,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
+  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,catchUp,BOSSES,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
   get state(){return S;}, cur, power, income, mesoMult, dropMult, starMult, potMultOf, odds, potGrade, topGrade, totalStars, sfBonus}; }catch(e){}
 })();
 </script>
