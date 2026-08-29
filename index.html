@@ -897,11 +897,12 @@ const IGNAME=['레어','에픽','유니크'];
 const GCAP=[1,2,3];
 // 큐브 등급 상승 확률. 등급이 올라갈수록 문이 좁아진다 (한 칸마다 대략 1/4).
 // 공식 페이지는 큐브 종류가 기능만 다르고 확률은 같다고 하지만, 여기서는
-// 블랙·초이스를 레드의 정확히 두 배로 둔다 — 비싼 큐브가 값을 해야 고르는 재미가 있다.
+// 블랙을 레드의 정확히 두 배로 둔다 — 비싼 큐브가 값을 해야 고르는 재미가 있다.
+// 초이스는 등급을 아예 못 올린다. 대신 좋은 줄 둘을 지킨 채 한 줄만 고칠 수 있다.
 const UPRATE={
   red:   [0.06, 0.015, 0.003],
   black: [0.12, 0.030, 0.006],
-  choice:[0.12, 0.030, 0.006]
+  choice:[0,    0,     0]        // 초이스는 등급을 못 올린다 — 줄을 다듬는 도구다
 };
 const upRate=(k,g)=>((UPRATE[k]||UPRATE.red)[g]||0);
 // 승급하면 성수치를 40% 내려놓는다. 대가가 없으면 36성을 찍어놓고 메소만 내면
@@ -913,7 +914,7 @@ const UPGRADE=[{to:1,p:40,cost:400000},{to:2,p:25,cost:2000000}];
 const CUBES=[
   {k:'red',   n:'레드 큐브',  c:'#FF5E6C', ic:'◆', cost:15000,  d:'세 줄 전부 재설정 · 결과 그대로 적용'},
   {k:'black', n:'블랙 큐브',  c:'#FFC94A', ic:'✦', cost:40000,  d:'세 줄 재설정 후 이전/이후를 골라 적용'},
-  {k:'choice',n:'초이스 큐브', c:'#B15CFF', ic:'◈', cost:250000, d:'고른 한 줄만 재설정 · 나머지 두 줄은 그대로. 등급이 오르면 그 줄이 첫 줄로 온다'}
+  {k:'choice',n:'초이스 큐브', c:'#B15CFF', ic:'◈', cost:250000, d:'고른 한 줄만 재설정 · 나머지 두 줄은 그대로'}
 ];
 // 사냥터는 구역 넷으로 나눈다 — 열여섯 줄을 한 화면에 쏟아부으면 고르는 게 아니라 훑는 게 된다.
 // lv  — 입장 레벨. 레벨이 안 되면 전투력이 아무리 높아도 못 들어간다.
@@ -1417,8 +1418,9 @@ function renderCubes(){
     b.style.setProperty('--c',cb.c);
     const fr=freeCube();
     b.disabled=busy||it.broken||(!fr&&S.meso<cb.cost);
-    const gg=potGrade(), cap2=GCAP[it.ig];
-    const up=(gg>=0&&gg<cap2)?' · <b>등급 상승 '+(upRate(cb.k,gg)*100).toFixed(1)+'%</b>':'';
+    const gg=potGrade(), cap2=GCAP[it.ig], ur=upRate(cb.k,gg);
+    const up=(gg>=0&&gg<cap2)
+      ? (ur?' · <b>등급 상승 '+(ur*100).toFixed(1)+'%</b>':' · 등급 상승 없음') : '';
     b.innerHTML='<span class="ic">'+cb.ic+'</span><span><span class="nm">'+cb.n+'</span>'+
       '<span class="rt">'+cb.d+up+'</span></span><span class="pr">'+(fr?'교환권':fmt(cb.cost))+'</span>';
     b.addEventListener('click',function(){ useCube(cb); });
@@ -1427,12 +1429,12 @@ function renderCubes(){
   const cap=GCAP[it.ig], g=potGrade();
   const nxt=g<0?'레어 부여'
     :(g+1<=cap?GNAME[g]+' → '+GNAME[g+1]+' · 레드 '+(upRate('red',g)*100).toFixed(1)+
-      '% · 블랙·초이스 '+(upRate('black',g)*100).toFixed(1)+'%'
+      '% · 블랙 '+(upRate('black',g)*100).toFixed(1)+'% · 초이스 없음'
      :'이 장비의 상한('+GNAME[cap]+')에 도달');
   $('pityV').innerHTML='<b>장비 등급</b>과 <b>잠재 등급</b>은 따로다 — 위 버튼이 장비, 아래 큐브가 잠재.<br>'+
     '지금 <b>'+IGNAME[it.ig]+' 장비</b>라서 잠재는 <b>'+GNAME[cap]+'</b>까지 · 다음 등급 — '+nxt+
     '<br>큐브는 등급을 <b>올리기만 한다.</b> 등급이 오를수록 문이 좁아지고, '+
-    '<b>블랙·초이스는 레드의 두 배</b>로 오른다.';
+    '<b>블랙은 레드의 두 배</b>로 오른다. <b>초이스는 등급을 못 올리는 대신</b> 좋은 줄을 지킨다.';
 }
 function renderRecs(){
   const r=S.st, rate=r.try?((r.suc/r.try)*100).toFixed(1):'0.0';
@@ -1578,8 +1580,6 @@ function spendCube(cb,only){
   if(only>=0){
     after=before.map(function(l){ return Object.assign({},l); });
     after[only]=rollLine(slot,g);
-    // 공식 규칙: 2·3번째 줄을 골랐는데 등급이 오르면 그 줄이 첫번째로 이동한다
-    if(g>(before[0]?before[0].g:-1)&&only>0) after.unshift(after.splice(only,1)[0]);
   }
   else after=[rollLine(slot,g),rollLine(slot,g),rollLine(slot,g)];
   const stops=[420,700,980];
