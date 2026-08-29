@@ -173,7 +173,7 @@ button:disabled{cursor:not-allowed;opacity:.45;}
 .compare{position:fixed;inset:0;z-index:85;display:grid;place-items:center;padding:18px;
   background:rgba(9,6,18,.82);}
 .compare[hidden]{display:none;}
-.cmpcard{width:min(560px,100%);background:linear-gradient(180deg,var(--panel),#15122C);
+.cmpcard{width:min(560px,100%);max-height:calc(100dvh - 36px);overflow-y:auto;background:linear-gradient(180deg,var(--panel),#15122C);
   border:1px solid var(--edge2);border-radius:18px;padding:20px;}
 .cmpcard h2{margin:0 0 14px;font-size:12px;letter-spacing:.2em;color:var(--dimmer);font-weight:900;text-align:center;}
 .cmpbody{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
@@ -438,6 +438,33 @@ td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
   border:1px solid var(--c);border-radius:99px;padding:5px 11px;white-space:nowrap;}
 .bufchip b{font-family:'Bebas Neue',sans-serif;font-size:14px;}
 .bufchip i{font-style:normal;color:var(--dimmer);margin-left:3px;}
+
+/* ---------- 보스 타일 ---------- */
+/* 한 줄에 둘. 그림으로 알아보고, 숫자는 눌러서 본다. */
+.bgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.btile{position:relative;overflow:hidden;display:flex;flex-direction:column;align-items:center;gap:7px;
+  padding:15px 8px 11px;background:#15122C;border:1px solid var(--edge);border-radius:12px;}
+.btile:hover:not(:disabled){border-color:var(--edge2);background:#1B1638;}
+.btile:disabled{opacity:.3;filter:grayscale(1);}
+.btart{width:56px;height:56px;overflow:visible;
+  filter:drop-shadow(0 0 11px var(--c,#4FA8FF)) drop-shadow(0 2px 3px #000A);}
+.btile .btnm{font-weight:900;font-size:12px;line-height:1.25;text-align:center;}
+.btile.cleared .btnm::after{content:"\2713";color:var(--ok);font-size:10px;margin-left:4px;}
+.btile .btcd{position:absolute;top:6px;right:7px;font-family:'Bebas Neue',sans-serif;
+  font-size:13px;letter-spacing:.03em;color:var(--dim);background:#0E0B20D9;
+  border:1px solid var(--edge);border-radius:99px;padding:1px 7px;}
+.btile.cool .btart{opacity:.45;}
+.btile.fighting{border-color:var(--bad);}
+.btile .bar{position:absolute;left:0;top:0;bottom:0;width:var(--p,0%);
+  background:linear-gradient(90deg,#FF4D6A44,#FFC94A55);pointer-events:none;}
+/* 상세창 — 고른 난이도가 뭘 주는지 */
+.bprew{margin-top:12px;background:#15122C;border:1px solid var(--edge);border-radius:10px;
+  padding:11px 13px;text-align:left;}
+.bprew .rh{font-size:10px;font-weight:900;letter-spacing:.14em;color:var(--dimmer);}
+.bprew .rm{font-family:'Bebas Neue',sans-serif;font-size:30px;line-height:1.05;color:var(--meso);
+  letter-spacing:.02em;margin:2px 0 6px;}
+.bprew .rl{display:flex;flex-wrap:wrap;gap:5px 14px;font-size:11.5px;color:var(--dim);line-height:1.6;}
+.bprew .rl b{color:var(--txt);}
 
 /* ---------- 보스 상세 ---------- */
 .bpcard{max-width:460px;}
@@ -811,11 +838,11 @@ td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
         <div class="hlist" id="mapList"></div>
       </div>
       <div>
-        <h3>보스 — 쿨타임이 길수록 크게 준다</h3>
+        <h3>보스 — 눌러서 난이도를 고른다</h3>
         <div class="skills" id="skillBar"></div>
         <p class="sknote" id="skillNote"></p>
 
-        <div class="hlist" id="bossList"></div>
+        <div class="bgrid" id="bossList"></div>
       </div>
     </div>
     <p class="hnote" id="huntNote"></p>
@@ -921,6 +948,7 @@ td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
       </div>
     </div>
     <div class="bpdiffs" id="bpDiffs"></div>
+    <div class="bprew" id="bpRew"></div>
     <p class="attnote" id="bpNote"></p>
     <div class="cmpbtns">
       <button class="btn gold" id="bpGo">도전</button>
@@ -2547,6 +2575,8 @@ const BOSS_ART={
   '<circle cx="32" cy="20" r="2.4" fill="#FFD166" stroke="#7A2A4A" stroke-width="1"/>'
 };
 const bossArt=i=>BOSS_ART[BOSSES[i].n]||BOSS_ART['발록'];
+// 사다리를 넷으로 갈라 색을 준다 — 아래에서 위로 갈수록 뜨거워진다
+const bossHue=i=>['#4FA8FF','#B15CFF','#FF7A3D','#FF4D6A'][Math.min(3,Math.floor(i/6))];
 
 
 /* ---------- 보스 전투 연출 ---------- */
@@ -3112,11 +3142,11 @@ function buildHunt(){
   const bl=$('bossList'); bl.innerHTML='';
   BOSSES.forEach(function(bs,i){
     const b=document.createElement('button');
-    b.className='hrow boss'; b.dataset.boss=i;
-    b.innerHTML='<span class="bar"></span><span class="hn">'+
-      '<svg class="bic" viewBox="0 0 64 64" aria-hidden="true">'+bossArt(i)+'</svg>'+
-      '<span class="bnm">'+bs.n+'</span><span class="ht">'+bs.t+'</span></span>'+
-      '<span class="hr">—</span><span class="hcd">—</span>';
+    b.className='btile'; b.dataset.boss=i;
+    b.style.setProperty('--c',bossHue(i));
+    b.innerHTML='<span class="bar"></span>'+
+      '<svg class="btart" viewBox="0 0 64 64" aria-hidden="true">'+bossArt(i)+'</svg>'+
+      '<span class="btnm">'+bs.n+'</span><span class="btcd" hidden></span>';
     b.addEventListener('click',function(){ ac(); openBoss(i); });
     bl.appendChild(b);
   });
@@ -3148,22 +3178,16 @@ function updateHunt(){
     if(i===best&&!tag) nm.insertAdjacentHTML('beforeend','<span class="best">추천</span>');
     if(i!==best&&tag) tag.remove();
   });
-  $('bossList').querySelectorAll('.hrow').forEach(function(el,i){
-    const bs=BOSSES[i], cd=(S.bcd&&S.bcd[i])||0;
+  $('bossList').querySelectorAll('.btile').forEach(function(el,i){
+    const cd=(S.bcd&&S.bcd[i])||0;
     let top=-1; for(let d=2;d>=0;d--) if(bossHas(i,d)&&clearRate2(i,d,p)>0){ top=d; break; }
     let done=-1; for(let d=2;d>=0;d--) if(bossHas(i,d)&&killsOf(i,d)>0){ done=d; break; }
-    el.querySelector('.bnm').innerHTML=bs.n+'<span class="cyc">'+bs.cyc+'</span>';
-    el.querySelector('.bic').classList.toggle('hard',done>0);
     el.disabled=top<0||fighting>=0;
-    el.classList.toggle('ready',top>=0&&cd<=0&&fighting<0);
+    el.classList.toggle('cool',cd>0);
     el.classList.toggle('cleared',done>=0);
-    el.querySelector('.hr').textContent = top<0 ? '전투력 부족'
-      : (DNAME[top]+' '+Math.round(clearRate2(i,top,p)*100)+'%'+(done>=0?' · 최고 '+DNAME[done]:'')+' · '+bs.t);
-    el.querySelector('.hcd').textContent =
-      fighting===i ? '교전 중…' :
-      top<0 ? '—' :
-      cd>0 ? fmtCd(cd) :
-      fmt(Math.round(bossRewAt(i,top)*mesoMult()));
+    const bd=el.querySelector('.btcd');
+    bd.hidden=!(cd>0||fighting===i);
+    bd.textContent=fighting===i?'교전':fmtCd(cd);
   });
   const m=MAPS[S.map||0];
   $('animTog').setAttribute('aria-checked',String(S.anim!==false));
@@ -3180,7 +3204,7 @@ function openBoss(i){
   const b=BOSSES[i];
   const art=$('bpArt');
   art.innerHTML=bossArt(i);
-  art.style.setProperty('--c',['#4FA8FF','#B15CFF','#FF7A3D','#FF4D6A'][Math.min(3,Math.floor(i/6))]);
+  art.style.setProperty('--c',bossHue(i));
   $('bpName').textContent=b.n;
   // 이번에 고를 난이도를 곰라준다 — 반은 넘기는 것 중 제일 높은 걸 기본값으로
   const pw=power();
@@ -3195,7 +3219,7 @@ function openBoss(i){
 function renderBossPick(){
   const i=pickBoss; if(i<0) return;
   const b=BOSSES[i], p=power(), cd=(S.bcd&&S.bcd[i])||0;
-  $('bpSub').innerHTML=b.cyc+' · 쿨타임 <b>'+fmtCd(b.cd)+'</b> · 주는 것 <b>'+b.t+'</b>'+
+  $('bpSub').innerHTML=b.cyc+' · 쿨타임 <b>'+fmtCd(b.cd)+'</b>'+
     (cd>0?' · <b style="color:var(--bad)">'+fmtCd(cd)+' 남음</b>':'');
   const L=$('bpDiffs'); L.innerHTML='';
   [0,1,2].forEach(function(d){
@@ -3222,11 +3246,22 @@ function renderBossPick(){
   const cr=rr<=0.5?0:rr>=1.45?1:(function(){const x=(rr-0.5)/0.05,k=Math.floor(x);
     return CRT[k]+(CRT[Math.min(CRT.length-1,k+1)]-CRT[k])*(x-k);})();
   const first=killsOf(i,d)===0;
+  // 난이도를 고르면 그게 뭘 주는지 여기에 펼친다
+  const base=Math.round(bossRewAt(i,d)*mesoMult());
+  const lc=legChance(b,d);
+  $('bpRew').innerHTML='<div class="rh">'+DNAME[d]+' 보상</div>'+
+    '<div class="rm">'+fmt(base+(first?firstBonus(i):0))+'</div>'+
+    '<div class="rl">'+
+      (first?'<span>첫 클리어 <b>+'+fmt(firstBonus(i))+'</b></span>':'')+
+      '<span>토벌 증표 <b>'+tokFor(i,d)+'</b>개</span>'+
+      '<span>이길 확률 <b>'+Math.round(cr*100)+'%</b></span>'+
+      '<span>떨구는 것 <b>'+b.t+'</b></span>'+
+      (lc>0?'<span>레전더리 장비 <b>'+(lc*100).toFixed(1)+'%</b></span>':'')+
+    '</div>';
   $('bpNote').innerHTML=cd>0
     ? '아직 쿨타임이다. <b>'+fmtCd(cd)+'</b> 뒤에 다시 올 수 있다 — 자리를 비운 동안에도 쿨은 흐른다.'
     : cr<=0 ? '<b>전투력이 모자란다.</b> 요구치의 절반은 넘겨야 도전할 수 있다.'
-    : ('이길 확률 <b>'+Math.round(cr*100)+'%</b>'+(first?' · <b>첫 클리어 보너스</b>가 붙는다':'')+
-       ' · 증표 <b>'+tokFor(i,d)+'</b>개');
+    : '난이도를 눌러 바꿀 수 있다. 이긴 힘이 남으면 보상이 더 붙는다.';
   const go=$('bpGo');
   go.disabled=cd>0||cr<=0||fighting>=0;
   go.textContent=cd>0?fmtCd(cd):(DNAME[d]+' 도전');
@@ -3247,7 +3282,7 @@ function fightBoss(i){
   if(S.bcd[i]>0||cr<=0) return;
   fighting=i; updateHunt();
   if(S.anim===false){                      // 연출을 끈 경우엔 진행바만
-    const el=$('bossList').querySelectorAll('.hrow')[i];
+    const el=$('bossList').querySelectorAll('.btile')[i];
     const dur=700, t0=Date.now();
     el.classList.add('fighting');
     const iv=setInterval(function(){
@@ -3264,7 +3299,7 @@ function fightBoss(i){
 function resolveBoss(i,win,dmg){
   const bs=BOSSES[i];
   fighting=-1;
-  const el=$('bossList').querySelectorAll('.hrow')[i];
+  const el=$('bossList').querySelectorAll('.btile')[i];
   const q=el?el.getBoundingClientRect():null;
   if(win){
     const d=dIdx(), first=killsOf(i,d)===0;
