@@ -982,6 +982,13 @@ const UPRATE={
   choice:[0,    0,     0]        // 초이스는 등급을 못 올린다 — 줄을 다듬는 도구다
 };
 const upRate=(k,g)=>((UPRATE[k]||UPRATE.red)[g]||0);
+// 잠재가 좋을수록 굴리는 값이 비싸진다. 이게 없으면 잠재가 강화의 3% 값으로
+// 전투력의 40% 를 내서, 별을 박는 쪽이 바보가 된다 (전투력 1당 강화 1012만 vs 잠재 53만).
+// 지금은 잠재 합계가 강화의 49%, 효율 차이 1.30배 — 클릭 품값만큼만 싸다.
+// 초이스는 이미 최후반용으로 값을 매겨놨으니 등급 배수를 걸지 않는다.
+const GCOST=[1,2,4,8];
+const cubeCost=cb=>cb.k==='choice'?cb.cost
+  :Math.round(cb.cost*(GCOST[potGrade()]||1)/1000)*1000;
 // 승급하면 성수치를 40% 내려놓는다. 대가가 없으면 36성을 찍어놓고 메소만 내면
 // 등급이 따라오니, 등급을 언제 올릴지 고민할 이유가 사라진다.
 const UP_LOSS=0.4;
@@ -989,8 +996,8 @@ const UPGRADE=[{to:1,p:40,cost:400000},{to:2,p:25,cost:2000000}];
 // 초이스 큐브가 셋 중 가장 강하다 — 좋은 줄 둘을 지키고 나쁜 줄 하나만 바꾸니까.
 // 그래서 값도 제일 비싸다.
 const CUBES=[
-  {k:'red',   n:'레드 큐브',  c:'#FF5E6C', ic:'◆', cost:15000,  d:'세 줄 전부 재설정 · 결과 그대로 적용'},
-  {k:'black', n:'블랙 큐브',  c:'#FFC94A', ic:'✦', cost:40000,  d:'세 줄 재설정 후 이전/이후를 골라 적용'},
+  {k:'red',   n:'레드 큐브',  c:'#FF5E6C', ic:'◆', cost:100000,  d:'세 줄 전부 재설정 · 결과 그대로 적용'},
+  {k:'black', n:'블랙 큐브',  c:'#FFC94A', ic:'✦', cost:270000,  d:'세 줄 재설정 후 이전/이후를 골라 적용'},
   {k:'choice',n:'초이스 큐브', c:'#B15CFF', ic:'◈', cost:100000000, d:'고른 한 줄만 재설정 · 나머지 두 줄은 그대로'}
 ];
 // 사냥터는 구역 넷으로 나눈다 — 열여섯 줄을 한 화면에 쏟아부으면 고르는 게 아니라 훑는 게 된다.
@@ -1569,12 +1576,13 @@ function renderCubes(){
     b.className='cube'+(choiceMode&&cb.k==='choice'?' armed':'');
     b.style.setProperty('--c',cb.c);
     const fr=freeCube(cb.k);
-    b.disabled=busy||it.broken||(!fr&&S.meso<cb.cost);
+    const cc=cubeCost(cb);
+    b.disabled=busy||it.broken||(!fr&&S.meso<cc);
     const gg=potGrade(), cap2=GCAP[it.ig], ur=upRate(cb.k,gg);
     const up=(gg>=0&&gg<cap2)
       ? (ur?' · <b>등급 상승 '+(ur*100).toFixed(1)+'%</b>':' · 등급 상승 없음') : '';
     b.innerHTML='<span class="ic">'+cb.ic+'</span><span><span class="nm">'+cb.n+'</span>'+
-      '<span class="rt">'+cb.d+up+'</span></span><span class="pr">'+(fr?('보유 '+(S.inv[cb.k]|0)):fmt(cb.cost))+'</span>';
+      '<span class="rt">'+cb.d+up+'</span></span><span class="pr">'+(fr?('보유 '+(S.inv[cb.k]|0)):fmt(cc))+'</span>';
     b.addEventListener('click',function(){ useCube(cb); });
     L.appendChild(b);
   });
@@ -1586,7 +1594,8 @@ function renderCubes(){
   $('pityV').innerHTML='<b>장비 등급</b>과 <b>잠재 등급</b>은 따로다 — 위 버튼이 장비, 아래 큐브가 잠재.<br>'+
     '지금 <b>'+IGNAME[it.ig]+' 장비</b>라서 잠재는 <b>'+GNAME[cap]+'</b>까지 · 다음 등급 — '+nxt+
     '<br>큐브는 등급을 <b>올리기만 한다.</b> 등급이 오를수록 문이 좁아지고, '+
-    '<b>블랙은 레드의 두 배</b>로 오른다. <b>초이스는 등급을 못 올리는 대신</b> 좋은 줄을 지킨다.';
+    '<b>블랙은 레드의 두 배</b>로 오른다. <b>초이스는 등급을 못 올리는 대신</b> 좋은 줄을 지킨다.'+
+    '<br>지금 잠재가 좋을수록 <b>굴리는 값도 비싸진다</b> (레어 기준 ×1 · 에픽 ×2 · 유니크 ×4 · 레전더리 ×8).';
 }
 function renderRecs(){
   const r=S.st, rate=r.try?((r.suc/r.try)*100).toFixed(1):'0.0';
@@ -1706,7 +1715,7 @@ let choiceMode=false;
 const freeCube=k=>!!(S.inv&&(S.inv[k]|0)>0);   // 가진 큐브가 있으면 메소를 안 쓴다
 function useCube(cb){
   const it=cur();
-  if(busy||it.broken||(!freeCube(cb.k)&&S.meso<cb.cost)) return;
+  if(busy||it.broken||(!freeCube(cb.k)&&S.meso<cubeCost(cb))) return;
   if(cb.k==='choice'&&!it.lines.length){ log('먼저 다른 큐브로 잠재능력을 부여하자',''); return; }
   if(cb.k==='choice'){
     choiceMode=!choiceMode;
@@ -1726,7 +1735,7 @@ function pickLine(i){
 function spendCube(cb,only){
   const it=cur(), slot=S.sel||0;
   if(freeCube(cb.k)){ S.inv[cb.k]--; log('가지고 있던 <b>'+cb.n+'</b>을(를) 썼다',''); }
-  else { if(S.meso<cb.cost) return; S.meso-=cb.cost; S.st.spent+=cb.cost; }
+  else { const cc=cubeCost(cb); if(S.meso<cc) return; S.meso-=cc; S.st.spent+=cc; }
   S.st.cube++;
   busy=true; renderCubes(); renderStarPane();
   const before=it.lines.map(function(l){ return Object.assign({},l); });
