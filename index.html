@@ -488,6 +488,8 @@ td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
   filter:drop-shadow(0 0 18px var(--bc)) drop-shadow(0 3px 5px #000A);
   animation:bidle 2.6s ease-in-out infinite;}
 .bart.hard{filter:drop-shadow(0 0 22px #FF4D6A) drop-shadow(0 0 9px #FF4D6A) drop-shadow(0 3px 5px #000A);}
+.bart.chaos{filter:drop-shadow(0 0 26px #B15CFF) drop-shadow(0 0 11px #B15CFF) drop-shadow(0 3px 5px #000A);}
+#dChaos[aria-selected="true"]{color:#DDB4FF;border-color:#B15CFF;background:#1E0F2E;}
 @keyframes bidle{0%,100%{transform:translateY(0) scale(1);}50%{transform:translateY(-5px) scale(1.025);}}
 .bart.t0{--bc:#4FA8FF;} .bart.t1{--bc:#B15CFF;}
 .bart.t2{--bc:#FF7A3D;} .bart.t3{--bc:#FF4D6A;}
@@ -789,7 +791,8 @@ td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
 
         <div class="difftabs">
           <button class="dtab" id="dNormal" aria-selected="true">일반</button>
-          <button class="dtab" id="dHard" aria-selected="false">하드 · 보상 2~4배</button>
+          <button class="dtab" id="dHard" aria-selected="false">하드</button>
+          <button class="dtab" id="dChaos" aria-selected="false">카오스</button>
         </div>
         <div class="hlist" id="bossList"></div>
       </div>
@@ -891,7 +894,7 @@ td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
   <div class="mcard">
     <button class="mitem" data-v="up" aria-selected="true">강화<small>장비창 · 스타포스 · 큐브 · 상점</small></button>
     <button class="mitem" data-v="inv">가방<small>소지품 · 장비 한눈에</small></button>
-    <button class="mitem" data-v="hunt">사냥<small>사냥터 16곳 · 보스 12종</small></button>
+    <button class="mitem" data-v="hunt">사냥<small>사냥터 16곳 · 보스 22종</small></button>
     <button class="mitem" id="mJob">직업<small id="mJobSub">전사</small></button>
     <button class="mitem" id="mAtt">출석<span class="badge" id="attBadge" hidden></span><small>하루 한 번 · 7일 주기</small></button>
     <button class="mitem" data-v="ach">업적<small>41종</small></button>
@@ -1114,34 +1117,57 @@ const MAPS=[
 const zoneOf=i=>{ for(let z=ZONES.length-1;z>=0;z--) if(i>=ZONES[z].s) return z; return 0; };
 const zoneEnd=z=>(z+1<ZONES.length?ZONES[z+1].s:MAPS.length);
 const mapOpen=i=>!!MAPS[i]&&(S.lv||1)>=MAPS[i].lv;
-// 보스마다 보상 성향이 다르다 — 필요한 걸 주는 놈을 골라 잡는 구조
-// 일반과 하드를 각각 정의한다. 두 사다리는 서로 섞여도 된다 —
-// 발록 하드가 자쿰 일반보다 쉽고, 검은 마법사 일반이 아카이럼 하드보다 어렵다.
-// 덕분에 하드를 초반부터 쓸 수 있다. 기준점 둘: 250렙 중장비(1418)에서 하드
-// 아카이럼 64%, 300렙 만렙(3071)에서 하드 검마 88%.
+// 보스는 메m 의 사다리를 그대로 옮겼다. 순서와 하드 배수의 '격차 순서'는 실제와 같고,
+// 요구 전투력만 우리 범위로 눌러 담았다 (실제는 45만~7.6억, 우리는 40~3600).
+// 기존 열두 마리의 요구치는 하나도 건드리지 않았다 — 잡던 보스를 잃는 사람이 없어야 한다.
 //
-// rew/hrew — 보상은 전투력에 비례시키지 않는다. 그렇게 두면 별을 박을수록 보스가
-// 끝없이 커지는데 사냥터는 마지막 지도에서 멈추니, 만렙에서 보스가 사냥을 9배로
-// 잡아먹었다. 대신 "그 보스가 수월해지는 전투력(요구치 x1.2)에서 쿨타임 동안
-// 사냥하면 벌었을 값의 1/4"로 못박았다. 만렙으로 발록을 두들겨도 발록값만 나온다.
-// 하드 배수는 드롭 성격에 따라 다르다 — 큐브·성공권으로 받는 놈은 메소가 짜고
-// (x1.9~2.3), 메소가 전부인 놈은 후하다 (x2.2~4.0). 어느 하드를 돌지가 선택이 된다.
+// cyc  일간 1시간 · 주간 3시간 · 월간 12시간. 메m 의 소탕 주기를 시간 단위로 줄인 것.
+//      쿨이 길어진 만큼 한 번의 보상이 크다. 붙들고 도는 게임이 아니라, 들렀을 때
+//      쌓여 있는 걸 걷어가는 게임이 된다.
+// rew  '그 보스가 수월해지는 전투력에서 쿨타임 동안 사냥하면 벌었을 값'을 15로 나눈 것.
+//      마지막 지도(2500) 위로는 사냥 곡선이 멈추므로 그 위는 이어서 늘려 잡았다 —
+//      안 그러면 상위 보스 보상이 전부 같아져 카링이 검마보다 싸진다.
+// 하드/카오스 배수는 드롭 성향에 따라 다르다. 큐브·성공권으로 받는 놈은 메소가 짜다.
 const BOSSES=[
-  {n:'발록',        req:40,   hreq:75,   cd:12,  rew:10800,   hrew:23800,   t:'메소'},
-  {n:'자쿰',        req:90,   hreq:165,  cd:20,  rew:21700,   hrew:81200,   t:'메소'},
-  {n:'혼테일',      req:160,  hreq:295,  cd:35,  rew:61300,   hrew:189000,  t:'장비'},
-  {n:'파풀라투스',  req:250,  hreq:460,  cd:40,  rew:108000,  hrew:252000,  t:'큐브'},
-  {n:'핑크빈',      req:360,  hreq:665,  cd:50,  rew:211000,  hrew:854000,  t:'메소'},
-  {n:'반 레온',     req:490,  hreq:905,  cd:60,  rew:317000,  hrew:979000,  t:'쉴드'},
-  {n:'매그너스',    req:640,  hreq:1185, cd:75,  rew:539000,  hrew:1520000, t:'장비'},
-  {n:'아카이럼',    req:810,  hreq:1500, cd:85,  rew:780000,  hrew:1630000, t:'큐브'},
-  {n:'루시드',      req:1000, hreq:1820, cd:100, rew:1120000, hrew:3160000, t:'장비'},
-  {n:'윌',          req:1210, hreq:2130, cd:130, rew:1700000, hrew:3820000, t:'성공권'},
-  {n:'진 힐라',     req:1450, hreq:2450, cd:150, rew:2380000, hrew:4410000, t:'큐브'},
-  {n:'검은 마법사', req:1720, hreq:2750, cd:180, rew:3560000, hrew:7940000, t:'전부'}
+  {n:'발록',        cyc:'일간', cd: 3600, req:  40, hreq:  75, creq:   0, rew:   864000, hrew:  1900000, crew:        0, t:'메소'},
+  {n:'자쿰',        cyc:'일간', cd: 3600, req:  90, hreq: 165, creq:   0, rew:  1040000, hrew:  3900000, crew:        0, t:'메소'},
+  {n:'혼테일',      cyc:'일간', cd: 3600, req: 160, hreq: 295, creq:   0, rew:  1680000, hrew:  5180000, crew:        0, t:'장비'},
+  {n:'파풀라투스',  cyc:'일간', cd: 3600, req: 250, hreq: 460, creq:   0, rew:  2600000, hrew:  6050000, crew:        0, t:'큐브'},
+  {n:'핑크빈',      cyc:'일간', cd: 3600, req: 360, hreq: 665, creq:   0, rew:  4060000, hrew: 16400000, crew:        0, t:'메소'},
+  {n:'반 레온',     cyc:'일간', cd: 3600, req: 490, hreq: 905, creq:   0, rew:  5070000, hrew: 15700000, crew:        0, t:'쉴드'},
+  {n:'힐라',        cyc:'일간', cd: 3600, req: 560, hreq:1030, creq:   0, rew:  6290000, hrew: 25000000, crew:        0, t:'메소'},
+  {n:'매그너스',    cyc:'주간', cd:10800, req: 640, hreq:1185, creq:1500, rew: 20700000, hrew: 58500000, crew:118000000, t:'장비'},
+  {n:'아카이럼',    cyc:'주간', cd:10800, req: 810, hreq:1500, creq:1900, rew: 26400000, hrew: 55300000, crew:113000000, t:'큐브'},
+  {n:'아칸',        cyc:'주간', cd:10800, req: 840, hreq:1950, creq:   0, rew: 28400000, hrew: 98900000, crew:        0, t:'장비'},
+  {n:'스우',        cyc:'주간', cd:10800, req: 870, hreq:1470, creq:   0, rew: 29400000, hrew: 73000000, crew:        0, t:'쉴드'},
+  {n:'데미안',      cyc:'주간', cd:10800, req: 920, hreq:1530, creq:   0, rew: 29400000, hrew: 76700000, crew:        0, t:'장비'},
+  {n:'루시드',      cyc:'주간', cd:10800, req:1000, hreq:1820, creq:2480, rew: 32100000, hrew: 91000000, crew:215000000, t:'장비'},
+  {n:'더스크',      cyc:'주간', cd:10800, req:1130, hreq:1870, creq:   0, rew: 36600000, hrew: 68300000, crew:        0, t:'큐브'},
+  {n:'윌',          cyc:'주간', cd:10800, req:1210, hreq:2130, creq:2560, rew: 37600000, hrew: 86600000, crew:166000000, t:'성공권'},
+  {n:'진 힐라',     cyc:'주간', cd:10800, req:1450, hreq:2450, creq:   0, rew: 45600000, hrew: 99600000, crew:        0, t:'큐브'},
+  {n:'아자젤',      cyc:'주간', cd:10800, req:1480, hreq:2590, creq:   0, rew: 45600000, hrew:140000000, crew:        0, t:'쉴드'},
+  {n:'듄켈',        cyc:'주간', cd:10800, req:1590, hreq:2620, creq:   0, rew: 51800000, hrew:142000000, crew:        0, t:'장비'},
+  {n:'선택받은 세렌',cyc:'주간', cd:10800, req:1690, hreq:2710, creq:   0, rew: 56900000, hrew:110000000, crew:        0, t:'큐브'},
+  {n:'검은 마법사', cyc:'월간', cd:43200, req:1720, hreq:2750, creq:   0, rew:228000000, hrew:671000000, crew:        0, t:'전부'},
+  {n:'감시자 칼로스',cyc:'주간', cd:10800, req:1740, hreq:2950, creq:   0, rew: 56900000, hrew:120000000, crew:        0, t:'성공권'},
+  {n:'카링',        cyc:'월간', cd:43200, req:3150, hreq:3600, creq:   0, rew:427000000, hrew:878000000, crew:        0, t:'전부'}
 ];
-const bossReq=i=>S.hard?BOSSES[i].hreq:BOSSES[i].req;
-const bossName=i=>BOSSES[i].n+(S.hard?' 하드':'');
+const DNAME=['일반','하드','카오스'];
+const DCOL=['#8B84B8','#FF8A96','#B15CFF'];
+const dIdx=()=>Math.max(0,Math.min(2,S.diff|0));
+const bossHas=(i,d)=>[BOSSES[i].req,BOSSES[i].hreq,BOSSES[i].creq][d]>0;
+const bossReqAt=(i,d)=>[BOSSES[i].req,BOSSES[i].hreq,BOSSES[i].creq][d]||0;
+const bossRewAt=(i,d)=>[BOSSES[i].rew,BOSSES[i].hrew,BOSSES[i].crew][d]||0;
+const killArr=d=>{ const k=[S.bk,S.bkh,S.bkc][d];
+  if(!Array.isArray(k)||k.length!==BOSSES.length){ const n=BOSSES.map(function(){return 0;});
+    if(d===0)S.bk=n; else if(d===1)S.bkh=n; else S.bkc=n; return n; }
+  return k; };
+const killsOf=(i,d)=>killArr(d)[i]|0;
+// 증표는 소탕 주기의 시간 수 — 일간 1 · 주간 3 · 월간 12. 난이도가 오르면 배로.
+const TOKCY={'일간':1,'주간':3,'월간':12};
+const tokFor=(i,d)=>TOKCY[BOSSES[i].cyc]*(d===2?3:d===1?2:1);
+const bossReq=i=>bossReqAt(i,dIdx());
+const bossName=i=>BOSSES[i].n+(dIdx()?' '+DNAME[dIdx()]:'');
 // 성향별 드롭 확률 [장비, 큐브권, 쉴드권, 성공권]
 const defInv=()=>({red:0, black:0, choice:0, sh:0, sure:0});
 const BTYPE={
@@ -1253,12 +1279,12 @@ const ACH=[
  ['i2','유니크 장비','',                           s=>s.items.some(x=>x.ig>=2), 500000,0,0],
  ['i3','풀 유니크','다섯 부위 전부 유니크 장비',    s=>s.items.every(x=>x.ig>=2),2500000,0,.4],
  ['b1','첫 격파','',                               s=>(s.bk||[]).some(x=>x>0), 100000, 0,0],
- ['b2','매그너스 격파','',                         s=>(s.bk||[])[6]>0,    600000,  0,.2],
- ['b3','윌 격파','',                               s=>(s.bk||[])[9]>0,    2500000, 0,.3],
- ['b4','검은 마법사 격파','',                      s=>(s.bk||[])[11]>0,   8000000, 0,.5],
+ ['b2','매그너스 격파','',                         s=>(s.bk||[])[7]>0,    600000,  0,.2],
+ ['b3','윌 격파','',                               s=>(s.bk||[])[14]>0,    2500000, 0,.3],
+ ['b4','검은 마법사 격파','',                      s=>(s.bk||[])[19]>0,   8000000, 0,.5],
  ['b5','보스 100회','보스를 백 번 잡는다',          s=>(s.bk||[]).reduce((a,x)=>a+x,0)>=100, 1200000, 0,.3],
- ['b6','도감 완성','열두 보스를 전부 잡는다',       s=>(s.bk||[]).every(x=>x>0), 5000000, 0,.6],
- ['b7','하드 도감','열두 보스를 전부 하드로',       s=>(s.bkh||[]).length===BOSSES.length&&(s.bkh||[]).every(x=>x>0), 30000000, 0,1.0],
+ ['b6','도감 완성','스물두 보스를 전부 잡는다',       s=>(s.bk||[]).every(x=>x>0), 5000000, 0,.6],
+ ['b7','하드 도감','하드가 있는 보스를 전부',       s=>BOSSES.every(function(b,i){ return b.hreq<=0||((s.bkh||[])[i]>0); }), 30000000, 0,1.0],
  ['p1','전투력 200','',                            s=>s.st.best>=200,     100000,  0,0],
  ['p2','전투력 400','',                            s=>s.st.best>=400,     700000,  0,0],
  ['p3','전투력 700','',                            s=>s.st.best>=700,     4000000, .3,0],
@@ -1299,7 +1325,7 @@ const dayIdx=()=>Math.floor((Date.now()-new Date().getTimezoneOffset()*60000)/86
 const newItem=i=>({star:0, ig:0, lines:[], broken:false, name:(i===0?WNAMES.war:NAMES[i])[0]});
 const DEF=()=>({
   meso:300000, sel:0, items:SLOTS.map(function(_,i){return newItem(i);}),
-  job:'war', skcd:[0,0,0,0,0], tok:0, buf:{mes:0,drp:0}, useProt:false, useSafe:false, map:0, zone:0, mv:0, anim:true, hard:false, view:'up', lv:1, xp:0, ach:{},
+  job:'war', diff:0, skcd:[0,0,0,0,0], tok:0, buf:{mes:0,drp:0}, useProt:false, useSafe:false, map:0, zone:0, mv:0, anim:true, hard:false, view:'up', lv:1, xp:0, ach:{},
   att:{last:0, day:0, total:0},
   bcd:BOSSES.map(function(){return 0;}), bk:BOSSES.map(function(){return 0;}),
   inv:defInv(), bag:[], evT:0, evCd:180,
@@ -1373,7 +1399,7 @@ function clearRate(i,p){
   const x=(r-0.5)/0.05, k=Math.floor(x), f=x-k;
   return CRT[k]+(CRT[Math.min(CRT.length-1,k+1)]-CRT[k])*f;
 }
-const bossReward=i=>{ const b=BOSSES[i]; return b?Math.round((S.hard?b.hrew:b.rew)*mesoMult()):0; };
+const bossReward=i=>Math.round(bossRewAt(i,dIdx())*mesoMult());
 const firstBonus=i=>{ const b=BOSSES[i]; return b?Math.round(b.rew*3*mesoMult()):0; };
 const income=()=>Math.max(300,mapIncome(S.map||0,power()));
 const fmt=n=>{
@@ -1971,10 +1997,17 @@ function rollDrop(i,bs){
     flash('확정 성공권',bossName(i)+'이(가) 떨궜다','#5CE68A');
   }
   if(!T.eq||Math.random()>=T.eq*dropMult()) return;
-  const g=Math.min(2,dropGrade(bs.req)+(S.hard?1:0)), slot=(Math.random()*SLOTS.length)|0;
+  const g=Math.min(2,dropGrade(bs.req)+dIdx()), slot=(Math.random()*SLOTS.length)|0;
   // 떨어진 장비는 그 자리에서 결정하지 않고 가방에 쌓인다. 급할 게 없다.
   if(!Array.isArray(S.bag)) S.bag=[];
   if(typeof S.tok!=='number') S.tok=0;
+  if(typeof S.diff!=='number') S.diff=S.hard?1:0;      // 하드 불리언 → 난이도 0/1/2
+  delete S.hard;
+  [['bk',0],['bkh',1],['bkc',2]].forEach(function(x){   // 보스가 늘었으니 배열도 늘린다
+    if(!Array.isArray(S[x[0]])) S[x[0]]=[];
+    while(S[x[0]].length<BOSSES.length) S[x[0]].push(0);
+    if(S[x[0]].length>BOSSES.length) S[x[0]].length=BOSSES.length;
+  });
   S.buf=Object.assign({mes:0,drp:0}, S.buf||{});
   if(!Array.isArray(S.skcd)||S.skcd.length!==SKILLS.length) S.skcd=SKILLS.map(function(){return 0;});
   delete S.arm;                              // 장전을 없앴다 — 스킬은 전투 중에만 쓴다
@@ -2047,7 +2080,7 @@ const bufCost=k=>{ const b=BUFFS[k];
 // 값은 '한 바퀴'로 매겼다. 이 게임은 붙들고 하는 게 아니라 가끔 들어와
 // 열두 마리를 쭉 돌고 나가는 것이고, 보스 쿨은 자리 비운 동안에도 흐른다.
 // 한 바퀴 = 일반 25 · 하드 50. 하루 세 번이면 초이스 큐브가 이틀에 하나.
-const tokFor=i=>Math.round(BOSSES[i].cd/40)*(S.hard?2:1);
+
 const TSHOP=[
   {k:'red10',  n:'레드 큐브 ×10',   t:3,   d:function(){ return '가방에 레드 큐브 10개'; },
    can:function(){ return true; }, buy:function(){ S.inv.red=(S.inv.red|0)+10; }},
@@ -2156,9 +2189,10 @@ function renderShop(){
 /* ---------- 보스 그림 ---------- */
 // 넥슨 스프라이트를 가져다 쓸 수는 없으니 열두 마리를 직접 그렸다.
 // 실루엣과 색만으로 구분되게 — 96px 로 줄여도 누군지 알아야 한다.
-const BOSS_ART=[
+// 이름으로 찾는다 — 보스 순서가 바뀌어도 그림이 어긋나지 않는다.
+const BOSS_ART={
   // 발록 — 펼친 박쥐 날개
-  '<path d="M30 26 Q13 10 3 19 Q10 21 9 26 Q16 25 18 31 Q24 29 26 35 Q28 32 30 34 Z" '+
+  '발록': '<path d="M30 26 Q13 10 3 19 Q10 21 9 26 Q16 25 18 31 Q24 29 26 35 Q28 32 30 34 Z" '+
   'fill="#8E1B2E" stroke="#2A0A12" stroke-width="1.4"/>'+
   '<path d="M34 26 Q51 10 61 19 Q54 21 55 26 Q48 25 46 31 Q40 29 38 35 Q36 32 34 34 Z" '+
   'fill="#8E1B2E" stroke="#2A0A12" stroke-width="1.4"/>'+
@@ -2170,7 +2204,7 @@ const BOSS_ART=[
   '<path d="M27 43 l1.5 3.5 M32 44 l0 4 M37 43 l-1.5 3.5" stroke="#FFF" stroke-width="1.1"/>',
 
   // 자쿰 — 용암이 갈라진 돌덩이
-  '<path d="M15 33 L4 24 L7 40 Z" fill="#5A3A22" stroke="#2A1608" stroke-width="1.4"/>'+
+  '자쿰': '<path d="M15 33 L4 24 L7 40 Z" fill="#5A3A22" stroke="#2A1608" stroke-width="1.4"/>'+
   '<path d="M49 33 L60 24 L57 40 Z" fill="#5A3A22" stroke="#2A1608" stroke-width="1.4"/>'+
   '<path d="M15 54 L15 30 Q15 15 32 15 Q49 15 49 30 L49 54 Z" fill="#5A3A22" stroke="#2A1608" stroke-width="1.6"/>'+
   '<path d="M22 20 l3 9 -4 7 M43 19 l-4 10 3 8" fill="none" stroke="#FF7A3D" stroke-width="2.1" stroke-linecap="round"/>'+
@@ -2179,7 +2213,7 @@ const BOSS_ART=[
   '<path d="M27 41 l1.5 4 M32 41 l0 5 M37 41 l-1.5 4" stroke="#2A1608" stroke-width="1.1"/>',
 
   // 혼테일 — 왼쪽을 무는 용의 옆얼굴
-  '<path d="M47 60 Q54 46 47 33" stroke="#1C5A66" stroke-width="11" fill="none" stroke-linecap="round"/>'+
+  '혼테일': '<path d="M47 60 Q54 46 47 33" stroke="#1C5A66" stroke-width="11" fill="none" stroke-linecap="round"/>'+
   '<path d="M52 52 l6 3 -7 2 Z" fill="#2E7D8C" stroke="#0E3A44" stroke-width="1.1"/>'+
   '<path d="M52 43 l6 2 -7 3 Z" fill="#2E7D8C" stroke="#0E3A44" stroke-width="1.1"/>'+
   '<path d="M46 23 Q58 24 55 36 Q48 33 45 30 Z" fill="#2E7D8C" stroke="#0E3A44" stroke-width="1.3"/>'+
@@ -2194,7 +2228,7 @@ const BOSS_ART=[
   '<circle cx="12.5" cy="30" r="1.3" fill="#0E3A44"/>',
 
   // 파풀라투스 — 시계 태엽
-  '<g fill="#3A3560" stroke="#171334" stroke-width="1.2">'+
+  '파풀라투스': '<g fill="#3A3560" stroke="#171334" stroke-width="1.2">'+
   '<rect x="29.5" y="7" width="5" height="8" rx="1.4"/>'+
   '<rect x="29.5" y="7" width="5" height="8" rx="1.4" transform="rotate(45 32 32)"/>'+
   '<rect x="29.5" y="7" width="5" height="8" rx="1.4" transform="rotate(90 32 32)"/>'+
@@ -2211,7 +2245,7 @@ const BOSS_ART=[
   '<circle cx="32" cy="42.5" r="1.3" fill="#171334"/><circle cx="21.5" cy="32" r="1.3" fill="#171334"/>',
 
   // 핑크빈 — 항아리를 쓴 분홍 덩어리
-  '<ellipse cx="32" cy="39" rx="16" ry="15" fill="#FF9EC4" stroke="#7A2A4A" stroke-width="1.6"/>'+
+  '핑크빈': '<ellipse cx="32" cy="39" rx="16" ry="15" fill="#FF9EC4" stroke="#7A2A4A" stroke-width="1.6"/>'+
   '<path d="M22 21 h20 l-2.5 -9 h-15 z" fill="#6B4A2A" stroke="#33200C" stroke-width="1.4"/>'+
   '<rect x="18" y="19" width="28" height="5.5" rx="2.7" fill="#8A6234" stroke="#33200C" stroke-width="1.3"/>'+
   '<circle cx="20" cy="43" r="3.2" fill="#FF6FA8" opacity=".75"/>'+
@@ -2221,7 +2255,7 @@ const BOSS_ART=[
   '<path d="M28 45 q4 4.5 8 0" fill="none" stroke="#7A2A4A" stroke-width="1.9" stroke-linecap="round"/>',
 
   // 반 레온 — 사자 갈기 투구, 대검은 뒤에
-  '<path d="M18 58 L52 12" stroke="#8FA6DA" stroke-width="6" stroke-linecap="round"/>'+
+  '반 레온': '<path d="M18 58 L52 12" stroke="#8FA6DA" stroke-width="6" stroke-linecap="round"/>'+
   '<path d="M19 57 L51 13" stroke="#E8F0FF" stroke-width="2.4" stroke-linecap="round"/>'+
   '<path d="M15 50 L26 58" stroke="#C98A2E" stroke-width="4.5" stroke-linecap="round"/>'+
   '<path d="M32 8 L38 14 L46 12 L45 20 L52 24 L46 30 L48 38 L40 38 L36 45 L32 40 L28 45 L24 38 L16 38 L18 30 L12 24 L19 20 L18 12 L26 14 Z" '+
@@ -2233,7 +2267,7 @@ const BOSS_ART=[
   '<path d="M32 30 v2 M32 32 q-3 2.5 -5 .5 M32 32 q3 2.5 5 .5" fill="none" stroke="#4A2E06" stroke-width="1.3" stroke-linecap="round"/>',
 
   // 매그너스 — 뿔 투구와 검은 날개
-  '<path d="M28 24 Q11 11 2 22 Q11 21 11 27 Q19 25 22 32 Q25 29 28 31 Z" '+
+  '매그너스': '<path d="M28 24 Q11 11 2 22 Q11 21 11 27 Q19 25 22 32 Q25 29 28 31 Z" '+
   'fill="#241F45" stroke="#6660B0" stroke-width="1.5"/>'+
   '<path d="M36 24 Q53 11 62 22 Q53 21 53 27 Q45 25 42 32 Q39 29 36 31 Z" '+
   'fill="#241F45" stroke="#6660B0" stroke-width="1.5"/>'+
@@ -2246,7 +2280,7 @@ const BOSS_ART=[
   '<path d="M26 46 h12 v4 h-12 z" fill="#C98A2E" stroke="#0C0A1C" stroke-width="1.2"/>',
 
   // 아카이럼 — 팔 넷 달린 뿔 악마
-  '<g stroke="#6B2FA8" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round">'+
+  '아카이럼': '<g stroke="#6B2FA8" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round">'+
   '<path d="M23 27 L11 18 L7 25"/><path d="M41 27 L53 18 L57 25"/>'+
   '<path d="M23 36 L9 39 L11 47"/><path d="M41 36 L55 39 L53 47"/></g>'+
   '<path d="M24 21 Q17 9 21 4 Q27 10 28 18 Z" fill="#D6B4F0" stroke="#2C1046" stroke-width="1.3"/>'+
@@ -2259,7 +2293,7 @@ const BOSS_ART=[
   '<path d="M29 34 l.8 3 M32 34 l0 3.5 M35 34 l-.8 3" stroke="#FFF" stroke-width="1"/>',
 
   // 루시드 — 나비 날개와 가면
-  '<path d="M29 30 Q10 12 6 28 Q4 42 26 40 Z" fill="#B15CFF" stroke="#3A1560" stroke-width="1.5" opacity=".95"/>'+
+  '루시드': '<path d="M29 30 Q10 12 6 28 Q4 42 26 40 Z" fill="#B15CFF" stroke="#3A1560" stroke-width="1.5" opacity=".95"/>'+
   '<path d="M35 30 Q54 12 58 28 Q60 42 38 40 Z" fill="#B15CFF" stroke="#3A1560" stroke-width="1.5" opacity=".95"/>'+
   '<path d="M27 40 Q12 44 12 54 Q22 54 28 46 Z" fill="#FF7FC4" stroke="#3A1560" stroke-width="1.4"/>'+
   '<path d="M37 40 Q52 44 52 54 Q42 54 36 46 Z" fill="#FF7FC4" stroke="#3A1560" stroke-width="1.4"/>'+
@@ -2270,7 +2304,7 @@ const BOSS_ART=[
   '<circle cx="30" cy="24" r="1.7" fill="#3A1560"/><circle cx="34" cy="24" r="1.7" fill="#3A1560"/>',
 
   // 윌 — 거미
-  '<g stroke="#3A0A18" stroke-width="3.4" fill="none" stroke-linecap="round">'+
+  '윌': '<g stroke="#3A0A18" stroke-width="3.4" fill="none" stroke-linecap="round">'+
   '<path d="M24 32 L8 20 L4 30"/><path d="M24 36 L6 36 L3 45"/>'+
   '<path d="M24 40 L9 50 L12 58"/><path d="M40 32 L56 20 L60 30"/>'+
   '<path d="M40 36 L58 36 L61 45"/><path d="M40 40 L55 50 L52 58"/></g>'+
@@ -2282,7 +2316,7 @@ const BOSS_ART=[
   '<circle cx="30" cy="24.5" r="1.2" fill="#FFD166"/><circle cx="34" cy="24.5" r="1.2" fill="#FFD166"/>',
 
   // 진 힐라 — 낫을 든 후드
-  '<path d="M14 14 L50 50" stroke="#4A4A52" stroke-width="3.2" stroke-linecap="round"/>'+
+  '진 힐라': '<path d="M14 14 L50 50" stroke="#4A4A52" stroke-width="3.2" stroke-linecap="round"/>'+
   '<path d="M14 14 Q4 20 8 32 Q16 24 22 22 Z" fill="#CFE2FF" stroke="#1B2430" stroke-width="1.4"/>'+
   '<path d="M32 12 Q46 12 46 30 L48 52 L16 52 L18 30 Q18 12 32 12 Z" fill="#123024" stroke="#04140C" stroke-width="1.7"/>'+
   '<path d="M32 18 Q42 18 42 30 L40 40 L24 40 L22 30 Q22 18 32 18 Z" fill="#04140C"/>'+
@@ -2291,7 +2325,7 @@ const BOSS_ART=[
   '<path d="M16 52 q16 5 32 0" fill="none" stroke="#04140C" stroke-width="1.5"/>',
 
   // 검은 마법사 — 왕관과 지팡이, 보랏빛 불꽃
-  '<path d="M50 56 L50 14" stroke="#2B2550" stroke-width="3.4" stroke-linecap="round"/>'+
+  '검은 마법사': '<path d="M50 56 L50 14" stroke="#2B2550" stroke-width="3.4" stroke-linecap="round"/>'+
   '<circle cx="50" cy="11" r="5" fill="#B15CFF" stroke="#1A0A30" stroke-width="1.4"/>'+
   '<path d="M32 10 Q48 10 48 32 L52 56 L12 56 L16 32 Q16 10 32 10 Z" fill="#15122C" stroke="#05030F" stroke-width="1.8"/>'+
   '<path d="M20 30 L26 46 L32 30 L38 46 L44 30" fill="none" stroke="#B15CFF" stroke-width="1.6" opacity=".55"/>'+
@@ -2299,8 +2333,100 @@ const BOSS_ART=[
   '<circle cx="32" cy="10" r="1.8" fill="#FF4D6A"/>'+
   '<path d="M22 22 Q32 18 42 22 L42 30 Q32 34 22 30 Z" fill="#05030F"/>'+
   '<circle cx="27" cy="26" r="2.7" fill="#FF4D6A"/><circle cx="37" cy="26" r="2.7" fill="#FF4D6A"/>'+
-  '<circle cx="27" cy="26" r="1" fill="#FFE9A8"/><circle cx="37" cy="26" r="1" fill="#FFE9A8"/>'
-];
+  '<circle cx="27" cy="26" r="1" fill="#FFE9A8"/><circle cx="37" cy="26" r="1" fill="#FFE9A8"/>',
+
+  // 힐라 \u2014 붉은 머리 마녀, 진 힐라의 앞 단계
+  '힐라': '<path d="M46 54 L18 20" stroke="#4A4A52" stroke-width="2.8" stroke-linecap="round"/>'+
+  '<circle cx="18" cy="18" r="4.4" fill="#FF4D6A" stroke="#3A0A18" stroke-width="1.3"/>'+
+  '<path d="M32 12 Q46 14 46 32 L48 52 L16 52 L18 32 Q18 14 32 12 Z" fill="#7A1330" stroke="#3A0A18" stroke-width="1.7"/>'+
+  '<path d="M22 14 Q32 6 42 14 Q38 22 32 20 Q26 22 22 14 Z" fill="#E8365C" stroke="#3A0A18" stroke-width="1.3"/>'+
+  '<path d="M32 20 Q40 22 40 32 L38 40 L26 40 L24 32 Q24 22 32 20 Z" fill="#2A0A12"/>'+
+  '<circle cx="28" cy="30" r="2.4" fill="#FFD166"/><circle cx="36" cy="30" r="2.4" fill="#FFD166"/>'+
+  '<path d="M27 36 q5 3 10 0" fill="none" stroke="#FFD166" stroke-width="1.2" opacity=".6"/>',
+
+  // 아칸 \u2014 검은 장발에 보랏빛
+  '아칸': '<path d="M32 10 Q50 12 50 34 Q50 50 32 56 Q14 50 14 34 Q14 12 32 10 Z" fill="#15122C" stroke="#05030F" stroke-width="1.7"/>'+
+  '<path d="M20 20 q6 -8 12 -8 q6 0 12 8 q-6 -3 -12 -3 q-6 0 -12 3 Z" fill="#B15CFF" opacity=".7"/>'+
+  '<path d="M17 30 q3 14 15 20 q-10 -2 -15 -10 Z" fill="#B15CFF" opacity=".5"/>'+
+  '<path d="M47 30 q-3 14 -15 20 q10 -2 15 -10 Z" fill="#B15CFF" opacity=".5"/>'+
+  '<path d="M22 28 Q32 24 42 28 L42 36 Q32 40 22 36 Z" fill="#05030F"/>'+
+  '<path d="M26 31 l5 2 -5 2.5 Z" fill="#DDB4FF"/><path d="M38 31 l-5 2 5 2.5 Z" fill="#DDB4FF"/>'+
+  '<path d="M27 44 q5 4 10 0" fill="none" stroke="#B15CFF" stroke-width="1.5" stroke-linecap="round"/>',
+
+  // 스우 \u2014 흰 돔과 금속 고리
+  '스우': '<circle cx="32" cy="34" r="19" fill="none" stroke="#5A6488" stroke-width="2.6"/>'+
+  '<path d="M13 34 h38" stroke="#5A6488" stroke-width="2.2"/>'+
+  '<path d="M13 34 Q32 6 51 34 Z" fill="#E8EEF8" stroke="#2A2450" stroke-width="1.7"/>'+
+  '<path d="M22 34 Q32 16 42 34 Z" fill="#B9C6E0"/>'+
+  '<circle cx="32" cy="28" r="3.6" fill="#4FA8FF" stroke="#2A2450" stroke-width="1.2"/>'+
+  '<rect x="14" y="36" width="36" height="7" rx="3" fill="#5A6488" stroke="#2A2450" stroke-width="1.4"/>'+
+  '<path d="M20 43 l-3 10 M32 43 l0 11 M44 43 l3 10" stroke="#5A6488" stroke-width="2.6" stroke-linecap="round"/>',
+
+  // 데미안 \u2014 붉은 망토와 보라 대검
+  '데미안': '<path d="M20 26 Q8 34 10 52 Q20 48 24 40 Z" fill="#7A1330" stroke="#3A0A18" stroke-width="1.4"/>'+
+  '<path d="M44 26 Q56 34 54 52 Q44 48 40 40 Z" fill="#7A1330" stroke="#3A0A18" stroke-width="1.4"/>'+
+  '<path d="M48 56 L52 12" stroke="#B15CFF" stroke-width="4.4" stroke-linecap="round"/>'+
+  '<path d="M45 34 L57 36" stroke="#5A6488" stroke-width="3.4" stroke-linecap="round"/>'+
+  '<path d="M32 50 L22 44 L22 26 L32 18 L42 26 L42 44 Z" fill="#2B2550" stroke="#0C0A1C" stroke-width="1.7"/>'+
+  '<path d="M24 26 L32 20 L40 26 L32 32 Z" fill="#B15CFF" stroke="#0C0A1C" stroke-width="1.3"/>'+
+  '<path d="M27 36 l5 2 -5 2.5 Z" fill="#FF4D6A"/><path d="M37 36 l-5 2 5 2.5 Z" fill="#FF4D6A"/>',
+
+  // 더스크 \u2014 회색 첨탑과 외눈
+  '더스크': '<path d="M32 4 L46 30 L44 54 L20 54 L18 30 Z" fill="#3A3560" stroke="#171334" stroke-width="1.7"/>'+
+  '<path d="M32 4 L38 30 L26 30 Z" fill="#5A54A0"/>'+
+  '<path d="M18 30 L10 40 L14 52 Z" fill="#2B2550" stroke="#171334" stroke-width="1.3"/>'+
+  '<path d="M46 30 L54 40 L50 52 Z" fill="#2B2550" stroke="#171334" stroke-width="1.3"/>'+
+  '<ellipse cx="32" cy="36" rx="9" ry="7" fill="#DAD4F4" stroke="#171334" stroke-width="1.5"/>'+
+  '<ellipse cx="32" cy="36" rx="3" ry="6" fill="#171334"/>'+
+  '<path d="M22 48 h20" stroke="#171334" stroke-width="1.4" opacity=".6"/>',
+
+  // 아자젤 \u2014 푸른 갑각
+  '아자젤': '<g stroke="#2E5A9E" stroke-width="3.4" fill="none" stroke-linecap="round">'+
+  '<path d="M24 30 L8 18 L5 28"/><path d="M40 30 L56 18 L59 28"/>'+
+  '<path d="M24 42 L9 50 L13 58"/><path d="M40 42 L55 50 L51 58"/></g>'+
+  '<path d="M32 52 L20 42 L20 24 L32 14 L44 24 L44 42 Z" fill="#3A5CA8" stroke="#152A50" stroke-width="1.7"/>'+
+  '<path d="M32 18 L38 26 L32 34 L26 26 Z" fill="#DAE6FF" stroke="#152A50" stroke-width="1.3"/>'+
+  '<path d="M32 34 L32 46 M24 40 h16" stroke="#DAE6FF" stroke-width="2.2"/>'+
+  '<path d="M25 24 l4 2 -4 2 Z" fill="#7CFFB0"/><path d="M39 24 l-4 2 4 2 Z" fill="#7CFFB0"/>',
+
+  // 듄켈 \u2014 어둠의 다리
+  '듄켈': '<g stroke="#241F45" stroke-width="4" fill="none" stroke-linecap="round">'+
+  '<path d="M26 26 L10 10 L6 22"/><path d="M38 26 L54 10 L58 22"/>'+
+  '<path d="M24 38 L6 40 L10 52"/><path d="M40 38 L58 40 L54 52"/></g>'+
+  '<path d="M32 56 Q18 46 18 30 Q18 14 32 12 Q46 14 46 30 Q46 46 32 56 Z" fill="#1B1638" stroke="#05030F" stroke-width="1.7"/>'+
+  '<path d="M24 22 L30 30 L24 34 Z" fill="#FF4D6A"/><path d="M40 22 L34 30 L40 34 Z" fill="#FF4D6A"/>'+
+  '<path d="M25 42 q7 6 14 0 q-7 3 -14 0 Z" fill="#FF4D6A" opacity=".8"/>'+
+  '<path d="M32 12 L28 3 L36 3 Z" fill="#5A54A0" stroke="#05030F" stroke-width="1.2"/>',
+
+  // 선택받은 세렌 \u2014 금빛 고리와 해
+  '선택받은 세렌': '<circle cx="32" cy="30" r="17" fill="none" stroke="#FFC94A" stroke-width="4"/>'+
+  '<circle cx="32" cy="30" r="10" fill="#FFE9A8" stroke="#8A6234" stroke-width="1.5"/>'+
+  '<g stroke="#FFC94A" stroke-width="2.6" stroke-linecap="round">'+
+  '<path d="M32 5 v6"/><path d="M32 49 v6"/><path d="M7 30 h6"/><path d="M51 30 h6"/>'+
+  '<path d="M14 12 l4 4"/><path d="M50 12 l-4 4"/><path d="M14 48 l4 -4"/><path d="M50 48 l-4 -4"/></g>'+
+  '<path d="M27 28 l5 2 -5 2 Z" fill="#8A6234"/><path d="M37 28 l-5 2 5 2 Z" fill="#8A6234"/>'+
+  '<path d="M27 36 q5 4 10 0" fill="none" stroke="#8A6234" stroke-width="1.4" stroke-linecap="round"/>',
+
+  // 감시자 칼로스 \u2014 불꽃과 검은 뿔 투구
+  '감시자 칼로스': '<path d="M32 2 Q42 14 40 26 Q46 20 48 12 Q56 26 50 40 Q44 52 32 54 Q20 52 14 40 Q8 26 16 12 Q18 20 24 26 Q22 14 32 2 Z" '+
+  'fill="#FF7A3D" stroke="#7A2A08" stroke-width="1.4" opacity=".85"/>'+
+  '<path d="M32 50 L22 42 L22 26 L32 20 L42 26 L42 42 Z" fill="#15122C" stroke="#05030F" stroke-width="1.7"/>'+
+  '<path d="M22 26 L16 14 L26 20 Z" fill="#2B2550" stroke="#05030F" stroke-width="1.2"/>'+
+  '<path d="M42 26 L48 14 L38 20 Z" fill="#2B2550" stroke="#05030F" stroke-width="1.2"/>'+
+  '<path d="M26 32 l6 2.5 -6 3 Z" fill="#FFD166"/><path d="M38 32 l-6 2.5 6 3 Z" fill="#FFD166"/>'+
+  '<path d="M27 43 h10" stroke="#FFD166" stroke-width="1.6"/>',
+
+  // 카링 \u2014 분홍 얼굴에 자주 뿔
+  '카링': '<path d="M20 20 Q10 8 6 12 Q10 18 14 26 Z" fill="#8B4BC7" stroke="#2C1046" stroke-width="1.4"/>'+
+  '<path d="M44 20 Q54 8 58 12 Q54 18 50 26 Z" fill="#8B4BC7" stroke="#2C1046" stroke-width="1.4"/>'+
+  '<path d="M32 56 Q16 46 16 30 Q16 14 32 12 Q48 14 48 30 Q48 46 32 56 Z" fill="#FF6FA8" stroke="#7A2A4A" stroke-width="1.7"/>'+
+  '<path d="M32 12 Q40 16 42 26 Q32 22 22 26 Q24 16 32 12 Z" fill="#8B4BC7" opacity=".6"/>'+
+  '<path d="M24 30 l7 3 -7 3.5 Z" fill="#2C1046"/><path d="M40 30 l-7 3 7 3.5 Z" fill="#2C1046"/>'+
+  '<path d="M25 42 q7 7 14 0 q-7 3 -14 0 Z" fill="#7A2A4A"/>'+
+  '<circle cx="32" cy="20" r="2.4" fill="#FFD166" stroke="#7A2A4A" stroke-width="1"/>'
+};
+const bossArt=i=>BOSS_ART[BOSSES[i].n]||BOSS_ART['발록'];
+
 
 /* ---------- 보스 전투 연출 ---------- */
 let battleTimers=[], battleDone=null;
@@ -2326,8 +2452,8 @@ function bossBattle(i,done){
   const bs=BOSSES[i];
   battleDone=done; battleTimers=[];
   const art=$('bArt');
-  art.innerHTML=BOSS_ART[i]||BOSS_ART[0];
-  art.setAttribute('class','bart t'+Math.min(3,Math.floor(i/3))+(S.hard?' hard':''));
+  art.innerHTML=bossArt(i);
+  art.setAttribute('class','bart t'+Math.min(3,Math.floor(i/6))+(dIdx()===2?' chaos':dIdx()===1?' hard':''));
   $('meArt').innerHTML=WEAPON_ART[jobKey()]||WEAPON_ART.war;
   $('meName').textContent=curJob().n;
   $('bName').textContent=bossName(i);
@@ -2496,8 +2622,10 @@ function offerOffline(sec){
 }
 
 function renderDiffTabs(){
-  $('dNormal').setAttribute('aria-selected',String(!S.hard));
-  $('dHard').setAttribute('aria-selected',String(!!S.hard));
+  const d=dIdx();
+  $('dNormal').setAttribute('aria-selected',String(d===0));
+  $('dHard').setAttribute('aria-selected',String(d===1));
+  $('dChaos').setAttribute('aria-selected',String(d===2));
 }
 /* ---------- 출석 ---------- */
 function attState(){
@@ -2870,7 +2998,7 @@ function buildHunt(){
     const b=document.createElement('button');
     b.className='hrow boss'; b.dataset.boss=i;
     b.innerHTML='<span class="bar"></span><span class="hn">'+
-      '<svg class="bic" viewBox="0 0 64 64" aria-hidden="true">'+(BOSS_ART[i]||'')+'</svg>'+
+      '<svg class="bic" viewBox="0 0 64 64" aria-hidden="true">'+bossArt(i)+'</svg>'+
       '<span class="bnm">'+bs.n+'</span><span class="ht">'+bs.t+'</span></span>'+
       '<span class="hr">—</span><span class="hcd">—</span>';
     b.addEventListener('click',function(){ ac(); fightBoss(i); });
@@ -2880,8 +3008,10 @@ function buildHunt(){
   huntBuilt=true;
 }
 function renderDiff(){
-  $('dNormal').setAttribute('aria-selected',String(!S.hard));
-  $('dHard').setAttribute('aria-selected',String(!!S.hard));
+  const d=dIdx();
+  $('dNormal').setAttribute('aria-selected',String(d===0));
+  $('dHard').setAttribute('aria-selected',String(d===1));
+  $('dChaos').setAttribute('aria-selected',String(d===2));
   updateHunt(); save();
 }
 function updateHunt(){
@@ -2910,19 +3040,21 @@ function updateHunt(){
     if(i!==best&&tag) tag.remove();
   });
   $('bossList').querySelectorAll('.hrow').forEach(function(el,i){
+    el.hidden=!bossHas(i,dIdx());
+    if(el.hidden) return;
     const bs=BOSSES[i], cd=(S.bcd&&S.bcd[i])||0, cr=clearRate(i,p);
-    const cleared=S.hard?((S.bkh&&S.bkh[i])>0):((S.bk&&S.bk[i])>0);
+    const cleared=killsOf(i,dIdx())>0;
     el.querySelector('.bnm').textContent=bossName(i);
-    el.querySelector('.bic').classList.toggle('hard',!!S.hard);
+    el.querySelector('.bic').classList.toggle('hard',dIdx()>0);
     el.disabled=cr<=0||cd>0||fighting>=0;
     el.classList.toggle('ready',cr>0&&cd<=0&&fighting<0);
     el.classList.toggle('cleared',cleared);
-    el.querySelector('.hr').textContent='요구 '+bossReq(i)+' · '+bs.cd+'초 · 클리어 '+Math.round(cr*100)+'%'+
-      (S.hard?' · 메소 x'+(bs.hrew/bs.rew).toFixed(1):'');
+    el.querySelector('.hr').textContent=bs.cyc+' · 요구 '+bossReq(i)+' · 클리어 '+Math.round(cr*100)+'%'+
+      (dIdx()?' · 메소 x'+(bossRewAt(i,dIdx())/bs.rew).toFixed(1):'');
     el.querySelector('.hcd').textContent =
       fighting===i ? '교전 중…' :
       cr<=0 ? '전투력 부족' :
-      cd>0 ? Math.ceil(cd)+'초' :
+      cd>0 ? fmtCd(cd) :
       (cleared?'+':'첫 클리어 +')+fmt(bossReward(i)+(cleared?0:firstBonus(i)));
   });
   const m=MAPS[S.map||0];
@@ -2963,13 +3095,12 @@ function resolveBoss(i,win,dmg){
   const el=$('bossList').querySelectorAll('.hrow')[i];
   const q=el?el.getBoundingClientRect():null;
   if(win){
-    const first=S.hard?!((S.bkh||[])[i]>0):!(S.bk[i]>0);
+    const d=dIdx(), first=killsOf(i,d)===0;
     let r=bossReward(i);
     if(first) r+=firstBonus(i);
     if(dmg) r=Math.round(r*(1+dmg*0.5));   // 이미 잡을 상대였다면 남는 힘이 보상으로
-    if(S.hard){ if(!S.bkh||S.bkh.length!==BOSSES.length) S.bkh=BOSSES.map(function(){return 0;}); S.bkh[i]++; }
-    else S.bk[i]++;
-    const tk=tokFor(i);
+    killArr(d)[i]++;
+    const tk=tokFor(i,d);
     if(tk){ S.tok=(S.tok|0)+tk; }
     S.meso+=r; S.bcd[i]=bs.cd;
     gainXp(Math.round(bs.rew/2000*expMult()));
@@ -3477,8 +3608,9 @@ $('attBtn').addEventListener('click',function(){ ac(); claimDaily(); });
 $('attClose').addEventListener('click',function(){ $('attend').hidden=true; });
 $('menu').addEventListener('click',function(e){ if(e.target===$('menu')) $('menu').hidden=true; });
 document.querySelectorAll('.mitem').forEach(function(b){ b.addEventListener('click',function(){ showView(b.dataset.v); }); });
-$('dNormal').addEventListener('click',function(){ S.hard=false; renderDiff(); });
-$('dHard').addEventListener('click',function(){ S.hard=true; renderDiff(); });
+$('dNormal').addEventListener('click',function(){ S.diff=0; renderDiff(); });
+$('dHard').addEventListener('click',function(){ S.diff=1; renderDiff(); });
+$('dChaos').addEventListener('click',function(){ S.diff=2; renderDiff(); });
 addEventListener('visibilitychange',()=>{ if(document.hidden){ save(); pushSave(true); } });
 
 /* ---------- 시작 ---------- */
@@ -3494,7 +3626,7 @@ initOnline();
 
 // 균형 점검용 노출 (게임 동작에는 영향 없음)
 try{ window.__CFG={SF,MAXSTAR,starCost,SHIELD,SLOTS,OPT,POOL,GCAP,UPRATE,UPGRADE,CUBES,
-  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,catchUp,BOSSES,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
+  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
   get state(){return S;}, cur, power, income, mesoMult, dropMult, starMult, potMultOf, odds, potGrade, topGrade, totalStars, sfBonus}; }catch(e){}
 })();
 </script>
