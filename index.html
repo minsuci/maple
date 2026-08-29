@@ -378,17 +378,14 @@ button:disabled{cursor:not-allowed;opacity:.45;}
 .bside.foe.hit .bavatar{transform:translateX(-38%) scale(1.06);}
 .bside.dmg .bavatar{animation:bshake .22s;}
 @keyframes bshake{25%{transform:translateX(-7px)}50%{transform:translateX(7px)}75%{transform:translateX(-4px)}}
-.borb{width:96px;height:96px;border-radius:50%;position:relative;
-  background:radial-gradient(circle at 36% 30%, var(--bc2), var(--bc) 62%, #100A1E 100%);
-  box-shadow:0 0 34px -6px var(--bc), inset 0 0 24px #0008;}
-.borb i{position:absolute;top:38px;width:15px;height:8px;border-radius:50%;background:#FFF;
-  box-shadow:0 0 12px #FFF;}
-.borb i:nth-child(1){left:20px;transform:rotate(12deg);}
-.borb i:nth-child(2){right:20px;transform:rotate(-12deg);}
-.borb.t0{--bc:#4FA8FF;--bc2:#9CD2FF;}
-.borb.t1{--bc:#B15CFF;--bc2:#DDB4FF;}
-.borb.t2{--bc:#FF7A3D;--bc2:#FFC49C;}
-.borb.t3{--bc:#FF4D6A;--bc2:#FFB0BC;}
+/* 보스 그림 — 뒤에 티어 색으로 후광을 깔고, 숨 쉬듯 떠 있게 둔다 */
+.bart{width:112px;height:112px;overflow:visible;
+  filter:drop-shadow(0 0 18px var(--bc)) drop-shadow(0 3px 5px #000A);
+  animation:bidle 2.6s ease-in-out infinite;}
+.bart.hard{filter:drop-shadow(0 0 22px #FF4D6A) drop-shadow(0 0 9px #FF4D6A) drop-shadow(0 3px 5px #000A);}
+@keyframes bidle{0%,100%{transform:translateY(0) scale(1);}50%{transform:translateY(-5px) scale(1.025);}}
+.bart.t0{--bc:#4FA8FF;} .bart.t1{--bc:#B15CFF;}
+.bart.t2{--bc:#FF7A3D;} .bart.t3{--bc:#FF4D6A;}
 .bname{font-family:'Gowun Batang',serif;font-weight:700;font-size:15px;color:var(--text);}
 .bhp{width:100%;max-width:190px;height:9px;border-radius:99px;background:#1B1030;
   border:1px solid var(--edge);overflow:hidden;}
@@ -762,7 +759,7 @@ button:disabled{cursor:not-allowed;opacity:.45;}
       </div>
       <div class="bvs">VS</div>
       <div class="bside foe" id="bFoe">
-        <div class="bavatar"><div class="borb t0" id="bOrb"><i></i><i></i></div></div>
+        <div class="bavatar"><svg class="bart t0" id="bArt" viewBox="0 0 64 64" width="112" height="112" aria-hidden="true"></svg></div>
         <div class="bname" id="bName">보스</div>
         <div class="bhp"><span id="foeHp"></span></div>
       </div>
@@ -1708,6 +1705,155 @@ function renderShop(){
   $('shopNote').innerHTML='큐브 교환권은 상점에 없다 — 그건 <b>파풀라투스·아카이럼·진 힐라</b>를 잡아야 나온다.';
 }
 
+/* ---------- 보스 그림 ---------- */
+// 넥슨 스프라이트를 가져다 쓸 수는 없으니 열두 마리를 직접 그렸다.
+// 실루엣과 색만으로 구분되게 — 96px 로 줄여도 누군지 알아야 한다.
+const BOSS_ART=[
+  // 발록 — 펼친 박쥐 날개
+  '<path d="M30 26 Q13 10 3 19 Q10 21 9 26 Q16 25 18 31 Q24 29 26 35 Q28 32 30 34 Z" '+
+  'fill="#8E1B2E" stroke="#2A0A12" stroke-width="1.4"/>'+
+  '<path d="M34 26 Q51 10 61 19 Q54 21 55 26 Q48 25 46 31 Q40 29 38 35 Q36 32 34 34 Z" '+
+  'fill="#8E1B2E" stroke="#2A0A12" stroke-width="1.4"/>'+
+  '<path d="M22 21 L18 8 L27 18 Z" fill="#F0D8A0" stroke="#2A0A12" stroke-width="1.3"/>'+
+  '<path d="M42 21 L46 8 L37 18 Z" fill="#F0D8A0" stroke="#2A0A12" stroke-width="1.3"/>'+
+  '<ellipse cx="32" cy="36" rx="12" ry="15" fill="#C4293F" stroke="#2A0A12" stroke-width="1.6"/>'+
+  '<path d="M26 30 l5 3 -5 2.5 Z" fill="#FFD166"/><path d="M38 30 l-5 3 5 2.5 Z" fill="#FFD166"/>'+
+  '<path d="M25 43 q7 6 14 0 q-7 2 -14 0 Z" fill="#2A0A12"/>'+
+  '<path d="M27 43 l1.5 3.5 M32 44 l0 4 M37 43 l-1.5 3.5" stroke="#FFF" stroke-width="1.1"/>',
+
+  // 자쿰 — 용암이 갈라진 돌덩이
+  '<path d="M15 33 L4 24 L7 40 Z" fill="#5A3A22" stroke="#2A1608" stroke-width="1.4"/>'+
+  '<path d="M49 33 L60 24 L57 40 Z" fill="#5A3A22" stroke="#2A1608" stroke-width="1.4"/>'+
+  '<path d="M15 54 L15 30 Q15 15 32 15 Q49 15 49 30 L49 54 Z" fill="#5A3A22" stroke="#2A1608" stroke-width="1.6"/>'+
+  '<path d="M22 20 l3 9 -4 7 M43 19 l-4 10 3 8" fill="none" stroke="#FF7A3D" stroke-width="2.1" stroke-linecap="round"/>'+
+  '<circle cx="26" cy="28" r="3.1" fill="#FFD166"/><circle cx="38" cy="28" r="3.1" fill="#FFD166"/>'+
+  '<path d="M23 41 h18 l-4 7 h-10 z" fill="#FF7A3D" stroke="#2A1608" stroke-width="1.3"/>'+
+  '<path d="M27 41 l1.5 4 M32 41 l0 5 M37 41 l-1.5 4" stroke="#2A1608" stroke-width="1.1"/>',
+
+  // 혼테일 — 왼쪽을 무는 용의 옆얼굴
+  '<path d="M47 60 Q54 46 47 33" stroke="#1C5A66" stroke-width="11" fill="none" stroke-linecap="round"/>'+
+  '<path d="M52 52 l6 3 -7 2 Z" fill="#2E7D8C" stroke="#0E3A44" stroke-width="1.1"/>'+
+  '<path d="M52 43 l6 2 -7 3 Z" fill="#2E7D8C" stroke="#0E3A44" stroke-width="1.1"/>'+
+  '<path d="M46 23 Q58 24 55 36 Q48 33 45 30 Z" fill="#2E7D8C" stroke="#0E3A44" stroke-width="1.3"/>'+
+  '<path d="M40 18 Q52 7 61 11 Q50 14 45 23 Z" fill="#D7F2F8" stroke="#0E3A44" stroke-width="1.3"/>'+
+  '<path d="M34 17 Q41 4 48 3 Q40 11 39 20 Z" fill="#D7F2F8" stroke="#0E3A44" stroke-width="1.3"/>'+
+  '<path d="M11 41 L9 47 Q24 54 37 47 L34 41 Q22 45 11 41 Z" fill="#2E7D8C" stroke="#0E3A44" stroke-width="1.5"/>'+
+  '<path d="M48 37 Q51 20 37 16 Q26 15 18 22 L8 29 L10 36 Q24 44 37 43 Q46 42 48 37 Z" '+
+  'fill="#3FA9BD" stroke="#0E3A44" stroke-width="1.7"/>'+
+  '<path d="M12 34 l2 5 M18 36 l1.5 5 M25 38 l1 5" stroke="#EDF9FC" stroke-width="1.6" stroke-linecap="round"/>'+
+  '<circle cx="30" cy="27" r="3.4" fill="#FFD166" stroke="#0E3A44" stroke-width="1.1"/>'+
+  '<ellipse cx="30" cy="27" rx="1.1" ry="2.6" fill="#0E3A44"/>'+
+  '<circle cx="12.5" cy="30" r="1.3" fill="#0E3A44"/>',
+
+  // 파풀라투스 — 시계 태엽
+  '<g fill="#3A3560" stroke="#171334" stroke-width="1.2">'+
+  '<rect x="29.5" y="7" width="5" height="8" rx="1.4"/>'+
+  '<rect x="29.5" y="7" width="5" height="8" rx="1.4" transform="rotate(45 32 32)"/>'+
+  '<rect x="29.5" y="7" width="5" height="8" rx="1.4" transform="rotate(90 32 32)"/>'+
+  '<rect x="29.5" y="7" width="5" height="8" rx="1.4" transform="rotate(135 32 32)"/>'+
+  '<rect x="29.5" y="7" width="5" height="8" rx="1.4" transform="rotate(180 32 32)"/>'+
+  '<rect x="29.5" y="7" width="5" height="8" rx="1.4" transform="rotate(225 32 32)"/>'+
+  '<rect x="29.5" y="7" width="5" height="8" rx="1.4" transform="rotate(270 32 32)"/>'+
+  '<rect x="29.5" y="7" width="5" height="8" rx="1.4" transform="rotate(315 32 32)"/></g>'+
+  '<circle cx="32" cy="32" r="19" fill="#3A3560" stroke="#171334" stroke-width="1.8"/>'+
+  '<circle cx="32" cy="32" r="13.5" fill="#DAD4F4" stroke="#171334" stroke-width="1.4"/>'+
+  '<path d="M32 32 L32 22 M32 32 L40 36" stroke="#171334" stroke-width="2.4" stroke-linecap="round"/>'+
+  '<circle cx="32" cy="32" r="2.6" fill="#B15CFF" stroke="#171334" stroke-width="1"/>'+
+  '<circle cx="32" cy="21.5" r="1.3" fill="#171334"/><circle cx="42.5" cy="32" r="1.3" fill="#171334"/>'+
+  '<circle cx="32" cy="42.5" r="1.3" fill="#171334"/><circle cx="21.5" cy="32" r="1.3" fill="#171334"/>',
+
+  // 핑크빈 — 항아리를 쓴 분홍 덩어리
+  '<ellipse cx="32" cy="39" rx="16" ry="15" fill="#FF9EC4" stroke="#7A2A4A" stroke-width="1.6"/>'+
+  '<path d="M22 21 h20 l-2.5 -9 h-15 z" fill="#6B4A2A" stroke="#33200C" stroke-width="1.4"/>'+
+  '<rect x="18" y="19" width="28" height="5.5" rx="2.7" fill="#8A6234" stroke="#33200C" stroke-width="1.3"/>'+
+  '<circle cx="20" cy="43" r="3.2" fill="#FF6FA8" opacity=".75"/>'+
+  '<circle cx="44" cy="43" r="3.2" fill="#FF6FA8" opacity=".75"/>'+
+  '<circle cx="26" cy="37" r="3" fill="#3A1024"/><circle cx="38" cy="37" r="3" fill="#3A1024"/>'+
+  '<circle cx="27.1" cy="35.9" r="1" fill="#FFF"/><circle cx="39.1" cy="35.9" r="1" fill="#FFF"/>'+
+  '<path d="M28 45 q4 4.5 8 0" fill="none" stroke="#7A2A4A" stroke-width="1.9" stroke-linecap="round"/>',
+
+  // 반 레온 — 사자 갈기 투구, 대검은 뒤에
+  '<path d="M18 58 L52 12" stroke="#8FA6DA" stroke-width="6" stroke-linecap="round"/>'+
+  '<path d="M19 57 L51 13" stroke="#E8F0FF" stroke-width="2.4" stroke-linecap="round"/>'+
+  '<path d="M15 50 L26 58" stroke="#C98A2E" stroke-width="4.5" stroke-linecap="round"/>'+
+  '<path d="M32 8 L38 14 L46 12 L45 20 L52 24 L46 30 L48 38 L40 38 L36 45 L32 40 L28 45 L24 38 L16 38 L18 30 L12 24 L19 20 L18 12 L26 14 Z" '+
+  'fill="#C98A2E" stroke="#4A2E06" stroke-width="1.6"/>'+
+  '<circle cx="32" cy="26" r="10.5" fill="#B8813C" stroke="#4A2E06" stroke-width="1.5"/>'+
+  '<path d="M27 21 l5 2 -5 2 Z" fill="#2A1608"/><path d="M37 21 l-5 2 5 2 Z" fill="#2A1608"/>'+
+  '<ellipse cx="32" cy="30" rx="6.5" ry="4.8" fill="#EDD9A8" stroke="#4A2E06" stroke-width="1.2"/>'+
+  '<path d="M32 27 l-2.6 2.6 h5.2 Z" fill="#2A1608"/>'+
+  '<path d="M32 30 v2 M32 32 q-3 2.5 -5 .5 M32 32 q3 2.5 5 .5" fill="none" stroke="#4A2E06" stroke-width="1.3" stroke-linecap="round"/>',
+
+  // 매그너스 — 뿔 투구와 검은 날개
+  '<path d="M28 24 Q11 11 2 22 Q11 21 11 27 Q19 25 22 32 Q25 29 28 31 Z" '+
+  'fill="#241F45" stroke="#6660B0" stroke-width="1.5"/>'+
+  '<path d="M36 24 Q53 11 62 22 Q53 21 53 27 Q45 25 42 32 Q39 29 36 31 Z" '+
+  'fill="#241F45" stroke="#6660B0" stroke-width="1.5"/>'+
+  '<path d="M32 56 L18 48 L18 30 L32 22 L46 30 L46 48 Z" fill="#43548C" stroke="#0C0A1C" stroke-width="1.7"/>'+
+  '<path d="M20 30 L32 24 L44 30 L32 36 Z" fill="#C98A2E" stroke="#0C0A1C" stroke-width="1.3"/>'+
+  '<path d="M22 12 L26 24 L20 22 Z" fill="#C98A2E" stroke="#0C0A1C" stroke-width="1.3"/>'+
+  '<path d="M42 12 L38 24 L44 22 Z" fill="#C98A2E" stroke="#0C0A1C" stroke-width="1.3"/>'+
+  '<path d="M32 22 L40 27 L40 40 L32 45 L24 40 L24 27 Z" fill="#141230" stroke="#0C0A1C" stroke-width="1.4"/>'+
+  '<path d="M27 31 l4 2 -4 2 Z" fill="#FF4D6A"/><path d="M37 31 l-4 2 4 2 Z" fill="#FF4D6A"/>'+
+  '<path d="M26 46 h12 v4 h-12 z" fill="#C98A2E" stroke="#0C0A1C" stroke-width="1.2"/>',
+
+  // 아카이럼 — 팔 넷 달린 뿔 악마
+  '<g stroke="#6B2FA8" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round">'+
+  '<path d="M23 27 L11 18 L7 25"/><path d="M41 27 L53 18 L57 25"/>'+
+  '<path d="M23 36 L9 39 L11 47"/><path d="M41 36 L55 39 L53 47"/></g>'+
+  '<path d="M24 21 Q17 9 21 4 Q27 10 28 18 Z" fill="#D6B4F0" stroke="#2C1046" stroke-width="1.3"/>'+
+  '<path d="M40 21 Q47 9 43 4 Q37 10 36 18 Z" fill="#D6B4F0" stroke="#2C1046" stroke-width="1.3"/>'+
+  '<path d="M32 58 L22 48 L22 24 Q22 15 32 15 Q42 15 42 24 L42 48 Z" '+
+  'fill="#8B4BC7" stroke="#2C1046" stroke-width="1.7"/>'+
+  '<path d="M24 40 h16 l-2 8 h-12 z" fill="#5B2E8A" stroke="#2C1046" stroke-width="1.2"/>'+
+  '<path d="M26 26 l6 2.5 -6 3 Z" fill="#7CFFB0"/><path d="M38 26 l-6 2.5 6 3 Z" fill="#7CFFB0"/>'+
+  '<path d="M27 34 h10 l-2 4 h-6 z" fill="#2C1046"/>'+
+  '<path d="M29 34 l.8 3 M32 34 l0 3.5 M35 34 l-.8 3" stroke="#FFF" stroke-width="1"/>',
+
+  // 루시드 — 나비 날개와 가면
+  '<path d="M29 30 Q10 12 6 28 Q4 42 26 40 Z" fill="#B15CFF" stroke="#3A1560" stroke-width="1.5" opacity=".95"/>'+
+  '<path d="M35 30 Q54 12 58 28 Q60 42 38 40 Z" fill="#B15CFF" stroke="#3A1560" stroke-width="1.5" opacity=".95"/>'+
+  '<path d="M27 40 Q12 44 12 54 Q22 54 28 46 Z" fill="#FF7FC4" stroke="#3A1560" stroke-width="1.4"/>'+
+  '<path d="M37 40 Q52 44 52 54 Q42 54 36 46 Z" fill="#FF7FC4" stroke="#3A1560" stroke-width="1.4"/>'+
+  '<circle cx="18" cy="27" r="3.4" fill="#FFE9A8" opacity=".85"/>'+
+  '<circle cx="46" cy="27" r="3.4" fill="#FFE9A8" opacity=".85"/>'+
+  '<path d="M32 16 L37 22 L35 44 L32 48 L29 44 L27 22 Z" fill="#E8DEF8" stroke="#3A1560" stroke-width="1.5"/>'+
+  '<path d="M28 12 q4 -6 8 0" fill="none" stroke="#3A1560" stroke-width="1.6" stroke-linecap="round"/>'+
+  '<circle cx="30" cy="24" r="1.7" fill="#3A1560"/><circle cx="34" cy="24" r="1.7" fill="#3A1560"/>',
+
+  // 윌 — 거미
+  '<g stroke="#3A0A18" stroke-width="3.4" fill="none" stroke-linecap="round">'+
+  '<path d="M24 32 L8 20 L4 30"/><path d="M24 36 L6 36 L3 45"/>'+
+  '<path d="M24 40 L9 50 L12 58"/><path d="M40 32 L56 20 L60 30"/>'+
+  '<path d="M40 36 L58 36 L61 45"/><path d="M40 40 L55 50 L52 58"/></g>'+
+  '<ellipse cx="32" cy="38" rx="14" ry="13" fill="#7A1330" stroke="#3A0A18" stroke-width="1.7"/>'+
+  '<ellipse cx="32" cy="21" rx="8.5" ry="7" fill="#A81E42" stroke="#3A0A18" stroke-width="1.5"/>'+
+  '<circle cx="32" cy="38" r="6.5" fill="#FFD166" stroke="#3A0A18" stroke-width="1.4"/>'+
+  '<ellipse cx="32" cy="38" rx="2" ry="5" fill="#3A0A18"/>'+
+  '<circle cx="28" cy="20" r="1.8" fill="#FFD166"/><circle cx="36" cy="20" r="1.8" fill="#FFD166"/>'+
+  '<circle cx="30" cy="24.5" r="1.2" fill="#FFD166"/><circle cx="34" cy="24.5" r="1.2" fill="#FFD166"/>',
+
+  // 진 힐라 — 낫을 든 후드
+  '<path d="M14 14 L50 50" stroke="#4A4A52" stroke-width="3.2" stroke-linecap="round"/>'+
+  '<path d="M14 14 Q4 20 8 32 Q16 24 22 22 Z" fill="#CFE2FF" stroke="#1B2430" stroke-width="1.4"/>'+
+  '<path d="M32 12 Q46 12 46 30 L48 52 L16 52 L18 30 Q18 12 32 12 Z" fill="#123024" stroke="#04140C" stroke-width="1.7"/>'+
+  '<path d="M32 18 Q42 18 42 30 L40 40 L24 40 L22 30 Q22 18 32 18 Z" fill="#04140C"/>'+
+  '<circle cx="27" cy="29" r="2.6" fill="#7CFFB0"/><circle cx="37" cy="29" r="2.6" fill="#7CFFB0"/>'+
+  '<path d="M27 35 q5 3 10 0" fill="none" stroke="#7CFFB0" stroke-width="1.3" opacity=".7"/>'+
+  '<path d="M16 52 q16 5 32 0" fill="none" stroke="#04140C" stroke-width="1.5"/>',
+
+  // 검은 마법사 — 왕관과 지팡이, 보랏빛 불꽃
+  '<path d="M50 56 L50 14" stroke="#2B2550" stroke-width="3.4" stroke-linecap="round"/>'+
+  '<circle cx="50" cy="11" r="5" fill="#B15CFF" stroke="#1A0A30" stroke-width="1.4"/>'+
+  '<path d="M32 10 Q48 10 48 32 L52 56 L12 56 L16 32 Q16 10 32 10 Z" fill="#15122C" stroke="#05030F" stroke-width="1.8"/>'+
+  '<path d="M20 30 L26 46 L32 30 L38 46 L44 30" fill="none" stroke="#B15CFF" stroke-width="1.6" opacity=".55"/>'+
+  '<path d="M20 16 L20 6 L26 12 L32 3 L38 12 L44 6 L44 16 Z" fill="#C98A2E" stroke="#4A2E06" stroke-width="1.5"/>'+
+  '<circle cx="32" cy="10" r="1.8" fill="#FF4D6A"/>'+
+  '<path d="M22 22 Q32 18 42 22 L42 30 Q32 34 22 30 Z" fill="#05030F"/>'+
+  '<circle cx="27" cy="26" r="2.7" fill="#FF4D6A"/><circle cx="37" cy="26" r="2.7" fill="#FF4D6A"/>'+
+  '<circle cx="27" cy="26" r="1" fill="#FFE9A8"/><circle cx="37" cy="26" r="1" fill="#FFE9A8"/>'
+];
+
 /* ---------- 보스 전투 연출 ---------- */
 let battleTimers=[], battleDone=null;
 function endBattle(){
@@ -1728,7 +1874,9 @@ function bossBattle(i,win,done){
   const bs=BOSSES[i];
   battleDone=done; battleTimers=[];
   $('bName').textContent=bossName(i);
-  $('bOrb').className='borb t'+Math.min(3,Math.floor(i/3));
+  const art=$('bArt');
+  art.innerHTML=BOSS_ART[i]||BOSS_ART[0];
+  art.setAttribute('class','bart t'+Math.min(3,Math.floor(i/3))+(S.hard?' hard':''));
   $('bResult').textContent=''; $('bResult').className='bresult';
   $('myHp').style.width='100%'; $('foeHp').style.width='100%';
   $('battle').hidden=false;
@@ -2560,7 +2708,7 @@ initOnline();
 
 // 균형 점검용 노출 (게임 동작에는 영향 없음)
 try{ window.__CFG={SF,MAXSTAR,starCost,SHIELD,SLOTS,OPT,POOL,GCAP,UPRATE,UPGRADE,CUBES,
-  MAPS,ZONES,zoneOf,mapOpen,xpRate,BOSSES,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
+  MAPS,ZONES,zoneOf,mapOpen,xpRate,BOSS_ART,BOSSES,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
   get state(){return S;}, cur, power, income, mesoMult, dropMult, starMult, potMultOf, odds, potGrade, topGrade, totalStars, sfBonus}; }catch(e){}
 })();
 </script>
