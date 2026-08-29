@@ -977,7 +977,8 @@ const SLOTS=[
   {n:'한벌옷', base:20, cost:0.6, ic:'\u{1F455}'},
   {n:'모자',   base:15, cost:0.5, ic:'\u{1F452}'},
   {n:'신발',   base:12, cost:0.4, ic:'\u{1F462}'},
-  {n:'장갑',   base:13, cost:0.4, ic:'\u{1F9E4}'}
+  {n:'장갑',   base:13, cost:0.4, ic:'\u{1F9E4}'},
+  {n:'벨트',   base:14, cost:0.45, ic:'\u{1F9F5}'}
 ];
 
 /* ---------- 잠재 옵션 (200레벨) ----------
@@ -1009,7 +1010,12 @@ const POOL=[
   [['bdf',19.1],['cre',14.7],['hp',14.7],['mp',14.7],['hpr',11.2],['mpr',9.8],['mes',8.6],['drp',7.5]],
   [['crr',21.13],['hp',21.13],['mp',21.13],['hpr',14.5],['mpr',12.1],['exp',10.1]],
   [['evd',21.13],['hp',21.13],['mp',21.13],['hpr',14.5],['mpr',12.1],['mes',10.1]],
-  [['acc',25.1],['bat',20.9],['hp',17.4],['mp',14.5],['hpr',12.1],['mpr',10.1]]
+  [['acc',25.1],['bat',20.9],['hp',17.4],['mp',14.5],['hpr',12.1],['mpr',10.1]],
+  // 벨트는 다른 부위와 성격이 다르다. 보스용(보스공격력)과 사냥용(경험치·메소·드롭)이
+  // 한 자리에서 겨룬다. 전투력만 보면 보스공격력이 정답이지만, 메소·드롭은 전투력에
+  // 1도 안 잡히면서 수입을 크게 올린다 — 세 줄로 메소 +44%, 경험치 +63% 까지 간다.
+  // 그래서 벨트는 '무엇을 고를까'가 남는 유일한 부위다.
+  [['bat',22.0],['exp',18.0],['mes',18.0],['drp',15.0],['hp',13.0],['mp',8.0],['hpr',6.0]]
 ];
 const PSUM=POOL.map(p=>p.reduce((a,x)=>a+x[1],0));
 const GNAME=['레어','에픽','유니크','레전더리'];
@@ -1129,7 +1135,7 @@ function dropCube(i){
 }
 const dropGrade=req=>req<160?0:req<640?1:2;
 // 총 스타포스 누적 보너스 — 다섯 부위 성수치를 합친 만큼 전투력이 통째로 오른다
-const SFTIERS=[[30,3],[60,7],[90,12],[120,18],[150,25],[180,35]];
+const SFTIERS=[[30,3],[60,7],[90,12],[120,18],[150,25],[180,35],[210,42]];
 const meltValue=g=>(g+1)*11000;
 const BAG_MAX=30;          // 보관함 칸 수 — 넘치면 새로 떨어진 건 그 자리에서 분해된다
 /* ---------- 직업 ---------- */
@@ -1160,7 +1166,8 @@ const NAMES=[['여명의 장검','심연의 대검','폭풍의 창','재의 언�
              ['별빛 로브','흑룡의 갑주','서리꽃 예복','재의 흉갑'],
              ['여명의 투구','심연의 관','폭풍의 두건','별무리 모자'],
              ['질풍의 장화','심연의 부츠','서리꽃 신','별무리 구두'],
-             ['여명의 건틀릿','심연의 손아귀','폭풍의 장갑','재의 완갑']];
+             ['여명의 건틀릿','심연의 손아귀','폭풍의 장갑','재의 완갑'],
+             ['여명의 허리띠','심연의 벨트','폭풍의 요대','재의 허리띠']];
 // 무기 이름은 직업을 따라간다
 const WNAMES={
   war:['여명의 장검','심연의 대검','폭풍의 창','재의 언월도'],
@@ -1263,7 +1270,7 @@ const dayIdx=()=>Math.floor((Date.now()-new Date().getTimezoneOffset()*60000)/86
 // 직업을 고르는 순간 setJob 이 무기 이름을 갈아준다.
 const newItem=i=>({star:0, ig:0, lines:[], broken:false, name:(i===0?WNAMES.war:NAMES[i])[0]});
 const DEF=()=>({
-  meso:300000, sel:0, items:[0,1,2,3,4].map(newItem),
+  meso:300000, sel:0, items:SLOTS.map(function(_,i){return newItem(i);}),
   job:'war', skcd:[0,0,0,0,0], tok:0, useProt:false, useSafe:false, map:0, zone:0, mv:0, anim:true, hard:false, view:'up', lv:1, xp:0, ach:{},
   att:{last:0, day:0, total:0},
   bcd:BOSSES.map(function(){return 0;}), bk:BOSSES.map(function(){return 0;}),
@@ -1483,7 +1490,17 @@ const SLOT_ART=[
   '<rect x="37" y="14" width="6.4" height="11" rx="2.8" fill="#9FB4E0" stroke="#2A2450" stroke-width="1.2"/>'+
   '<path d="M19 24 L45 21 L47 34 L45 49 Q32 55 19 49 L17 34 Z" fill="url(#bl)" stroke="#2A2450" stroke-width="1.6"/>'+
   '<path d="M26 33 l6 -4.5 6 4.5 -6 4.5 z" fill="#FFC94A" opacity=".9"/>'+
-  '<rect x="19" y="45" width="26" height="7" rx="3" fill="#C98A2E" stroke="#5E3C0C" stroke-width="1.4"/>'
+  '<rect x="19" y="45" width="26" height="7" rx="3" fill="#C98A2E" stroke="#5E3C0C" stroke-width="1.4"/>'  ,
+  // 벨트 — 가죽 띠와 버클
+  ART_DEF+
+  '<path d="M4 26 h56 v12 h-56 z" fill="#5A3A22" stroke="#2A1608" stroke-width="1.6"/>'+
+  '<path d="M4 29.5 h56 M4 34.5 h56" stroke="#3A2410" stroke-width="1" opacity=".7"/>'+
+  '<circle cx="14" cy="32" r="1.6" fill="#2A1608"/><circle cx="22" cy="32" r="1.6" fill="#2A1608"/>'+
+  '<circle cx="50" cy="32" r="1.6" fill="#2A1608"/>'+
+  '<rect x="26" y="21" width="16" height="22" rx="3.5" fill="#C98A2E" stroke="#5E3C0C" stroke-width="1.6"/>'+
+  '<rect x="30" y="25" width="8" height="14" rx="2" fill="#241C05" stroke="#5E3C0C" stroke-width="1.2"/>'+
+  '<path d="M34 25 v14" stroke="#C98A2E" stroke-width="2.4"/>'+
+  '<path d="M30 20 l4 -5 l4 5 z" fill="#FFC94A" stroke="#5E3C0C" stroke-width="1.2"/>'
 ];
 
 /* ---------- 그리기 ---------- */
@@ -1536,7 +1553,7 @@ function renderItem(){
   $('starV').textContent=it.star;
   const art=$('itemArt'), si=String(S.sel||0)+'/'+jobKey();   // 직업을 바꾸면 무기도 다시 그린다
   if(art.dataset.slot!==si){
-    const sc=[1,1.1,1.05,1.05,1.2][S.sel||0];   // 검 기준으로 다른 부위 크기를 맞춘다
+    const sc=[1,1.1,1.05,1.05,1.2,1.15][S.sel||0];   // 검 기준으로 다른 부위 크기를 맞춘다
     const g=(S.sel||0)===0?(WEAPON_ART[jobKey()]||WEAPON_ART.war):SLOT_ART[S.sel||0];
     art.innerHTML='<g transform="translate(32,32) scale('+sc+') translate(-32,-32)">'+g+'</g>';
     art.dataset.slot=si;
@@ -3243,8 +3260,8 @@ function enter(raw,serverSave){
   }
   S=Object.assign(DEF(), sv||{});
   S.st=Object.assign(DEF().st, (sv&&sv.st)||{});
-  if(!Array.isArray(S.items)||S.items.length!==SLOTS.length){      // 예전 단일 장비 세이브 이관
-    S.items=[0,1,2,3,4].map(newItem);
+  if(!Array.isArray(S.items)){                                    // 예전 단일 장비 세이브 이관
+    S.items=SLOTS.map(function(_,i){return newItem(i);});
     if(sv&&typeof sv.star==='number'){
       S.items[0].star=Math.max(0,Math.min(MAXSTAR,sv.star|0));
       S.items[0].ig=Math.max(0,Math.min(2,sv.ig|0));
@@ -3252,6 +3269,9 @@ function enter(raw,serverSave){
       if(Array.isArray(sv.lines)) S.items[0].lines=sv.lines.filter(function(l){ return l&&OPT[l.k]; }).slice(0,3);
     }
   }
+  // 부위를 늘렸을 때 있던 장비를 날리면 안 된다. 모자란 자리만 새로 채운다.
+  while(S.items.length<SLOTS.length) S.items.push(newItem(S.items.length));
+  if(S.items.length>SLOTS.length) S.items.length=SLOTS.length;
   S.inv=Object.assign(defInv(), S.inv||{});
   if(!Array.isArray(S.bag)) S.bag=[];
   if(S.inv.cube){                            // 교환권을 없앴다 — 갖고 있던 건 블랙 큐브로
