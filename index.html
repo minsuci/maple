@@ -651,7 +651,7 @@ button:disabled{cursor:not-allowed;opacity:.45;}
         <h3>보스 — 쿨타임이 길수록 크게 준다</h3>
         <div class="difftabs">
           <button class="dtab" id="dNormal" aria-selected="true">일반</button>
-          <button class="dtab" id="dHard" aria-selected="false">하드 · 보상 4배</button>
+          <button class="dtab" id="dHard" aria-selected="false">하드 · 보상 2~4배</button>
         </div>
         <div class="hlist" id="bossList"></div>
       </div>
@@ -832,7 +832,8 @@ const SF=[
 while(SF.length<36) SF.push([6,74,15,5]);
 const MAXSTAR=36;
 const SURE_MAX=30;        // 확정 성공권은 30★까지만 — 마지막 여섯 별은 확률로만 뚫는다
-const starCost=s=>Math.round(500*Math.pow(1.23,s)/10)*10;
+// 25성부터 한 번 더 가팔라진다. 이게 없으면 맥강이 만렙 기준 30분이면 끝난다.
+const starCost=s=>Math.round(500*Math.pow(1.23,s)*(s>=25?Math.pow(1.09,s-25):1)/10)*10;
 const SHIELD={prot:2, safe:4};
 
 /* ---------- 장비 부위 ---------- */
@@ -930,23 +931,29 @@ const mapOpen=i=>!!MAPS[i]&&(S.lv||1)>=MAPS[i].lv;
 // 보스마다 보상 성향이 다르다 — 필요한 걸 주는 놈을 골라 잡는 구조
 // 일반과 하드를 각각 정의한다. 두 사다리는 서로 섞여도 된다 —
 // 발록 하드가 자쿰 일반보다 쉽고, 검은 마법사 일반이 아카이럼 하드보다 어렵다.
-// 덕분에 하드를 초반부터 쓸 수 있다 (요구치가 조금 높고 보상이 4배).
-// 기준점 둘: 250렙 중장비(1418)에서 하드 아카이럼 64%, 300렙 만렙(3071)에서 하드 검마 88%.
+// 덕분에 하드를 초반부터 쓸 수 있다. 기준점 둘: 250렙 중장비(1418)에서 하드
+// 아카이럼 64%, 300렙 만렙(3071)에서 하드 검마 88%.
+//
+// rew/hrew — 보상은 전투력에 비례시키지 않는다. 그렇게 두면 별을 박을수록 보스가
+// 끝없이 커지는데 사냥터는 마지막 지도에서 멈추니, 만렙에서 보스가 사냥을 9배로
+// 잡아먹었다. 대신 "그 보스가 수월해지는 전투력(요구치 x1.2)에서 쿨타임 동안
+// 사냥하면 벌었을 값의 1/4"로 못박았다. 만렙으로 발록을 두들겨도 발록값만 나온다.
+// 하드 배수는 드롭 성격에 따라 다르다 — 큐브·성공권으로 받는 놈은 메소가 짜고
+// (x1.9~2.3), 메소가 전부인 놈은 후하다 (x2.2~4.0). 어느 하드를 돌지가 선택이 된다.
 const BOSSES=[
-  {n:'발록',        req:40,   hreq:75,   cd:12,  mul:40,   base:7000,   t:'메소'},
-  {n:'자쿰',        req:90,   hreq:165,  cd:20,  mul:70,   base:14000,  t:'메소'},
-  {n:'혼테일',      req:160,  hreq:295,  cd:35,  mul:130,  base:28000,  t:'장비'},
-  {n:'파풀라투스',  req:250,  hreq:460,  cd:40,  mul:150,  base:34000,  t:'큐브'},
-  {n:'핑크빈',      req:360,  hreq:665,  cd:50,  mul:230,  base:50000,  t:'메소'},
-  {n:'반 레온',     req:490,  hreq:905,  cd:60,  mul:300,  base:66000,  t:'쉴드'},
-  {n:'매그너스',    req:640,  hreq:1185, cd:75,  mul:390,  base:88000,  t:'장비'},
-  {n:'아카이럼',    req:810,  hreq:1500, cd:85,  mul:480,  base:110000, t:'큐브'},
-  {n:'루시드',      req:1000, hreq:1820, cd:100, mul:610,  base:148000, t:'장비'},
-  {n:'윌',          req:1210, hreq:2130, cd:130, mul:890,  base:228000, t:'성공권'},
-  {n:'진 힐라',     req:1450, hreq:2450, cd:150, mul:1150, base:300000, t:'큐브'},
-  {n:'검은 마법사', req:1720, hreq:2750, cd:180, mul:1600, base:400000, t:'전부'}
+  {n:'발록',        req:40,   hreq:75,   cd:12,  rew:10800,   hrew:23800,   t:'메소'},
+  {n:'자쿰',        req:90,   hreq:165,  cd:20,  rew:21700,   hrew:81200,   t:'메소'},
+  {n:'혼테일',      req:160,  hreq:295,  cd:35,  rew:61300,   hrew:189000,  t:'장비'},
+  {n:'파풀라투스',  req:250,  hreq:460,  cd:40,  rew:108000,  hrew:252000,  t:'큐브'},
+  {n:'핑크빈',      req:360,  hreq:665,  cd:50,  rew:211000,  hrew:854000,  t:'메소'},
+  {n:'반 레온',     req:490,  hreq:905,  cd:60,  rew:317000,  hrew:979000,  t:'쉴드'},
+  {n:'매그너스',    req:640,  hreq:1185, cd:75,  rew:539000,  hrew:1520000, t:'장비'},
+  {n:'아카이럼',    req:810,  hreq:1500, cd:85,  rew:780000,  hrew:1630000, t:'큐브'},
+  {n:'루시드',      req:1000, hreq:1820, cd:100, rew:1120000, hrew:3160000, t:'장비'},
+  {n:'윌',          req:1210, hreq:2130, cd:130, rew:1700000, hrew:3820000, t:'성공권'},
+  {n:'진 힐라',     req:1450, hreq:2450, cd:150, rew:2380000, hrew:4410000, t:'큐브'},
+  {n:'검은 마법사', req:1720, hreq:2750, cd:180, rew:3560000, hrew:7940000, t:'전부'}
 ];
-const HARD_REW=4;
 const bossReq=i=>S.hard?BOSSES[i].hreq:BOSSES[i].req;
 const bossName=i=>BOSSES[i].n+(S.hard?' 하드':'');
 // 성향별 드롭 확률 [장비, 큐브권, 쉴드권, 성공권]
@@ -1095,7 +1102,8 @@ function clearRate(i,p){
   if(r<0.5) return 0;
   return (r-0.5)/0.7;
 }
-const bossReward=i=>{ const b=BOSSES[i]; return b?Math.round((power()*b.mul+b.base)*mesoMult()*(S.hard?HARD_REW:1)):0; };
+const bossReward=i=>{ const b=BOSSES[i]; return b?Math.round((S.hard?b.hrew:b.rew)*mesoMult()):0; };
+const firstBonus=i=>{ const b=BOSSES[i]; return b?Math.round(b.rew*3*mesoMult()):0; };
 const income=()=>Math.max(300,mapIncome(S.map||0,power()));
 const fmt=n=>{
   n=Math.floor(n);
@@ -1886,12 +1894,16 @@ function bossBattle(i,win,done){
   $('bResult').textContent=''; $('bResult').className='bresult';
   $('myHp').style.width='100%'; $('foeHp').style.width='100%';
   $('battle').hidden=false;
-  const N=6, bStep=(win?100:58)/N, pStep=(win?42:100)/N;
+  // 연출이 길면 쿨타임이 아니라 연출이 보스 수입을 정한다 — 예전엔 열두 마리를
+  // 다 돌려면 분당 67초가 필요했고, 연출을 끄면 그 제한이 사라져 설정이 곧 수입이었다.
+  // 아래 보스일수록 짧게 잡아 지금은 분당 35초면 다 돈다.
+  const N=[3,3,4,4,4,5,5,5,6,6,6,6][i]||5, STEP=170;
+  const bStep=(win?100:58)/N, pStep=(win?42:100)/N;
   let bhp=100, php=100, t=0;
   const at=function(ms,fn){ battleTimers.push(setTimeout(fn,ms)); };
   for(let r=0;r<N;r++){
     // 내 공격
-    t+=230;
+    t+=STEP;
     at(t,function(){
       bhp=Math.max(0,bhp-bStep); $('foeHp').style.width=bhp+'%';
       $('bMe').classList.add('hit'); $('bFoe').classList.add('dmg');
@@ -1901,7 +1913,7 @@ function bossBattle(i,win,done){
     });
     if(win&&r===N-1) break;          // 이기면 마지막은 내 타격으로 끝난다
     // 보스 반격
-    t+=230;
+    t+=STEP;
     at(t,function(){
       php=Math.max(0,php-pStep); $('myHp').style.width=php+'%';
       $('bFoe').classList.add('hit'); $('bMe').classList.add('dmg');
@@ -1910,14 +1922,14 @@ function bossBattle(i,win,done){
       at(150,function(){ $('bFoe').classList.remove('hit'); $('bMe').classList.remove('dmg'); });
     });
   }
-  t+=320;
+  t+=300;
   at(t,function(){
     const R=$('bResult');
     R.className='bresult '+(win?'win':'lose');
     R.textContent=win?(bossName(i)+' 격파!'):'토벌 실패';
     if(win){ SND.up(); burst(70,'#FFD66B',{sp:1.1}); } else SND.des();
   });
-  at(t+950,endBattle);
+  at(t+620,endBattle);
 }
 
 /* ---------- 레벨 · 업적 · 오프라인 수입 ---------- */
@@ -2208,12 +2220,13 @@ function updateHunt(){
     el.disabled=cr<=0||cd>0||fighting>=0;
     el.classList.toggle('ready',cr>0&&cd<=0&&fighting<0);
     el.classList.toggle('cleared',cleared);
-    el.querySelector('.hr').textContent='요구 '+bossReq(i)+' · '+bs.cd+'초 · 클리어 '+Math.round(cr*100)+'%';
+    el.querySelector('.hr').textContent='요구 '+bossReq(i)+' · '+bs.cd+'초 · 클리어 '+Math.round(cr*100)+'%'+
+      (S.hard?' · 메소 x'+(bs.hrew/bs.rew).toFixed(1):'');
     el.querySelector('.hcd').textContent =
       fighting===i ? '교전 중…' :
       cr<=0 ? '전투력 부족' :
       cd>0 ? Math.ceil(cd)+'초' :
-      (cleared?'+':'첫 클리어 +')+fmt(bossReward(i)+(cleared?0:BOSSES[i].base*5));
+      (cleared?'+':'첫 클리어 +')+fmt(bossReward(i)+(cleared?0:firstBonus(i)));
   });
   const m=MAPS[S.map||0];
   $('animTog').setAttribute('aria-checked',String(S.anim!==false));
@@ -2256,11 +2269,11 @@ function resolveBoss(i,win){
   if(win){
     const first=S.hard?!((S.bkh||[])[i]>0):!(S.bk[i]>0);
     let r=bossReward(i);
-    if(first) r+=Math.round(bs.base*5*mesoMult());
+    if(first) r+=firstBonus(i);
     if(S.hard){ if(!S.bkh||S.bkh.length!==BOSSES.length) S.bkh=BOSSES.map(function(){return 0;}); S.bkh[i]++; }
     else S.bk[i]++;
     S.meso+=r; S.bcd[i]=bs.cd;
-    gainXp(Math.round(bs.base/400*expMult()));
+    gainXp(Math.round(bs.rew/2000*expMult()));
     SND.coin();
     if(q) burst(first?90:(i>=4?55:26),'#FFD66B',{x:q.left+q.width/2,y:q.top+q.height/2,sp:first?1.4:.8});
     if(first){
