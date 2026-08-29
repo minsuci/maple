@@ -821,7 +821,9 @@ const NAMES=[['여명의 장검','심연의 대검','폭풍의 창','재의 언�
 
 // 캐릭터 레벨 — 모자의 경험치획득량 옵션이 여기서 값을 한다
 const MAXLV=300;
-const xpNeed=L=>Math.round(25*Math.pow(L,1.6));
+// 250렙에 한 달, 거기서 260렙까지 다시 2주가 걸리도록 맞춘 지수 곡선.
+// 기준은 검은 마법사의 성에서 활동 2시간 + 오프라인 8시간 수령.
+const xpNeed=L=>Math.round(186*Math.pow(1.03904,L));
 const OFF_CAP=8*3600;          // 오프라인 수입 상한 8시간
 const OFF_RATE=0.5;            // 자리를 비우면 절반만 번다
 
@@ -862,9 +864,9 @@ const ACH=[
  ['p1','전투력 200','',                            s=>s.st.best>=200,     100000],
  ['p2','전투력 400','',                            s=>s.st.best>=400,     700000],
  ['p3','전투력 700','',                            s=>s.st.best>=700,     4000000],
- ['l1','레벨 30','',                               s=>(s.lv||1)>=30,      150000],
- ['l2','레벨 100','',                              s=>(s.lv||1)>=100,     1200000],
- ['l3','레벨 200','',                              s=>(s.lv||1)>=200,     6000000],
+ ['l1','레벨 100','',                              s=>(s.lv||1)>=100,     300000],
+ ['l2','레벨 200','나흘은 갈아넣어야 한다',          s=>(s.lv||1)>=200,     3000000],
+ ['l3','레벨 250','한 달의 벽',                     s=>(s.lv||1)>=250,     20000000],
  ['l4','만렙 300','더 오를 레벨이 없다',            s=>(s.lv||1)>=300,     30000000],
  ['m1','1억 지출','메소 1억을 태운다',              s=>s.st.spent>=1e8,    1000000],
  ['h1','명예의 전당','전투력 300 + 레전드리 잠재',  s=>s.st.hall>0,        5000000]
@@ -902,7 +904,15 @@ const totalStars=()=>S.items.reduce((a,it)=>a+(it.broken?0:it.star),0);
 function sfBonus(){ const t=totalStars(); let b=0; for(const x of SFTIERS) if(t>=x[0]) b=x[1]; return b; }
 function sfNext(){ const t=totalStars(); for(const x of SFTIERS) if(t<x[0]) return x; return null; }
 const expMult=()=>1+sumOpt('exp')/100;
-const lvBonus=()=>((S.lv||1)-1)*2;                // 레벨이 기본 전투력을 올린다 (300렙 = +598)
+// 뒤로 갈수록 한 레벨이 무거워지니 보상도 같이 커진다
+// 1~100 +2 · 101~200 +4 · 201~250 +8 · 251~300 +16  (250렙 998, 300렙 1798)
+function lvBonus(){
+  const L=(S.lv||1)-1; let b=Math.min(L,100)*2;
+  if(L>100) b+=Math.min(L-100,100)*4;
+  if(L>200) b+=Math.min(L-200,50)*8;
+  if(L>250) b+=Math.min(L-250,50)*16;
+  return b;
+}
 const power=()=>Math.round((S.items.reduce((a,_,i)=>a+slotPow(i),0)+lvBonus())*(1+sfBonus()/100));
 const xpRate=()=>{ const m=MAPS[S.map||0]; return m?m.rate/200*mapEff(S.map||0,power())*expMult():0; };
 const potGradeOf=it=>it&&it.lines.length?it.lines[0].g:-1;
@@ -1594,11 +1604,13 @@ function bossBattle(i,win,done){
 function gainXp(v){
   if(!v||v<=0) return;
   S.xp=(S.xp||0)+v;
+  const b0=lvBonus();
   let up=0;
   while((S.lv||1)<MAXLV && S.xp>=xpNeed(S.lv||1)){ S.xp-=xpNeed(S.lv); S.lv=(S.lv||1)+1; up++; }
+  if((S.lv||1)>=MAXLV) S.xp=0;
   if(up){
     SND.up(); burst(80,'#5CE68A',{sp:1.1});
-    flash('LV '+S.lv,'기본 전투력 +'+(up*2),'#5CE68A');
+    flash('LV '+S.lv,'기본 전투력 +'+(lvBonus()-b0),'#5CE68A');
     log('<b>레벨 '+S.lv+' 달성</b> — 기본 전투력이 올랐다','up');
   }
 }
