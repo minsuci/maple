@@ -420,6 +420,21 @@ td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
 .hrow[hidden]{display:none;}
 
 /* ---------- 난이도 · 메뉴 ---------- */
+/* ---------- 스킬 ---------- */
+.skills{display:grid;grid-template-columns:repeat(auto-fit,minmax(0,1fr));gap:5px;margin-bottom:6px;}
+.skbtn{padding:7px 4px;border-radius:9px;background:#15122C;border:1px solid var(--edge);
+  display:flex;flex-direction:column;align-items:center;gap:1px;}
+.skbtn .sn{font-weight:900;font-size:11px;color:var(--text);white-space:nowrap;}
+.skbtn .sd{font-family:'Bebas Neue',sans-serif;font-size:14px;color:var(--bad);letter-spacing:.03em;}
+.skbtn .sc{font-size:9.5px;font-weight:700;color:var(--dimmer);white-space:nowrap;}
+.skbtn:disabled{opacity:.4;}
+.skbtn:not(:disabled):hover{border-color:var(--edge2);}
+.skbtn.armed{border-color:var(--bad);background:#2A0F19;}
+.skbtn.armed .sn,.skbtn.armed .sc{color:#FF8A96;}
+.skbtn[hidden]{display:none;}
+.sknote{margin:0 0 10px;font-size:11px;color:var(--dimmer);line-height:1.6;}
+.sknote b{color:var(--gold);}
+
 .difftabs{display:flex;gap:5px;margin-bottom:8px;}
 .dtab{flex:1;padding:8px;border-radius:9px;font-weight:900;font-size:11.5px;color:var(--dim);
   background:#15122C;border:1px solid var(--edge);}
@@ -735,6 +750,9 @@ td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
       </div>
       <div>
         <h3>보스 — 쿨타임이 길수록 크게 준다</h3>
+        <div class="skills" id="skillBar"></div>
+        <p class="sknote" id="skillNote"></p>
+
         <div class="difftabs">
           <button class="dtab" id="dNormal" aria-selected="true">일반</button>
           <button class="dtab" id="dHard" aria-selected="false">하드 · 보상 2~4배</button>
@@ -1203,7 +1221,7 @@ const dayIdx=()=>Math.floor((Date.now()-new Date().getTimezoneOffset()*60000)/86
 const newItem=i=>({star:0, ig:0, lines:[], broken:false, name:(i===0?WNAMES.war:NAMES[i])[0]});
 const DEF=()=>({
   meso:300000, sel:0, items:[0,1,2,3,4].map(newItem),
-  job:'war', useProt:false, useSafe:false, map:0, zone:0, mv:0, anim:true, hard:false, view:'up', lv:1, xp:0, ach:{},
+  job:'war', arm:-1, skcd:[0,0,0,0,0], useProt:false, useSafe:false, map:0, zone:0, mv:0, anim:true, hard:false, view:'up', lv:1, xp:0, ach:{},
   att:{last:0, day:0, total:0},
   bcd:BOSSES.map(function(){return 0;}), bk:BOSSES.map(function(){return 0;}),
   inv:defInv(), bag:[], evT:0, evCd:180,
@@ -1836,6 +1854,8 @@ function rollDrop(i,bs){
   const g=Math.min(2,dropGrade(bs.req)+(S.hard?1:0)), slot=(Math.random()*SLOTS.length)|0;
   // 떨어진 장비는 그 자리에서 결정하지 않고 가방에 쌓인다. 급할 게 없다.
   if(!Array.isArray(S.bag)) S.bag=[];
+  if(!Array.isArray(S.skcd)||S.skcd.length!==SKILLS.length) S.skcd=SKILLS.map(function(){return 0;});
+  if(typeof S.arm!=='number') S.arm=-1;
   if(S.bag.length>=BAG_MAX){
     const m=meltValue(g); S.meso+=m;
     log(bossName(i)+' — '+IGNAME[g]+' '+SLOTS[slot].n+' 드롭, <b>가방이 꽉 차서</b> 분해했다 (+'+fmt(m)+')','fail');
@@ -2099,7 +2119,7 @@ function bdmg(side,txt,color){
   host.appendChild(el);
   setTimeout(function(){ el.remove(); },780);
 }
-function bossBattle(i,win,done){
+function bossBattle(i,win,done,dmg){
   const bs=BOSSES[i];
   battleDone=done; battleTimers=[];
   $('meArt').innerHTML=WEAPON_ART[jobKey()]||WEAPON_ART.war;
@@ -2118,6 +2138,16 @@ function bossBattle(i,win,done){
   const bStep=(win?100:58)/N, pStep=(win?42:100)/N;
   let bhp=100, php=100, t=0;
   const at=function(ms,fn){ battleTimers.push(setTimeout(fn,ms)); };
+  if(dmg){                                 // 장전한 스킬이 첫 합에 터진다
+    at(120,function(){
+      bhp=Math.max(0,bhp-Math.min(38,dmg*30)); $('foeHp').style.width=bhp+'%';
+      $('bFoe').classList.add('dmg');
+      bdmg('me','-'+Math.round(dmg*4200),'#FF8A96');
+      burst(60,'#FF4D6A',{sp:1.2}); tone(880,120,.16,'square',.05);
+      at(220,function(){ $('bFoe').classList.remove('dmg'); });
+    });
+    t=260;
+  }
   for(let r=0;r<N;r++){
     // 내 공격
     t+=STEP;
@@ -2519,7 +2549,62 @@ addEventListener('keydown',function(e){                 // 데스크톱에서는
   if(t){ e.preventDefault(); ac(); showView(t[0]); }
 });
 
+/* ---------- 스킬 ---------- */
+// 레벨로 배운다. 효과는 직업 구분 없이 같다 — 그 전투에 추가 대미지를 넣는 것으로 친다.
+// 못 이길 상대면 이길 확률이 오르고, 이미 이길 상대면 남는 힘이 보상으로 간다.
+// 쿨타임이 보스 쿨(12~180초)보다 훨씬 길어서, 어느 보스에 쓸지가 매번 선택이 된다.
+// 장전은 보스 목록 위에서 한다. 전투 화면 안에서만 누르게 하면 연출을 끈 사람이
+// 스킬을 못 써서, 설정이 곧 손해가 되는 예전 문제가 되살아난다.
+const SKILLS=[
+  {n:'일격',           lv:100, dmg:0.20, cd:300},
+  {n:'연격',           lv:150, dmg:0.40, cd:600},
+  {n:'각성',           lv:200, dmg:0.65, cd:1200},
+  {n:'초월',           lv:230, dmg:0.85, cd:2100},
+  {n:'리미트 브레이크', lv:250, dmg:1.10, cd:3600}
+];
+const skLearned=k=>(S.lv||1)>=SKILLS[k].lv;
+const skReady=k=>skLearned(k)&&!(((S.skcd||[])[k])>0);
+const armIdx=()=>{ const a=(S.arm==null?-1:S.arm); return (a>=0&&a<SKILLS.length&&skReady(a))?a:-1; };
+const armDmg=()=>{ const a=armIdx(); return a<0?0:SKILLS[a].dmg; };
+const skPower=()=>Math.round(power()*(1+armDmg()));
+
 /* ---------- 사냥터 · 보스 ---------- */
+const fmtCd=s=>{ s=Math.ceil(s); const m=Math.floor(s/60); return m?(m+'분'):(s+'초'); };
+function buildSkills(){
+  const b=$('skillBar'); b.innerHTML='';
+  SKILLS.forEach(function(s,k){
+    const el=document.createElement('button');
+    el.className='skbtn'; el.dataset.k=k;
+    el.innerHTML='<span class="sn">'+s.n+'</span><span class="sd">+'+Math.round(s.dmg*100)+'%</span>'+
+                 '<span class="sc"></span>';
+    el.addEventListener('click',function(){
+      if(!skReady(k)) return;
+      ac(); S.arm=(S.arm===k?-1:k); updateHunt(); save();
+    });
+    b.appendChild(el);
+  });
+}
+function renderSkills(){
+  if(!Array.isArray(S.skcd)||S.skcd.length!==SKILLS.length) S.skcd=SKILLS.map(function(){return 0;});
+  const a=armIdx();
+  $('skillBar').querySelectorAll('.skbtn').forEach(function(el,k){
+    const s=SKILLS[k], learned=skLearned(k), cd=S.skcd[k]||0;
+    el.hidden=!learned&&(S.lv||1)<s.lv-30;        // 아직 한참 멀면 자리도 안 차지한다
+    el.disabled=!skReady(k);
+    el.classList.toggle('armed',a===k);
+    el.querySelector('.sc').textContent=!learned?('lv '+s.lv):(cd>0?fmtCd(cd):(a===k?'장전됨':'준비'));
+  });
+  const note=$('skillNote');
+  if(a>=0){
+    note.innerHTML='<b>'+SKILLS[a].n+'</b> 장전 — 다음 보스에 대미지 <b>+'+Math.round(SKILLS[a].dmg*100)+
+      '%</b> · 이미 잡을 상대면 남는 힘이 <b>보상 +'+Math.round(SKILLS[a].dmg*50)+'%</b>로 간다.';
+  } else {
+    const next=SKILLS.findIndex(function(s,k){ return !skLearned(k); });
+    note.innerHTML=next<0?'스킬을 눌러 장전해두면 <b>다음 보스</b>에 터진다. 쿨타임이 기니 아껴 쓰자.'
+      :('스킬을 눌러 장전해두면 다음 보스에 터진다 · 다음 스킬 <b>'+SKILLS[next].n+'</b>은 <b>lv '+SKILLS[next].lv+'</b>부터.');
+  }
+}
+
 let huntBuilt=false;
 function buildHunt(){
   const zt=$('zoneTabs'); zt.innerHTML='';
@@ -2550,6 +2635,7 @@ function buildHunt(){
     b.addEventListener('click',function(){ ac(); fightBoss(i); });
     bl.appendChild(b);
   });
+  buildSkills();
   huntBuilt=true;
 }
 function renderDiff(){
@@ -2559,8 +2645,8 @@ function renderDiff(){
 }
 function updateHunt(){
   if(!huntBuilt) return;
-  renderDiffTabs();
-  const p=power(), best=bestMap(p);
+  renderDiffTabs(); renderSkills();
+  const p=power(), best=bestMap(p), bp=skPower();
   if(S.zone==null) S.zone=zoneOf(S.map||0);
   $('zoneTabs').querySelectorAll('.ztab').forEach(function(el,z){
     el.setAttribute('aria-selected',String(S.zone===z));
@@ -2583,7 +2669,7 @@ function updateHunt(){
     if(i!==best&&tag) tag.remove();
   });
   $('bossList').querySelectorAll('.hrow').forEach(function(el,i){
-    const bs=BOSSES[i], cd=(S.bcd&&S.bcd[i])||0, cr=clearRate(i,p);
+    const bs=BOSSES[i], cd=(S.bcd&&S.bcd[i])||0, cr=clearRate(i,bp);
     const cleared=S.hard?((S.bkh&&S.bkh[i])>0):((S.bk&&S.bk[i])>0);
     el.querySelector('.bnm').textContent=bossName(i);
     el.querySelector('.bic').classList.toggle('hard',!!S.hard);
@@ -2591,12 +2677,13 @@ function updateHunt(){
     el.classList.toggle('ready',cr>0&&cd<=0&&fighting<0);
     el.classList.toggle('cleared',cleared);
     el.querySelector('.hr').textContent='요구 '+bossReq(i)+' · '+bs.cd+'초 · 클리어 '+Math.round(cr*100)+'%'+
+      (armDmg()?' · 스킬 +'+Math.round(armDmg()*100)+'%':'')+
       (S.hard?' · 메소 x'+(bs.hrew/bs.rew).toFixed(1):'');
     el.querySelector('.hcd').textContent =
       fighting===i ? '교전 중…' :
       cr<=0 ? '전투력 부족' :
       cd>0 ? Math.ceil(cd)+'초' :
-      (cleared?'+':'첫 클리어 +')+fmt(bossReward(i)+(cleared?0:firstBonus(i)));
+      (cleared?'+':'첫 클리어 +')+fmt(Math.round((bossReward(i)+(cleared?0:firstBonus(i)))*(1+armDmg()*0.5)));
   });
   const m=MAPS[S.map||0];
   $('animTog').setAttribute('aria-checked',String(S.anim!==false));
@@ -2612,9 +2699,14 @@ function fightBoss(i){
   if(!bs||fighting>=0) return;
   if(!S.bcd||S.bcd.length!==BOSSES.length) S.bcd=BOSSES.map(function(){return 0;});
   if(!S.bk||S.bk.length!==BOSSES.length) S.bk=BOSSES.map(function(){return 0;});
-  const cr=clearRate(i,power());
+  const a=armIdx(), dmg=armDmg();
+  const cr=clearRate(i,skPower());         // 장전한 스킬만큼 더 때린다
   if(S.bcd[i]>0||cr<=0) return;
   const win=Math.random()<cr;              // 결과를 먼저 정하고 연출을 거기에 맞춘다
+  if(a>=0){
+    S.skcd[a]=SKILLS[a].cd; S.arm=-1;
+    log('<b>'+SKILLS[a].n+'</b> — '+bossName(i)+'에게 대미지 +'+Math.round(dmg*100)+'%','up');
+  }
   fighting=i; updateHunt();
   if(S.anim===false){                      // 연출을 끈 경우엔 진행바만
     const el=$('bossList').querySelectorAll('.hrow')[i];
@@ -2625,13 +2717,13 @@ function fightBoss(i){
     },60);
     setTimeout(function(){
       clearInterval(iv); el.classList.remove('fighting'); el.style.removeProperty('--p');
-      resolveBoss(i,win);
+      resolveBoss(i,win,dmg);
     },dur);
     return;
   }
-  bossBattle(i,win,function(){ resolveBoss(i,win); });
+  bossBattle(i,win,function(){ resolveBoss(i,win,dmg); },dmg);
 }
-function resolveBoss(i,win){
+function resolveBoss(i,win,dmg){
   const bs=BOSSES[i];
   fighting=-1;
   const el=$('bossList').querySelectorAll('.hrow')[i];
@@ -2640,6 +2732,7 @@ function resolveBoss(i,win){
     const first=S.hard?!((S.bkh||[])[i]>0):!(S.bk[i]>0);
     let r=bossReward(i);
     if(first) r+=firstBonus(i);
+    if(dmg) r=Math.round(r*(1+dmg*0.5));   // 이미 잡을 상대였다면 남는 힘이 보상으로
     if(S.hard){ if(!S.bkh||S.bkh.length!==BOSSES.length) S.bkh=BOSSES.map(function(){return 0;}); S.bkh[i]++; }
     else S.bk[i]++;
     S.meso+=r; S.bcd[i]=bs.cd;
@@ -3051,6 +3144,7 @@ function catchUp(sec){
   const m=income()*el, xp=xpRate()*el;
   S.meso+=m; gainXp(xp);
   if(Array.isArray(S.bcd)) for(let i=0;i<S.bcd.length;i++) if(S.bcd[i]>0) S.bcd[i]=Math.max(0,S.bcd[i]-el);
+  if(Array.isArray(S.skcd)) for(let k=0;k<S.skcd.length;k++) if(S.skcd[k]>0) S.skcd[k]=Math.max(0,S.skcd[k]-el);
   if(S.evT>0){ S.evT=0; S.evCd=180; }        // 자리 비운 사이 럭키데이는 지나갔다
   else S.evCd=Math.max(5,S.evCd-(el%180));
   const h=Math.floor(el/3600), mi=Math.floor(el%3600/60), s=Math.floor(el%60);
@@ -3071,6 +3165,7 @@ function loop(t){
   if(!S.bcd||S.bcd.length!==BOSSES.length) S.bcd=BOSSES.map(function(){return 0;});
   if(!S.bk||S.bk.length!==BOSSES.length) S.bk=BOSSES.map(function(){return 0;});
   for(let i=0;i<S.bcd.length;i++) if(S.bcd[i]>0) S.bcd[i]=Math.max(0,S.bcd[i]-dt);
+  if(Array.isArray(S.skcd)) for(let k=0;k<S.skcd.length;k++) if(S.skcd[k]>0) S.skcd[k]=Math.max(0,S.skcd[k]-dt);
   if(S.evT>0){
     S.evT-=dt;
     if(S.evT<=0){ S.evT=0; S.evCd=180; log('럭키데이 종료','') ; renderAll(); }
@@ -3153,7 +3248,7 @@ initOnline();
 
 // 균형 점검용 노출 (게임 동작에는 영향 없음)
 try{ window.__CFG={SF,MAXSTAR,starCost,SHIELD,SLOTS,OPT,POOL,GCAP,UPRATE,UPGRADE,CUBES,
-  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,catchUp,BOSSES,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
+  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,SKILLS,skReady,skLearned,armDmg,skPower,renderSkills,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,catchUp,BOSSES,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
   get state(){return S;}, cur, power, income, mesoMult, dropMult, starMult, potMultOf, odds, potGrade, topGrade, totalStars, sfBonus}; }catch(e){}
 })();
 </script>
