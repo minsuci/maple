@@ -34,6 +34,9 @@
 }
 *{box-sizing:border-box;}
 html,body{margin:0;min-height:100%;}
+/* 강화 버튼을 연타하면 브라우저가 더블탭 확대로 받아버린다.
+   manipulation 은 그 확대만 끄고 스크롤과 두 손가락 확대는 남긴다 — 접근성을 안 죽인다. */
+html{touch-action:manipulation;}
 body{
   background:
     radial-gradient(120% 80% at 50% -10%, #241C4D 0%, #131126 46%, #0B0A14 100%) fixed,
@@ -44,6 +47,9 @@ body{
   -webkit-tap-highlight-color:transparent;
   overflow-x:hidden;
 }
+/* 연타하면 글자가 잡혀 파랗게 번지는 것도 막는다. 로그·랭킹 글은 그대로 긁을 수 있다. */
+button,.slot,.potline,.hrow,.bagrow,.ach,.ntab,.ztab,.dtab,.skbtn,.bsk,.jobcard,.cube,.att{
+  touch-action:manipulation;-webkit-user-select:none;user-select:none;}
 body::before{
   content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.5;
   background-image:
