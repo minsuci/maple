@@ -129,7 +129,13 @@ module.exports = async (req, res) => {
       const pw = String(body.pw || '');
       if (pw.length < 4 || pw.length > 64) return res.status(400).json({ error: 'bad_pw_len' });
 
+      // 로그인과 새 계정을 갈라 받는다. 예전엔 모르는 아이디면 조용히 만들어버려서,
+      // 오타 한 번에 빈 계정이 생기고 기록이 사라진 것처럼 보였다.
+      // mode 를 안 보내는 옛 클라이언트는 예전처럼 자동으로 만든다.
+      const mode = body.mode === 'new' ? 'new' : (body.mode === 'login' ? 'login' : 'auto');
       let u = await readUser(id);
+      if (u && mode === 'new') return res.status(409).json({ error: 'taken' });
+      if (!u && mode === 'login') return res.status(404).json({ error: 'no_user' });
       if (!u) {                                   // 처음 쓰는 아이디 → 그대로 등록
         const salt = crypto.randomBytes(16).toString('hex');
         u = { salt, hash: hash(pw, salt), token: newToken(), rec: null, save: null, at: Date.now(), seen: Date.now() };

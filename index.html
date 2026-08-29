@@ -572,6 +572,10 @@ td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
 .prev button{font-size:12px;font-weight:700;padding:7px 13px;border-radius:99px;border:1px solid var(--edge);
   color:var(--dim);background:#15122C;}
 .prev button:hover{border-color:var(--gold);color:var(--gold);}
+.lswitch{width:100%;margin-top:10px;padding:11px;border-radius:10px;font-size:12.5px;font-weight:900;
+  color:var(--dim);background:transparent;border:1px dashed var(--edge2);}
+.lswitch:hover{color:var(--gold);border-color:var(--gold);}
+
 .lnote{font-size:11px;color:var(--dimmer);text-align:center;line-height:1.7;margin:0;}
 
 @media (max-width:880px){
@@ -879,13 +883,14 @@ td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
 <div class="login" id="login" hidden>
   <div class="lcard">
     <h1>별 하나 더</h1>
-    <p class="sub">쓸 아이디를 정하자.<br>기록이 이 이름으로 저장되고 랭킹에 오른다.</p>
+    <p class="sub" id="lsub">아이디와 비밀번호로 들어간다.<br>기록이 이 이름으로 저장되고 랭킹에 오른다.</p>
     <input id="idInput" maxlength="10" placeholder="아이디" autocomplete="off" spellcheck="false" aria-label="아이디">
     <input id="pwInput" type="password" maxlength="20" placeholder="비밀번호" autocomplete="off" aria-label="비밀번호">
     <input id="pw2Input" type="password" maxlength="20" placeholder="비밀번호 확인" autocomplete="off" aria-label="비밀번호 확인" hidden>
     <div class="lerr" id="lerr"></div>
-    <button class="btn gold big" id="enterBtn">입장</button>
+    <button class="btn gold big" id="enterBtn">로그인</button>
     <div class="prev" id="prevIds"></div>
+    <button class="lswitch" id="newBtn" type="button">새 캐릭터 만들기</button>
     <p class="lnote" id="lmode">처음 쓰는 아이디면 비밀번호가 그대로 등록된다.</p>
     <p class="lnote" style="color:var(--bad);opacity:.85">이 게임 전용 비밀번호를 쓰자. 다른 곳에서 쓰는 건 넣지 말고.<br>잃어버리면 되찾을 방법이 없다.</p>
   </div>
@@ -2925,22 +2930,29 @@ async function postRank(){
 }
 
 /* ---------- 로그인 ---------- */
-function loginMode(){                      // 아는 아이디면 확인 없이, 새 아이디면 확인까지
-  const id=$('idInput').value.trim();
-  const known=okId(id)&&(lockOf(id)||authOf(id));
-  $('pw2Input').hidden=!!known||!okId(id);
-  $('lmode').textContent=known?'등록된 아이디다. 비밀번호를 넣자.'
-    :'처음 쓰는 아이디면 비밀번호가 그대로 등록된다.';
-  $('enterBtn').textContent=known?'입장':'아이디 만들기';
+// 로그인이 기본이다. 예전엔 이 기기에 저장된 아이디만 '아는 아이디'로 쳐서,
+// 다른 기기에서 들어오면 멀쩡한 계정인데도 만들기 화면이 뜨고 비밀번호 확인까지 받았다.
+let newMode=false;
+function loginMode(){
+  $('pw2Input').hidden=!newMode;
+  $('enterBtn').textContent=newMode?'새 캐릭터 만들기':'로그인';
+  $('newBtn').textContent=newMode?'← 이미 있는 아이디로 로그인':'새 캐릭터 만들기';
+  $('lsub').innerHTML=newMode
+    ? '쓸 아이디와 비밀번호를 정하자.<br>기록이 이 이름으로 저장되고 랭킹에 오른다.'
+    : '아이디와 비밀번호로 들어간다.<br>기록이 이 이름으로 저장되고 랭킹에 오른다.';
+  $('lmode').textContent=newMode
+    ? '아이디는 2~10자 · 한글, 영문, 숫자, _ 만 쓸 수 있다.'
+    : '다른 기기에서 만든 아이디도 비밀번호만 맞으면 들어간다.';
 }
+function setNewMode(v){ newMode=!!v; $('lerr').textContent=''; $('pw2Input').value=''; loginMode(); }
 function showLogin(){
   const box=$('prevIds');
   box.innerHTML=knownIds().map(id=>'<button type="button" data-id="'+esc(id)+'">'+esc(id)+'</button>').join('');
   box.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
-    $('idInput').value=b.dataset.id; loginMode(); $('pwInput').focus();
+    $('idInput').value=b.dataset.id; setNewMode(false); $('pwInput').focus();
   }));
   $('lerr').textContent=''; $('idInput').value=''; $('pwInput').value=''; $('pw2Input').value='';
-  loginMode();
+  newMode=false; loginMode();
   $('login').hidden=false;
   setTimeout(()=>{ try{ $('idInput').focus(); }catch(e){} },80);
 }
@@ -2949,14 +2961,15 @@ async function submitLogin(){
   const err=t=>{ $('lerr').textContent=t; };
   if(!okId(id)) return err('아이디는 2~10자 · 한글, 영문, 숫자, _ 만');
   if(pw.length<4) return err('비밀번호는 4자 이상');
-  const known=!!(lockOf(id)||authOf(id));
-  if(!known&&pw!==pw2) return err('비밀번호 확인이 다르다');
+  if(newMode&&pw!==pw2) return err('비밀번호 확인이 다르다');
 
   $('enterBtn').disabled=true; err('확인 중…');
   if(SRV){                                   // 서버가 비밀번호를 검증한다
-    const {status,j}=await apiPost({action:'enter',id:id,pw:pw});
+    const {status,j}=await apiPost({action:'enter',id:id,pw:pw,mode:newMode?'new':'login'});
     $('enterBtn').disabled=false;
     if(status===401) return err('비밀번호가 다르다');
+    if(status===404) return err('없는 아이디다 — 아래 <새 캐릭터 만들기>로 만들자');
+    if(status===409) return err('이미 쓰는 아이디다 — 로그인으로 들어가자');
     if(status===429) return err('요청이 너무 잦다. 잠시 뒤에 다시');
     if(status!==200||!j||!j.ok) return err('서버에 연결하지 못했다');
     TOKEN=j.token; lsSet(LK.tok(id),TOKEN);
@@ -2967,6 +2980,8 @@ async function submitLogin(){
   const h=await pwHash(id,pw);               // 서버가 없을 때는 이 기기에서만 잠근다
   $('enterBtn').disabled=false;
   const lock=lockOf(id)||authOf(id);
+  if(!newMode&&!lock) return err('이 기기엔 없는 아이디다 — 아래 <새 캐릭터 만들기>로 만들자');
+  if(newMode&&lock) return err('이미 있는 아이디다 — 로그인으로 들어가자');
   if(lock&&h!==lock) return err('비밀번호가 다르다');
   lsSet(LK.auth(id),h);
   err(''); enter(id);
@@ -3107,7 +3122,8 @@ $('enterBtn').addEventListener('click',submitLogin);
 ['idInput','pwInput','pw2Input'].forEach(k=>{
   $(k).addEventListener('keydown',e=>{ if(e.key==='Enter') submitLogin(); });
 });
-$('idInput').addEventListener('input',()=>{ $('lerr').textContent=''; loginMode(); });
+$('idInput').addEventListener('input',()=>{ $('lerr').textContent=''; });
+$('newBtn').addEventListener('click',()=>{ setNewMode(!newMode); $('idInput').focus(); });
 $('switchBtn').addEventListener('click',()=>{ save(); USER=null; $('whoV').textContent='—'; showLogin(); });
 $('battle').addEventListener('click',function(){ if(!$('battle').hidden) endBattle(); });
 $('animTog').addEventListener('click',function(){ S.anim=(S.anim===false); updateHunt(); save(); });
