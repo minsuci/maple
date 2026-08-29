@@ -487,6 +487,15 @@ td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
   font-size:34px;line-height:1.2;}
 .bresult.win{color:#FFC94A;text-shadow:0 0 26px #FFC94A88;}
 .bresult.lose{color:#FF4D6A;text-shadow:0 0 26px #FF4D6A66;}
+.bskills{display:grid;grid-template-columns:repeat(auto-fit,minmax(0,1fr));gap:5px;margin-top:14px;}
+.bsk{padding:8px 4px;border-radius:9px;background:#1B1638;border:1px solid var(--edge2);
+  display:flex;flex-direction:column;align-items:center;gap:1px;}
+.bsk .sn{font-weight:900;font-size:11.5px;color:var(--text);white-space:nowrap;}
+.bsk .sd{font-family:'Bebas Neue',sans-serif;font-size:15px;color:#FF8A96;letter-spacing:.03em;}
+.bsk:not(:disabled):hover{border-color:var(--bad);background:#2A0F19;}
+.bsk:disabled{opacity:.32;}
+.bsk[hidden]{display:none;}
+
 .bhint{margin-top:8px;font-size:11.5px;color:var(--dimmer);letter-spacing:.06em;}
 .animtog{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:10px;
   font-size:11.5px;color:var(--dimmer);font-weight:700;}
@@ -882,6 +891,7 @@ td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
         <div class="bhp"><span id="foeHp"></span></div>
       </div>
     </div>
+    <div class="bskills" id="bSkills"></div>
     <div class="bresult" id="bResult"></div>
     <div class="bhint">아무 데나 누르면 건너뛴다</div>
   </div>
@@ -1221,7 +1231,7 @@ const dayIdx=()=>Math.floor((Date.now()-new Date().getTimezoneOffset()*60000)/86
 const newItem=i=>({star:0, ig:0, lines:[], broken:false, name:(i===0?WNAMES.war:NAMES[i])[0]});
 const DEF=()=>({
   meso:300000, sel:0, items:[0,1,2,3,4].map(newItem),
-  job:'war', arm:-1, skcd:[0,0,0,0,0], useProt:false, useSafe:false, map:0, zone:0, mv:0, anim:true, hard:false, view:'up', lv:1, xp:0, ach:{},
+  job:'war', skcd:[0,0,0,0,0], useProt:false, useSafe:false, map:0, zone:0, mv:0, anim:true, hard:false, view:'up', lv:1, xp:0, ach:{},
   att:{last:0, day:0, total:0},
   bcd:BOSSES.map(function(){return 0;}), bk:BOSSES.map(function(){return 0;}),
   inv:defInv(), bag:[], evT:0, evCd:180,
@@ -1271,12 +1281,22 @@ function mapEff(i,p){ const m=MAPS[i]; if(!m||!mapOpen(i)) return 0; if(!m.req) 
   const r=Math.min(1,(p||0)/m.req); return r*r; }
 function mapIncome(i,p){ const m=MAPS[i]; return m?Math.round(m.rate*mapEff(i,p)*mesoMult()):0; }
 function bestMap(p){ let b=0,v=-1; for(let i=0;i<MAPS.length;i++){ const x=mapIncome(i,p); if(x>v){v=x;b=i;} } return b; }
+// 전투는 진짜로 굴린다. 보스 HP 100 을 6합 안에 깎으면 이긴다.
+// 한 합 대미지 = 평균 x uniform(0.4,1.6), 6합 총합의 평균 = 100 x (전투력/요구치)/0.85.
+// 그래서 목록에 뜨는 클리어 %는 '연출용 숫자'가 아니라 실제로 이길 확률이다.
+// 아래 표는 그 시뮬레이션을 30만 번 돌려 뽑은 값 (r=0.50 부터 0.05 간격).
+// 50% 지점은 예전 곡선과 같은 r=0.85 라, 보스 사다리 위치는 그대로다.
+const CRT=[0,0,0.001,0.014,0.066,0.176,0.333,0.502,0.651,0.766,
+           0.851,0.908,0.945,0.968,0.982,0.990,0.994,0.997,0.998,0.999];
+const BROUNDS=6;
+const dmgMean=r=>100*(r/0.85)/BROUNDS;        // 한 합 평균 대미지
 function clearRate(i,p){
   const b=BOSSES[i]; if(!b) return 0;
   const r=(p||0)/bossReq(i);
-  if(r>=1.2) return 1;
-  if(r<0.5) return 0;
-  return (r-0.5)/0.7;
+  if(r<=0.5) return 0;
+  if(r>=1.45) return 1;
+  const x=(r-0.5)/0.05, k=Math.floor(x), f=x-k;
+  return CRT[k]+(CRT[Math.min(CRT.length-1,k+1)]-CRT[k])*f;
 }
 const bossReward=i=>{ const b=BOSSES[i]; return b?Math.round((S.hard?b.hrew:b.rew)*mesoMult()):0; };
 const firstBonus=i=>{ const b=BOSSES[i]; return b?Math.round(b.rew*3*mesoMult()):0; };
@@ -1855,7 +1875,7 @@ function rollDrop(i,bs){
   // 떨어진 장비는 그 자리에서 결정하지 않고 가방에 쌓인다. 급할 게 없다.
   if(!Array.isArray(S.bag)) S.bag=[];
   if(!Array.isArray(S.skcd)||S.skcd.length!==SKILLS.length) S.skcd=SKILLS.map(function(){return 0;});
-  if(typeof S.arm!=='number') S.arm=-1;
+  delete S.arm;                              // 장전을 없앴다 — 스킬은 전투 중에만 쓴다
   if(S.bag.length>=BAG_MAX){
     const m=meltValue(g); S.meso+=m;
     log(bossName(i)+' — '+IGNAME[g]+' '+SLOTS[slot].n+' 드롭, <b>가방이 꽉 차서</b> 분해했다 (+'+fmt(m)+')','fail');
@@ -2105,11 +2125,11 @@ const BOSS_ART=[
 
 /* ---------- 보스 전투 연출 ---------- */
 let battleTimers=[], battleDone=null;
-function endBattle(){
+function endBattle(win,dmg){
   battleTimers.forEach(clearTimeout); battleTimers=[];
   $('battle').hidden=true;
   const f=battleDone; battleDone=null;
-  if(f) f();
+  if(f) f(win,dmg||0);
 }
 function bdmg(side,txt,color){
   const host=$(side==='me'?'bFoe':'bMe').querySelector('.bavatar');
@@ -2119,64 +2139,94 @@ function bdmg(side,txt,color){
   host.appendChild(el);
   setTimeout(function(){ el.remove(); },780);
 }
-function bossBattle(i,win,done,dmg){
+function bossBattle(i,done){
   const bs=BOSSES[i];
   battleDone=done; battleTimers=[];
-  $('meArt').innerHTML=WEAPON_ART[jobKey()]||WEAPON_ART.war;
-  $('meName').textContent=curJob().n;
-  $('bName').textContent=bossName(i);
   const art=$('bArt');
   art.innerHTML=BOSS_ART[i]||BOSS_ART[0];
   art.setAttribute('class','bart t'+Math.min(3,Math.floor(i/3))+(S.hard?' hard':''));
+  $('meArt').innerHTML=WEAPON_ART[jobKey()]||WEAPON_ART.war;
+  $('meName').textContent=curJob().n;
+  $('bName').textContent=bossName(i);
   $('bResult').textContent=''; $('bResult').className='bresult';
   $('myHp').style.width='100%'; $('foeHp').style.width='100%';
   $('battle').hidden=false;
-  // 연출이 길면 쿨타임이 아니라 연출이 보스 수입을 정한다 — 예전엔 열두 마리를
-  // 다 돌려면 분당 67초가 필요했고, 연출을 끄면 그 제한이 사라져 설정이 곧 수입이었다.
-  // 아래 보스일수록 짧게 잡아 지금은 분당 35초면 다 돈다.
-  const N=[3,3,4,4,4,5,5,5,6,6,6,6][i]||5, STEP=170;
-  const bStep=(win?100:58)/N, pStep=(win?42:100)/N;
-  let bhp=100, php=100, t=0;
+
+  const m=dmgMean(power()/bossReq(i));
+  let bhp=100, php=100, skUsed=-1, over=false, round=0;
   const at=function(ms,fn){ battleTimers.push(setTimeout(fn,ms)); };
-  if(dmg){                                 // 장전한 스킬이 첫 합에 터진다
-    at(120,function(){
-      bhp=Math.max(0,bhp-Math.min(38,dmg*30)); $('foeHp').style.width=bhp+'%';
-      $('bFoe').classList.add('dmg');
-      bdmg('me','-'+Math.round(dmg*4200),'#FF8A96');
-      burst(60,'#FF4D6A',{sp:1.2}); tone(880,120,.16,'square',.05);
-      at(220,function(){ $('bFoe').classList.remove('dmg'); });
+
+  // 스킬은 전투 중에만, 한 번만. 장전 같은 건 없다 — 싸우는 걸 보고 쓴다.
+  buildBattleSkills(function(k){
+    if(over||skUsed>=0||!skReady(k)) return;
+    skUsed=k; S.skcd[k]=SKILLS[k].cd; save();
+    const s=SKILLS[k];
+    bhp=Math.max(0,bhp-skHit(k));
+    $('foeHp').style.width=bhp+'%';
+    $('bFoe').classList.add('dmg');
+    bdmg('me','-'+Math.round(s.dmg*4200),'#FFE9A8');
+    burst(90,'#FF4D6A',{sp:1.4}); tone(920,140,.2,'square',.055);
+    flash(s.n,'대미지 +'+Math.round(s.dmg*100)+'%','#FF4D6A');
+    log('<b>'+s.n+'</b> — '+bossName(i)+'에게 한 방','up');
+    renderBattleSkills(skUsed);
+    at(220,function(){ $('bFoe').classList.remove('dmg'); });
+    if(bhp<=0) finish(true);
+  });
+  renderBattleSkills(-1);
+
+  function finish(win){
+    if(over) return; over=true;
+    battleTimers.forEach(clearTimeout); battleTimers=[];
+    $('bSkills').querySelectorAll('.bsk').forEach(function(b){ b.disabled=true; });
+    at(260,function(){
+      const R=$('bResult');
+      R.className='bresult '+(win?'win':'lose');
+      R.textContent=win?(bossName(i)+' 격파!'):'토벌 실패';
+      if(win){ SND.up(); burst(70,'#FFD66B',{sp:1.1}); } else SND.des();
     });
-    t=260;
+    at(900,function(){ endBattle(win,skUsed<0?0:SKILLS[skUsed].dmg); });
   }
-  for(let r=0;r<N;r++){
-    // 내 공격
-    t+=STEP;
-    at(t,function(){
-      bhp=Math.max(0,bhp-bStep); $('foeHp').style.width=bhp+'%';
-      $('bMe').classList.add('hit'); $('bFoe').classList.add('dmg');
-      bdmg('me','-'+Math.round(bStep*120+rnd(-40,40)),'#FFE9A8');
-      tone(520,760,.07,'square',.035);
-      at(150,function(){ $('bMe').classList.remove('hit'); $('bFoe').classList.remove('dmg'); });
-    });
-    if(win&&r===N-1) break;          // 이기면 마지막은 내 타격으로 끝난다
-    // 보스 반격
-    t+=STEP;
-    at(t,function(){
-      php=Math.max(0,php-pStep); $('myHp').style.width=php+'%';
+
+  const STEP=190;
+  function tick(){
+    if(over) return;
+    round++;
+    bhp=Math.max(0,bhp-m*(0.4+Math.random()*1.2));
+    $('foeHp').style.width=bhp+'%';
+    $('bMe').classList.add('hit'); $('bFoe').classList.add('dmg');
+    bdmg('me','-'+Math.round((100-bhp)*40+rnd(-60,60)),'#FFE9A8');
+    tone(520,760,.07,'square',.035);
+    at(150,function(){ $('bMe').classList.remove('hit'); $('bFoe').classList.remove('dmg'); });
+    if(bhp<=0){ at(240,function(){ finish(true); }); return; }
+    at(STEP,function(){                       // 보스 반격 — 남은 합을 체력으로 보여준다
+      if(over) return;
+      php=Math.max(0,100*(1-round/BROUNDS));
+      $('myHp').style.width=php+'%';
       $('bFoe').classList.add('hit'); $('bMe').classList.add('dmg');
-      bdmg('foe','-'+Math.round(pStep*90+rnd(-30,30)),'#FFB0BC');
+      bdmg('foe','-'+Math.round(100/BROUNDS*90+rnd(-40,40)),'#FFB0BC');
       tone(220,140,.09,'sawtooth',.035);
       at(150,function(){ $('bFoe').classList.remove('hit'); $('bMe').classList.remove('dmg'); });
+      if(round>=BROUNDS){ at(300,function(){ finish(false); }); return; }
+      at(STEP,tick);
     });
   }
-  t+=300;
-  at(t,function(){
-    const R=$('bResult');
-    R.className='bresult '+(win?'win':'lose');
-    R.textContent=win?(bossName(i)+' 격파!'):'토벌 실패';
-    if(win){ SND.up(); burst(70,'#FFD66B',{sp:1.1}); } else SND.des();
+  at(420,tick);                                // 첫 합 전에 스킬 쓸 틈을 준다
+}
+function buildBattleSkills(onUse){
+  const b=$('bSkills'); b.innerHTML='';
+  SKILLS.forEach(function(s,k){
+    const el=document.createElement('button');
+    el.className='bsk'; el.dataset.k=k; el.type='button';
+    el.innerHTML='<span class="sn">'+s.n+'</span><span class="sd">+'+Math.round(s.dmg*100)+'%</span>';
+    el.addEventListener('click',function(e){ e.stopPropagation(); ac(); onUse(k); });
+    b.appendChild(el);
   });
-  at(t+620,endBattle);
+}
+function renderBattleSkills(used){
+  $('bSkills').querySelectorAll('.bsk').forEach(function(el,k){
+    el.hidden=!skLearned(k);
+    el.disabled=used>=0||!skReady(k);
+  });
 }
 
 /* ---------- 레벨 · 업적 · 오프라인 수입 ---------- */
@@ -2564,9 +2614,8 @@ const SKILLS=[
 ];
 const skLearned=k=>(S.lv||1)>=SKILLS[k].lv;
 const skReady=k=>skLearned(k)&&!(((S.skcd||[])[k])>0);
-const armIdx=()=>{ const a=(S.arm==null?-1:S.arm); return (a>=0&&a<SKILLS.length&&skReady(a))?a:-1; };
-const armDmg=()=>{ const a=armIdx(); return a<0?0:SKILLS[a].dmg; };
-const skPower=()=>Math.round(power()*(1+armDmg()));
+// 스킬 한 방이 깎는 보스 체력 (보스 HP 는 100). 리미트 브레이크면 66.
+const skHit=k=>SKILLS[k].dmg*60;
 
 /* ---------- 사냥터 · 보스 ---------- */
 const fmtCd=s=>{ s=Math.ceil(s); const m=Math.floor(s/60); return m?(m+'분'):(s+'초'); };
@@ -2577,32 +2626,20 @@ function buildSkills(){
     el.className='skbtn'; el.dataset.k=k;
     el.innerHTML='<span class="sn">'+s.n+'</span><span class="sd">+'+Math.round(s.dmg*100)+'%</span>'+
                  '<span class="sc"></span>';
-    el.addEventListener('click',function(){
-      if(!skReady(k)) return;
-      ac(); S.arm=(S.arm===k?-1:k); updateHunt(); save();
-    });
+    el.disabled=true;                          // 여기선 쿨타임만 본다 — 쓰는 건 전투 중에
     b.appendChild(el);
   });
 }
 function renderSkills(){
   if(!Array.isArray(S.skcd)||S.skcd.length!==SKILLS.length) S.skcd=SKILLS.map(function(){return 0;});
-  const a=armIdx();
   $('skillBar').querySelectorAll('.skbtn').forEach(function(el,k){
     const s=SKILLS[k], learned=skLearned(k), cd=S.skcd[k]||0;
     el.hidden=!learned&&(S.lv||1)<s.lv-30;        // 아직 한참 멀면 자리도 안 차지한다
-    el.disabled=!skReady(k);
-    el.classList.toggle('armed',a===k);
-    el.querySelector('.sc').textContent=!learned?('lv '+s.lv):(cd>0?fmtCd(cd):(a===k?'장전됨':'준비'));
+    el.querySelector('.sc').textContent=!learned?('lv '+s.lv):(cd>0?fmtCd(cd):'준비');
   });
-  const note=$('skillNote');
-  if(a>=0){
-    note.innerHTML='<b>'+SKILLS[a].n+'</b> 장전 — 다음 보스에 대미지 <b>+'+Math.round(SKILLS[a].dmg*100)+
-      '%</b> · 이미 잡을 상대면 남는 힘이 <b>보상 +'+Math.round(SKILLS[a].dmg*50)+'%</b>로 간다.';
-  } else {
-    const next=SKILLS.findIndex(function(s,k){ return !skLearned(k); });
-    note.innerHTML=next<0?'스킬을 눌러 장전해두면 <b>다음 보스</b>에 터진다. 쿨타임이 기니 아껴 쓰자.'
-      :('스킬을 눌러 장전해두면 다음 보스에 터진다 · 다음 스킬 <b>'+SKILLS[next].n+'</b>은 <b>lv '+SKILLS[next].lv+'</b>부터.');
-  }
+  const next=SKILLS.findIndex(function(s,k){ return !skLearned(k); });
+  $('skillNote').innerHTML='스킬은 <b>전투 중에</b> 쓴다 — 체력이 안 깎이는 게 보이면 그때 지른다. 한 판에 하나.'+
+    (next<0?'':' · 다음 스킬 <b>'+SKILLS[next].n+'</b>은 <b>lv '+SKILLS[next].lv+'</b>부터.');
 }
 
 let huntBuilt=false;
@@ -2646,7 +2683,7 @@ function renderDiff(){
 function updateHunt(){
   if(!huntBuilt) return;
   renderDiffTabs(); renderSkills();
-  const p=power(), best=bestMap(p), bp=skPower();
+  const p=power(), best=bestMap(p);
   if(S.zone==null) S.zone=zoneOf(S.map||0);
   $('zoneTabs').querySelectorAll('.ztab').forEach(function(el,z){
     el.setAttribute('aria-selected',String(S.zone===z));
@@ -2669,7 +2706,7 @@ function updateHunt(){
     if(i!==best&&tag) tag.remove();
   });
   $('bossList').querySelectorAll('.hrow').forEach(function(el,i){
-    const bs=BOSSES[i], cd=(S.bcd&&S.bcd[i])||0, cr=clearRate(i,bp);
+    const bs=BOSSES[i], cd=(S.bcd&&S.bcd[i])||0, cr=clearRate(i,p);
     const cleared=S.hard?((S.bkh&&S.bkh[i])>0):((S.bk&&S.bk[i])>0);
     el.querySelector('.bnm').textContent=bossName(i);
     el.querySelector('.bic').classList.toggle('hard',!!S.hard);
@@ -2677,13 +2714,12 @@ function updateHunt(){
     el.classList.toggle('ready',cr>0&&cd<=0&&fighting<0);
     el.classList.toggle('cleared',cleared);
     el.querySelector('.hr').textContent='요구 '+bossReq(i)+' · '+bs.cd+'초 · 클리어 '+Math.round(cr*100)+'%'+
-      (armDmg()?' · 스킬 +'+Math.round(armDmg()*100)+'%':'')+
       (S.hard?' · 메소 x'+(bs.hrew/bs.rew).toFixed(1):'');
     el.querySelector('.hcd').textContent =
       fighting===i ? '교전 중…' :
       cr<=0 ? '전투력 부족' :
       cd>0 ? Math.ceil(cd)+'초' :
-      (cleared?'+':'첫 클리어 +')+fmt(Math.round((bossReward(i)+(cleared?0:firstBonus(i)))*(1+armDmg()*0.5)));
+      (cleared?'+':'첫 클리어 +')+fmt(bossReward(i)+(cleared?0:firstBonus(i)));
   });
   const m=MAPS[S.map||0];
   $('animTog').setAttribute('aria-checked',String(S.anim!==false));
@@ -2699,14 +2735,8 @@ function fightBoss(i){
   if(!bs||fighting>=0) return;
   if(!S.bcd||S.bcd.length!==BOSSES.length) S.bcd=BOSSES.map(function(){return 0;});
   if(!S.bk||S.bk.length!==BOSSES.length) S.bk=BOSSES.map(function(){return 0;});
-  const a=armIdx(), dmg=armDmg();
-  const cr=clearRate(i,skPower());         // 장전한 스킬만큼 더 때린다
+  const cr=clearRate(i,power());
   if(S.bcd[i]>0||cr<=0) return;
-  const win=Math.random()<cr;              // 결과를 먼저 정하고 연출을 거기에 맞춘다
-  if(a>=0){
-    S.skcd[a]=SKILLS[a].cd; S.arm=-1;
-    log('<b>'+SKILLS[a].n+'</b> — '+bossName(i)+'에게 대미지 +'+Math.round(dmg*100)+'%','up');
-  }
   fighting=i; updateHunt();
   if(S.anim===false){                      // 연출을 끈 경우엔 진행바만
     const el=$('bossList').querySelectorAll('.hrow')[i];
@@ -2717,11 +2747,11 @@ function fightBoss(i){
     },60);
     setTimeout(function(){
       clearInterval(iv); el.classList.remove('fighting'); el.style.removeProperty('--p');
-      resolveBoss(i,win,dmg);
+      resolveBoss(i,Math.random()<cr,0);   // 연출을 끄면 표와 같은 확률로 한 번에 결정된다
     },dur);
     return;
   }
-  bossBattle(i,win,function(){ resolveBoss(i,win,dmg); },dmg);
+  bossBattle(i,function(win,dmg){ resolveBoss(i,win,dmg); });
 }
 function resolveBoss(i,win,dmg){
   const bs=BOSSES[i];
@@ -3222,6 +3252,7 @@ $('newBtn').addEventListener('click',()=>{ setNewMode(!newMode); $('idInput').fo
 $('switchBtn').addEventListener('click',()=>{ save(); USER=null; $('whoV').textContent='—'; showLogin(); });
 $('battle').addEventListener('click',function(){ if(!$('battle').hidden) endBattle(); });
 $('animTog').addEventListener('click',function(){ S.anim=(S.anim===false); updateHunt(); save(); });
+// 연출을 끄면 스킬을 쓸 자리가 없다. 빠르게 도는 대신 스킬을 포기하는 맞바꿈이다.
 $('burger').addEventListener('click',function(){ $('menu').hidden=false; });
 $('mAtt').addEventListener('click',function(){ $('menu').hidden=true; renderDaily(); $('attend').hidden=false; });
 $('meltJunk').addEventListener('click',function(){ ac(); meltJunk(); });
@@ -3248,7 +3279,7 @@ initOnline();
 
 // 균형 점검용 노출 (게임 동작에는 영향 없음)
 try{ window.__CFG={SF,MAXSTAR,starCost,SHIELD,SLOTS,OPT,POOL,GCAP,UPRATE,UPGRADE,CUBES,
-  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,SKILLS,skReady,skLearned,armDmg,skPower,renderSkills,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,catchUp,BOSSES,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
+  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,SKILLS,skReady,skLearned,skHit,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,catchUp,BOSSES,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
   get state(){return S;}, cur, power, income, mesoMult, dropMult, starMult, potMultOf, odds, potGrade, topGrade, totalStars, sfBonus}; }catch(e){}
 })();
 </script>
