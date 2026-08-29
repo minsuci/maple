@@ -602,7 +602,7 @@ button:disabled{cursor:not-allowed;opacity:.45;}
         <h3>보스 — 쿨타임이 길수록 크게 준다</h3>
         <div class="difftabs">
           <button class="dtab" id="dNormal" aria-selected="true">일반</button>
-          <button class="dtab" id="dHard" aria-selected="false">하드 · 요구 2.8배 / 보상 4배</button>
+          <button class="dtab" id="dHard" aria-selected="false">하드 · 보상 4배</button>
         </div>
         <div class="hlist" id="bossList"></div>
       </div>
@@ -833,24 +833,25 @@ const MAPS=[
   {n:'검은 마법사의 성', req:600, rate:22000}
 ];
 // 보스마다 보상 성향이 다르다 — 필요한 걸 주는 놈을 골라 잡는 구조
-// 요구 전투력은 레벨 성장까지 감안해 다시 깔았다.
-// 하드는 요구치 2.8배 · 보상 4배 — 250렙 언저리에서 아카이럼 하드가 막 열린다.
+// 일반과 하드를 각각 정의한다. 하드를 일반의 배수로 두면 일반을 올릴 때마다
+// 하드가 전투력 상한(300렙 만렙장비 = 약 3070)을 넘어 도달 불가가 된다.
+// 기준점 둘: 250렙 중장비(1418)에서 하드 아카이럼 65%, 만렙에서 하드 검마 97%.
 const BOSSES=[
-  {n:'발록',        req:40,   cd:12,  mul:40,   base:7000,   t:'메소'},
-  {n:'자쿰',        req:80,   cd:20,  mul:70,   base:14000,  t:'메소'},
-  {n:'혼테일',      req:130,  cd:35,  mul:130,  base:28000,  t:'장비'},
-  {n:'파풀라투스',  req:190,  cd:40,  mul:150,  base:34000,  t:'큐브'},
-  {n:'핑크빈',      req:260,  cd:50,  mul:230,  base:50000,  t:'메소'},
-  {n:'반 레온',     req:340,  cd:60,  mul:300,  base:66000,  t:'쉴드'},
-  {n:'매그너스',    req:430,  cd:75,  mul:390,  base:88000,  t:'장비'},
-  {n:'아카이럼',    req:530,  cd:85,  mul:480,  base:110000, t:'큐브'},
-  {n:'루시드',      req:640,  cd:100, mul:610,  base:148000, t:'장비'},
-  {n:'윌',          req:760,  cd:130, mul:890,  base:228000, t:'성공권'},
-  {n:'진 힐라',     req:890,  cd:150, mul:1150, base:300000, t:'큐브'},
-  {n:'검은 마법사', req:1030, cd:180, mul:1600, base:400000, t:'전부'}
+  {n:'발록',        req:40,   hreq:115,  cd:12,  mul:40,   base:7000,   t:'메소'},
+  {n:'자쿰',        req:90,   hreq:250,  cd:20,  mul:70,   base:14000,  t:'메소'},
+  {n:'혼테일',      req:160,  hreq:430,  cd:35,  mul:130,  base:28000,  t:'장비'},
+  {n:'파풀라투스',  req:250,  hreq:650,  cd:40,  mul:150,  base:34000,  t:'큐브'},
+  {n:'핑크빈',      req:360,  hreq:900,  cd:50,  mul:230,  base:50000,  t:'메소'},
+  {n:'반 레온',     req:490,  hreq:1180, cd:60,  mul:300,  base:66000,  t:'쉴드'},
+  {n:'매그너스',    req:640,  hreq:1330, cd:75,  mul:390,  base:88000,  t:'장비'},
+  {n:'아카이럼',    req:810,  hreq:1484, cd:85,  mul:480,  base:110000, t:'큐브'},
+  {n:'루시드',      req:1000, hreq:1750, cd:100, mul:610,  base:148000, t:'장비'},
+  {n:'윌',          req:1210, hreq:2020, cd:130, mul:890,  base:228000, t:'성공권'},
+  {n:'진 힐라',     req:1450, hreq:2300, cd:150, mul:1150, base:300000, t:'큐브'},
+  {n:'검은 마법사', req:1720, hreq:2600, cd:180, mul:1600, base:400000, t:'전부'}
 ];
-const HARD_REQ=2.8, HARD_REW=4;
-const bossReq=i=>Math.round(BOSSES[i].req*(S.hard?HARD_REQ:1));
+const HARD_REW=4;
+const bossReq=i=>S.hard?BOSSES[i].hreq:BOSSES[i].req;
 const bossName=i=>BOSSES[i].n+(S.hard?' 하드':'');
 // 성향별 드롭 확률 [장비, 큐브권, 쉴드권, 성공권]
 const BTYPE={
@@ -861,7 +862,7 @@ const BTYPE={
   '성공권':{eq:.08, cube:0,   sh:0,   sure:.10},
   '전부'  :{eq:.20, cube:.15, sh:.15, sure:.08}
 };
-const dropGrade=req=>req<130?0:req<230?1:2;
+const dropGrade=req=>req<160?0:req<640?1:2;
 // 총 스타포스 누적 보너스 — 다섯 부위 성수치를 합친 만큼 전투력이 통째로 오른다
 const SFTIERS=[[30,3],[60,7],[90,12],[120,18],[150,25],[180,35]];
 const meltValue=g=>(g+1)*11000;
