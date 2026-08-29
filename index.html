@@ -303,6 +303,24 @@ button:disabled{cursor:not-allowed;opacity:.45;}
 .offrow b{font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--meso);letter-spacing:.03em;}
 .offnote{font-size:11px;color:var(--dimmer);text-align:center;margin-top:10px;line-height:1.6;}
 
+/* ---------- 난이도 · 메뉴 ---------- */
+.difftabs{display:flex;gap:5px;margin-bottom:8px;}
+.dtab{flex:1;padding:8px;border-radius:9px;font-weight:900;font-size:11.5px;color:var(--dim);
+  background:#15122C;border:1px solid var(--edge);}
+.dtab[aria-selected="true"]{color:var(--gold);border-color:var(--gold);background:#2A2208;}
+#dHard[aria-selected="true"]{color:#FF8A96;border-color:var(--bad);background:#2A0F19;}
+.burger{width:38px;height:34px;border-radius:9px;border:1px solid var(--edge);background:#15122C;
+  display:grid;place-items:center;gap:3px;padding:8px 9px;}
+.burger span{display:block;width:100%;height:2px;border-radius:2px;background:var(--dim);}
+.menu{position:fixed;inset:0;z-index:92;background:rgba(9,6,18,.9);display:grid;place-items:center;padding:20px;}
+.menu[hidden]{display:none;}
+.mcard{width:min(340px,100%);display:flex;flex-direction:column;gap:8px;}
+.mitem{padding:16px;border-radius:13px;font-weight:900;font-size:17px;text-align:left;
+  background:linear-gradient(180deg,var(--panel2),#1B1638);border:1px solid var(--edge2);color:var(--dim);}
+.mitem[aria-selected="true"]{color:var(--gold);border-color:var(--gold);background:#2A2208;}
+.mitem small{display:block;font-size:11.5px;font-weight:500;color:var(--dimmer);margin-top:3px;}
+.view[hidden]{display:none;}
+
 /* ---------- 보스 전투 ---------- */
 .battle{position:fixed;inset:0;z-index:88;display:grid;place-items:center;padding:18px;
   background:radial-gradient(80% 60% at 50% 45%, rgba(60,14,30,.86), rgba(9,6,18,.94));cursor:pointer;}
@@ -465,6 +483,7 @@ button:disabled{cursor:not-allowed;opacity:.45;}
     <span class="who">강화 중인 사람 <b id="whoV">—</b></span>
     <span class="online" id="onlineV">랭킹 확인 중</span>
     <button class="switch" id="switchBtn">아이디 변경</button>
+    <button class="burger" id="burger" aria-label="메뉴"><span></span><span></span><span></span></button>
   </div>
 
   <div class="topbar">
@@ -493,6 +512,7 @@ button:disabled{cursor:not-allowed;opacity:.45;}
     <span class="etime" id="eventTime">—</span>
   </div>
 
+  <div class="view" id="viewUp">
   <div class="main">
     <!-- 아이템 -->
     <section class="card">
@@ -568,6 +588,9 @@ button:disabled{cursor:not-allowed;opacity:.45;}
     </section>
   </div>
 
+  </div>
+
+  <div class="view" id="viewHunt" hidden>
   <section class="card">
     <h2>사냥</h2>
     <div class="hunt">
@@ -577,6 +600,10 @@ button:disabled{cursor:not-allowed;opacity:.45;}
       </div>
       <div>
         <h3>보스 — 쿨타임이 길수록 크게 준다</h3>
+        <div class="difftabs">
+          <button class="dtab" id="dNormal" aria-selected="true">일반</button>
+          <button class="dtab" id="dHard" aria-selected="false">하드 · 요구 2.8배 / 보상 4배</button>
+        </div>
         <div class="hlist" id="bossList"></div>
       </div>
     </div>
@@ -586,11 +613,17 @@ button:disabled{cursor:not-allowed;opacity:.45;}
     </div>
   </section>
 
+  </div>
+
+  <div class="view" id="viewAch" hidden>
   <section class="card">
     <h2>업적 <span id="achCount" style="float:right;color:var(--gold);font-family:'Bebas Neue',sans-serif;font-size:15px"></span></h2>
     <div class="achgrid" id="achList"></div>
   </section>
 
+  </div>
+
+  <div class="view" id="viewRank" hidden>
   <section class="card">
     <h2>랭킹</h2>
     <div class="rankwrap">
@@ -605,6 +638,9 @@ button:disabled{cursor:not-allowed;opacity:.45;}
     </div>
   </section>
 
+  </div>
+
+  <div class="view" id="viewRec" hidden>
   <section class="card">
     <h2>기록</h2>
     <dl class="recs" id="recs"></dl>
@@ -634,6 +670,17 @@ button:disabled{cursor:not-allowed;opacity:.45;}
       <button class="btn" id="dropMelt" style="flex:0 0 auto">분해</button>
     </div>
     <p class="lnote" style="margin-top:12px">갈아타면 잠재능력은 초기화된다. 성수치를 지키려면 스타포스 이전을 쓰자 (2성 손실).</p>
+  </div>
+  </div>
+</div>
+
+<div class="menu" id="menu" hidden>
+  <div class="mcard">
+    <button class="mitem" data-v="up" aria-selected="true">강화<small>장비창 · 스타포스 · 큐브 · 상점</small></button>
+    <button class="mitem" data-v="hunt">사냥<small>사냥터 · 보스 12종</small></button>
+    <button class="mitem" data-v="ach">업적<small>41종</small></button>
+    <button class="mitem" data-v="rank">랭킹<small>길드 기록</small></button>
+    <button class="mitem" data-v="rec">기록<small>내 통계</small></button>
   </div>
 </div>
 
@@ -786,20 +833,25 @@ const MAPS=[
   {n:'검은 마법사의 성', req:600, rate:22000}
 ];
 // 보스마다 보상 성향이 다르다 — 필요한 걸 주는 놈을 골라 잡는 구조
+// 요구 전투력은 레벨 성장까지 감안해 다시 깔았다.
+// 하드는 요구치 2.8배 · 보상 4배 — 250렙 언저리에서 아카이럼 하드가 막 열린다.
 const BOSSES=[
-  {n:'발록',        req:50,  cd:12,  mul:40,   base:7000,   t:'메소'},
-  {n:'자쿰',        req:90,  cd:20,  mul:70,   base:14000,  t:'메소'},
-  {n:'혼테일',      req:130, cd:35,  mul:130,  base:28000,  t:'장비'},
-  {n:'파풀라투스',  req:160, cd:40,  mul:150,  base:34000,  t:'큐브'},
-  {n:'핑크빈',      req:180, cd:50,  mul:230,  base:50000,  t:'메소'},
-  {n:'반 레온',     req:210, cd:60,  mul:300,  base:66000,  t:'쉴드'},
-  {n:'매그너스',    req:230, cd:75,  mul:390,  base:88000,  t:'장비'},
-  {n:'아카이럼',    req:260, cd:85,  mul:480,  base:110000, t:'큐브'},
-  {n:'루시드',      req:290, cd:100, mul:610,  base:148000, t:'장비'},
-  {n:'윌',          req:350, cd:130, mul:890,  base:228000, t:'성공권'},
-  {n:'진 힐라',     req:390, cd:150, mul:1150, base:300000, t:'큐브'},
-  {n:'검은 마법사', req:430, cd:180, mul:1600, base:400000, t:'전부'}
+  {n:'발록',        req:40,   cd:12,  mul:40,   base:7000,   t:'메소'},
+  {n:'자쿰',        req:80,   cd:20,  mul:70,   base:14000,  t:'메소'},
+  {n:'혼테일',      req:130,  cd:35,  mul:130,  base:28000,  t:'장비'},
+  {n:'파풀라투스',  req:190,  cd:40,  mul:150,  base:34000,  t:'큐브'},
+  {n:'핑크빈',      req:260,  cd:50,  mul:230,  base:50000,  t:'메소'},
+  {n:'반 레온',     req:340,  cd:60,  mul:300,  base:66000,  t:'쉴드'},
+  {n:'매그너스',    req:430,  cd:75,  mul:390,  base:88000,  t:'장비'},
+  {n:'아카이럼',    req:530,  cd:85,  mul:480,  base:110000, t:'큐브'},
+  {n:'루시드',      req:640,  cd:100, mul:610,  base:148000, t:'장비'},
+  {n:'윌',          req:760,  cd:130, mul:890,  base:228000, t:'성공권'},
+  {n:'진 힐라',     req:890,  cd:150, mul:1150, base:300000, t:'큐브'},
+  {n:'검은 마법사', req:1030, cd:180, mul:1600, base:400000, t:'전부'}
 ];
+const HARD_REQ=2.8, HARD_REW=4;
+const bossReq=i=>Math.round(BOSSES[i].req*(S.hard?HARD_REQ:1));
+const bossName=i=>BOSSES[i].n+(S.hard?' 하드':'');
 // 성향별 드롭 확률 [장비, 큐브권, 쉴드권, 성공권]
 const BTYPE={
   '메소'  :{eq:.08, cube:0,   sh:0,   sure:0},
@@ -876,7 +928,7 @@ const ACH=[
 const newItem=i=>({star:0, ig:0, lines:[], broken:false, name:NAMES[i][0]});
 const DEF=()=>({
   meso:300000, sel:0, items:[0,1,2,3,4].map(newItem),
-  useProt:false, useSafe:false, map:0, anim:true, lv:1, xp:0, ach:{},
+  useProt:false, useSafe:false, map:0, anim:true, hard:false, view:'up', lv:1, xp:0, ach:{},
   bcd:BOSSES.map(function(){return 0;}), bk:BOSSES.map(function(){return 0;}),
   inv:{cube:0, sh:0, sure:0}, evT:0, evCd:180,
   st:{try:0,suc:0,keep:0,down:0,des:0,max:0,mg:0,cube:0,up:0,spent:0,best:0,hall:0}
@@ -927,12 +979,12 @@ function mapIncome(i,p){ const m=MAPS[i]; return m?Math.round(m.rate*mapEff(i,p)
 function bestMap(p){ let b=0,v=-1; for(let i=0;i<MAPS.length;i++){ const x=mapIncome(i,p); if(x>v){v=x;b=i;} } return b; }
 function clearRate(i,p){
   const b=BOSSES[i]; if(!b) return 0;
-  const r=(p||0)/b.req;
+  const r=(p||0)/bossReq(i);
   if(r>=1.2) return 1;
   if(r<0.5) return 0;
   return (r-0.5)/0.7;
 }
-const bossReward=i=>{ const b=BOSSES[i]; return b?Math.round((power()*b.mul+b.base)*mesoMult()):0; };
+const bossReward=i=>{ const b=BOSSES[i]; return b?Math.round((power()*b.mul+b.base)*mesoMult()*(S.hard?HARD_REW:1)):0; };
 const income=()=>Math.max(300,mapIncome(S.map||0,power()));
 const fmt=n=>{
   n=Math.floor(n);
@@ -1450,14 +1502,14 @@ function upgradeItem(){
 function rollDrop(i,bs){
   const T=BTYPE[bs.t]||BTYPE['메소'];
   if(!S.inv) S.inv={cube:0,sh:0,sure:0};
-  if(T.cube&&Math.random()<T.cube){ S.inv.cube++; log(bs.n+' — <b>큐브 교환권</b>을 떨궜다 (아무 큐브나 1회 무료)','up'); }
-  if(T.sh  &&Math.random()<T.sh  ){ S.inv.sh++;   log(bs.n+' — <b>쉴드 교환권</b>을 떨궜다 (다음 강화 1회 쉴드 비용 면제)','up'); }
-  if(T.sure&&Math.random()<T.sure){ S.inv.sure++; log(bs.n+' — <b>확정 성공권</b>을 떨궜다 (강화 1회 무조건 성공)','up'); }
+  if(T.cube&&Math.random()<T.cube){ S.inv.cube++; log(bossName(i)+' — <b>큐브 교환권</b>을 떨궜다 (아무 큐브나 1회 무료)','up'); }
+  if(T.sh  &&Math.random()<T.sh  ){ S.inv.sh++;   log(bossName(i)+' — <b>쉴드 교환권</b>을 떨궜다 (다음 강화 1회 쉴드 비용 면제)','up'); }
+  if(T.sure&&Math.random()<T.sure){ S.inv.sure++; log(bossName(i)+' — <b>확정 성공권</b>을 떨궜다 (강화 1회 무조건 성공)','up'); }
   if(!T.eq||Math.random()>=T.eq*dropMult()) return;
-  const g=dropGrade(bs.req), slot=(Math.random()*SLOTS.length)|0, it=S.items[slot];
+  const g=Math.min(2,dropGrade(bs.req)+(S.hard?1:0)), slot=(Math.random()*SLOTS.length)|0, it=S.items[slot];
   if(g>it.ig && $('drop').hidden){ showDrop(slot,g,bs.n); return; }
   const m=meltValue(g); S.meso+=m;
-  log(bs.n+' — '+IGNAME[g]+' '+SLOTS[slot].n+' 드롭, 분해해서 <b>+'+fmt(m)+'</b> 메소','');
+  log(bossName(i)+' — '+IGNAME[g]+' '+SLOTS[slot].n+' 드롭, 분해해서 <b>+'+fmt(m)+'</b> 메소','');
 }
 function showDrop(slot,g,bossName){
   const box=$('drop'), it=S.items[slot];
@@ -1561,7 +1613,7 @@ function bdmg(side,txt,color){
 function bossBattle(i,win,done){
   const bs=BOSSES[i];
   battleDone=done; battleTimers=[];
-  $('bName').textContent=bs.n;
+  $('bName').textContent=bossName(i);
   $('bOrb').className='borb t'+Math.min(3,Math.floor(i/3));
   $('bResult').textContent=''; $('bResult').className='bresult';
   $('myHp').style.width='100%'; $('foeHp').style.width='100%';
@@ -1594,7 +1646,7 @@ function bossBattle(i,win,done){
   at(t,function(){
     const R=$('bResult');
     R.className='bresult '+(win?'win':'lose');
-    R.textContent=win?(bs.n+' 격파!'):'토벌 실패';
+    R.textContent=win?(bossName(i)+' 격파!'):'토벌 실패';
     if(win){ SND.up(); burst(70,'#FFD66B',{sp:1.1}); } else SND.des();
   });
   at(t+950,endBattle);
@@ -1672,6 +1724,23 @@ function offerOffline(sec){
   $('offline').hidden=false;
 }
 
+function renderDiffTabs(){
+  $('dNormal').setAttribute('aria-selected',String(!S.hard));
+  $('dHard').setAttribute('aria-selected',String(!!S.hard));
+}
+/* ---------- 화면 전환 ---------- */
+const VIEWS=[['up','viewUp'],['hunt','viewHunt'],['ach','viewAch'],['rank','viewRank'],['rec','viewRec']];
+function showView(k){
+  S.view=k;
+  VIEWS.forEach(function(v){ const el=$(v[1]); if(el) el.hidden=(v[0]!==k); });
+  document.querySelectorAll('.mitem').forEach(function(b){ b.setAttribute('aria-selected',String(b.dataset.v===k)); });
+  $('menu').hidden=true;
+  window.scrollTo(0,0);
+  if(k==='rank') renderRank();
+  if(k==='ach') renderAch();
+  save();
+}
+
 /* ---------- 사냥터 · 보스 ---------- */
 let huntBuilt=false;
 function buildHunt(){
@@ -1689,14 +1758,20 @@ function buildHunt(){
     const b=document.createElement('button');
     b.className='hrow boss'; b.dataset.boss=i;
     b.innerHTML='<span class="bar"></span><span class="hn">'+bs.n+'<span class="ht">'+bs.t+'</span></span>'+
-      '<span class="hr">요구 '+bs.req+' · '+bs.cd+'초</span><span class="hcd">—</span>';
+      '<span class="hr">—</span><span class="hcd">—</span>';
     b.addEventListener('click',function(){ ac(); fightBoss(i); });
     bl.appendChild(b);
   });
   huntBuilt=true;
 }
+function renderDiff(){
+  $('dNormal').setAttribute('aria-selected',String(!S.hard));
+  $('dHard').setAttribute('aria-selected',String(!!S.hard));
+  updateHunt(); save();
+}
 function updateHunt(){
   if(!huntBuilt) return;
+  renderDiffTabs();
   const p=power(), best=bestMap(p);
   $('mapList').querySelectorAll('.hrow').forEach(function(el,i){
     const v=mapIncome(i,p);
@@ -1709,11 +1784,13 @@ function updateHunt(){
   });
   $('bossList').querySelectorAll('.hrow').forEach(function(el,i){
     const bs=BOSSES[i], cd=(S.bcd&&S.bcd[i])||0, cr=clearRate(i,p);
-    const cleared=(S.bk&&S.bk[i])>0;
+    const cleared=S.hard?((S.bkh&&S.bkh[i])>0):((S.bk&&S.bk[i])>0);
+    const hn=el.querySelector('.hn');
+    if(hn.firstChild&&hn.firstChild.nodeType===3) hn.firstChild.nodeValue=bossName(i);
     el.disabled=cr<=0||cd>0||fighting>=0;
     el.classList.toggle('ready',cr>0&&cd<=0&&fighting<0);
     el.classList.toggle('cleared',cleared);
-    el.querySelector('.hr').textContent='요구 '+bs.req+' · '+bs.cd+'초 · 클리어 '+Math.round(cr*100)+'%';
+    el.querySelector('.hr').textContent='요구 '+bossReq(i)+' · '+bs.cd+'초 · 클리어 '+Math.round(cr*100)+'%';
     el.querySelector('.hcd').textContent =
       fighting===i ? '교전 중…' :
       cr<=0 ? '전투력 부족' :
@@ -1757,23 +1834,25 @@ function resolveBoss(i,win){
   const el=$('bossList').querySelectorAll('.hrow')[i];
   const q=el?el.getBoundingClientRect():null;
   if(win){
-    const first=!(S.bk[i]>0);
+    const first=S.hard?!((S.bkh||[])[i]>0):!(S.bk[i]>0);
     let r=bossReward(i);
     if(first) r+=Math.round(bs.base*5*mesoMult());
-    S.bk[i]++; S.meso+=r; S.bcd[i]=bs.cd;
+    if(S.hard){ if(!S.bkh||S.bkh.length!==BOSSES.length) S.bkh=BOSSES.map(function(){return 0;}); S.bkh[i]++; }
+    else S.bk[i]++;
+    S.meso+=r; S.bcd[i]=bs.cd;
     gainXp(Math.round(bs.base/400*expMult()));
     SND.coin();
     if(q) burst(first?90:(i>=4?55:26),'#FFD66B',{x:q.left+q.width/2,y:q.top+q.height/2,sp:first?1.4:.8});
     if(first){
       SND.up();
-      flash(bs.n+' 격파','첫 클리어 보너스','#FFD66B');
-      log('<b>'+bs.n+' 첫 클리어!</b> 보너스 포함 <b>+'+fmt(r)+'</b> 메소','up');
-    } else log(bs.n+' 격파 — <b>+'+fmt(r)+'</b> 메소', i>=4?'ok':'');
+      flash(bossName(i)+' 격파','첫 클리어 보너스','#FFD66B');
+      log('<b>'+bossName(i)+' 첫 클리어!</b> 보너스 포함 <b>+'+fmt(r)+'</b> 메소','up');
+    } else log(bossName(i)+' 격파 — <b>+'+fmt(r)+'</b> 메소', i>=4?'ok':'');
     rollDrop(i,bs);
   } else {
     S.bcd[i]=Math.ceil(bs.cd/2);
     SND.fail();
-    log(bs.n+' 토벌 실패 — 쿨타임 절반만 돌고 재도전할 수 있다','fail');
+    log(bossName(i)+' 토벌 실패 — 쿨타임 절반만 돌고 재도전할 수 있다','fail');
   }
   renderTop(); updateHunt(); save();
 }
@@ -1881,7 +1960,10 @@ async function pwHash(id,pw){
 const authOf=id=>lsGet(LK.auth(id),null);
 const lockOf=id=>{ const e=BOARD.find(x=>x.id===id); return (e&&e.h)||null; };
 
-const topBoss=function(){ let b=0; if(S.bk) for(let i=0;i<S.bk.length;i++) if(S.bk[i]>0) b=i+1; return b; };
+const topBoss=function(){ let b=0;
+  if(S.bk) for(let i=0;i<S.bk.length;i++) if(S.bk[i]>0) b=i+1;
+  if(S.bkh) for(let i=0;i<S.bkh.length;i++) if(S.bkh[i]>0) b=Math.max(b,13+i);
+  return b; };
 function myRec(){
   return {id:USER, star:S.st.max|0, grade:Math.max(S.st.mg||0,topGrade())|0, power:S.st.best|0,
           hall:S.st.hall?1:0, des:S.st.des|0, tries:S.st.try|0, boss:topBoss(),
@@ -1894,7 +1976,7 @@ function mergeBoard(){
     const id=String(e.id);
     const r={id:id, star:Math.min(36,+e.star||0), grade:Math.min(3,+e.grade||0),
              power:+e.power||0, hall:e.hall?1:0, des:+e.des||0, tries:+e.tries||0,
-             boss:Math.min(12,+e.boss||0), ach:Math.min(99,+e.ach||0), lv:Math.min(300,+e.lv||1), ts:+e.ts||0};
+             boss:Math.min(24,+e.boss||0), ach:Math.min(99,+e.ach||0), lv:Math.min(300,+e.lv||1), ts:+e.ts||0};
     // 잠금(h)은 가장 먼저 등록된 것을 끝까지 유지한다 — 나중 사람이 바꿔치기 못 하도록
     if(typeof e.h==='string'&&e.h){
       const cur=lock.get(id);
@@ -1931,7 +2013,7 @@ function renderRank(){
       '<td>'+GNAME[e.grade]+'</td>'+
       '<td class="num">'+(e.lv||1)+'</td>'+
       '<td class="num">'+e.power.toLocaleString('ko-KR')+'</td>'+
-      '<td>'+(e.boss?esc(BOSSES[e.boss-1].n):'—')+'</td>'+
+      '<td>'+(e.boss?(e.boss>12?esc(BOSSES[e.boss-13].n)+' 하드':esc(BOSSES[e.boss-1].n)):'—')+'</td>'+
       '<td class="num">'+(e.ach||0)+'</td>'+
       '<td class="num">'+e.des+'</td>'+
       '<td class="num">'+e.tries+'</td></tr>').join('');
@@ -2115,6 +2197,7 @@ function enter(raw,serverSave){
   $('log').innerHTML='';
   renderAll();
   log(S.st.try? '<b>'+esc(id)+'</b> — 저장된 기록을 불러왔다' : '<b>'+esc(id)+'</b> — 메소 30만으로 시작한다','');
+  showView(S.view||'up');
   renderRank(); save();
   if(sv&&sv.ts) offerOffline((Date.now()-sv.ts)/1000);
 }
@@ -2184,6 +2267,11 @@ $('idInput').addEventListener('input',()=>{ $('lerr').textContent=''; loginMode(
 $('switchBtn').addEventListener('click',()=>{ save(); USER=null; $('whoV').textContent='—'; showLogin(); });
 $('battle').addEventListener('click',function(){ if(!$('battle').hidden) endBattle(); });
 $('animTog').addEventListener('click',function(){ S.anim=(S.anim===false); updateHunt(); save(); });
+$('burger').addEventListener('click',function(){ $('menu').hidden=false; });
+$('menu').addEventListener('click',function(e){ if(e.target===$('menu')) $('menu').hidden=true; });
+document.querySelectorAll('.mitem').forEach(function(b){ b.addEventListener('click',function(){ showView(b.dataset.v); }); });
+$('dNormal').addEventListener('click',function(){ S.hard=false; renderDiff(); });
+$('dHard').addEventListener('click',function(){ S.hard=true; renderDiff(); });
 addEventListener('visibilitychange',()=>{ if(document.hidden){ save(); pushSave(true); } });
 
 /* ---------- 시작 ---------- */

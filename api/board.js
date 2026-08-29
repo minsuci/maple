@@ -38,7 +38,7 @@ function cleanRec(r) {
   return {
     star:  n(r.star, 36),
     grade: n(r.grade, 3),
-    boss:  n(r.boss, 12),
+    boss:  n(r.boss, 24),
     ach:   n(r.ach, 99),
     lv:    n(r.lv, 300),
     ig:    n(r.ig, 2),
