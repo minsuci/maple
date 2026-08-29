@@ -1103,8 +1103,8 @@ const BTYPE={
   '장비'  :{eq:.20, cube:0,   sh:0,   sure:0},
   '큐브'  :{eq:.06, cube:.22, sh:0,   sure:0},
   '쉴드'  :{eq:.06, cube:0,   sh:.25, sure:0},
-  '성공권':{eq:.08, cube:0,   sh:0,   sure:.10},
-  '전부'  :{eq:.20, cube:.15, sh:.15, sure:.08}
+  '성공권':{eq:.08, cube:0,   sh:0,   sure:.02},
+  '전부'  :{eq:.20, cube:.15, sh:.15, sure:.015}
 };
 // 어떤 큐브가 떨어지는지는 보스가 정한다 — 위로 갈수록 좋은 게 나온다.
 // 교환권(아무 큐브나 공짜) 이 아니라 진짜 큐브라, 초이스를 얻으려면 윗보스를 잡아야 한다.
@@ -1869,7 +1869,11 @@ function rollDrop(i,bs){
     if(ck==='choice') flash('초이스 큐브',bossName(i)+'이(가) 떨궜다','#B15CFF');
   }
   if(T.sh  &&Math.random()<T.sh  ){ S.inv.sh++;   log(bossName(i)+' — <b>쉴드 교환권</b>을 떨궜다 (다음 강화 1회 쉴드 비용 면제)','up'); }
-  if(T.sure&&Math.random()<T.sure){ S.inv.sure++; log(bossName(i)+' — <b>확정 성공권</b>을 떨궜다 (강화 1회 무조건 성공 · '+SURE_MAX+'★까지)','up'); }
+  if(T.sure&&Math.random()<T.sure){
+    S.inv.sure++;
+    log(bossName(i)+' — <b>확정 성공권</b>을 떨궜다 (강화 1회 무조건 성공 · '+SURE_MAX+'★까지)','ok');
+    flash('확정 성공권',bossName(i)+'이(가) 떨궜다','#5CE68A');
+  }
   if(!T.eq||Math.random()>=T.eq*dropMult()) return;
   const g=Math.min(2,dropGrade(bs.req)+(S.hard?1:0)), slot=(Math.random()*SLOTS.length)|0;
   // 떨어진 장비는 그 자리에서 결정하지 않고 가방에 쌓인다. 급할 게 없다.
@@ -1924,7 +1928,8 @@ function showDrop(slot,g,fromName,bagIdx){
 }
 
 /* ---------- 상점 ----------
-   메소를 태워서 지루한 구간을 건너뛰거나, 보스 보상을 돈으로 사는 자리.
+   메소를 태워서 지루한 구간을 건너뛰는 자리. 소모품은 팔지 않는다 —
+   메소로 그냥 살 수 있으면 그걸 떨구는 보스를 잡을 이유가 사라진다.
    큐브는 일부러 안 판다 — 그걸 팔면 큐브형 보스를 잡을 이유가 사라진다.
    (잠재능력 탭에서 메소로 굴리는 것과, 보스가 떨궈 가방에 쌓이는 것은 다른 이야기다.)
    ------------------------------------------------------- */
@@ -1940,14 +1945,6 @@ const SHOP=[
      flash('15 ★',nm+' 스타포스 15성','#FFC94A');
      showResult('ok','15성 주문서 — <b>'+nm+' 15★</b>');
      log('<b>15성 주문서</b> — '+nm+'을(를) 즉시 15★로','up'); }},
-  {k:'sh', n:'쉴드 교환권',
-   d:function(){ return '다음 강화 1회 쉴드 비용 면제 · 지금 '+S.inv.sh+'장 · 반 레온도 떨군다'; },
-   price:function(){ return 250000; }, can:function(){ return true; },
-   buy:function(){ S.inv.sh++; SND.coin(); log('쉴드 교환권을 샀다',''); }},
-  {k:'sure', n:'확정 성공권',
-   d:function(){ return '강화 1회 무조건 성공 · '+SURE_MAX+'★까지만 쓸 수 있다 · 지금 '+S.inv.sure+'장 · 윌도 떨군다'; },
-   price:function(){ return 2500000; }, can:function(){ return true; },
-   buy:function(){ S.inv.sure++; SND.coin(); log('<b>확정 성공권</b>을 샀다','ok'); }},
   {k:'ev', n:'럭키데이 소환',
    d:function(){ return EV()?'이미 진행 중이다':'성공 확률 2배 · 강화 비용 30% 할인을 60초 동안'; },
    price:function(){ return 800000; }, can:function(){ return !EV(); },
@@ -1971,7 +1968,9 @@ function renderShop(){
     });
     L.appendChild(b);
   });
-  $('shopNote').innerHTML='큐브는 상점에 없다 — <b>파풀라투스·아카이럼·진 힐라</b>가 떨군다. 위쪽 보스일수록 좋은 큐브가 나오고, <b>초이스는 진 힐라·검은 마법사</b>만 드물게 준다.';
+  $('shopNote').innerHTML='상점은 <b>시간</b>만 판다 — 초반 15성을 건너뛰거나 럭키데이를 앞당기는 것.<br>'+
+    '<b>소모품은 전부 보스가 떨군다.</b> 큐브는 파풀라투스·아카이럼·진 힐라(초이스는 진 힐라·검은 마법사만), '+
+    '쉴드 교환권은 반 레온, <b>확정 성공권은 윌·검은 마법사가 아주 드물게</b> 준다.';
 }
 
 /* ---------- 보스 그림 ---------- */
