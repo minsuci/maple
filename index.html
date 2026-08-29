@@ -1355,11 +1355,12 @@ function renderCubes(){
   const ub=document.createElement('button');
   ub.className='cube'; ub.style.setProperty('--c','#5CE68A');
   ub.disabled=busy||it.broken||!up||S.meso<(up?up.cost:0);
-  ub.innerHTML='<span class="ic">↑</span><span><span class="nm">장비 승급 — '+
-    (up?IGNAME[it.ig]+' → '+IGNAME[up.to]:'유니크 (최고 등급)')+'</span><span class="rt">'+
-    (up?'성공 '+up.p+'% · 잠재 상한이 '+GNAME[GCAP[up.to]]+'로 · <b>성수치 '+Math.round(UP_LOSS*100)+'% 감소 ('+
+  ub.innerHTML='<span class="ic">↑</span><span><span class="nm">장비 등급 — '+
+    (up?IGNAME[it.ig]+' 장비 → '+IGNAME[up.to]+' 장비':'유니크 장비 (최고)')+'</span><span class="rt">'+
+    (up?'성공 '+up.p+'% · <b>잠재 상한</b>이 '+GNAME[GCAP[up.to]]+'로 · <b>성수치 '+Math.round(UP_LOSS*100)+'% 감소 ('+
         it.star+'★ → '+Math.floor(it.star*(1-UP_LOSS))+'★)</b> · 실패하면 메소만 잃는다'
-       :'더 올릴 등급이 없다')+'</span></span><span class="pr">'+(up?fmt(up.cost):'—')+'</span>';
+       :'<b>장비</b> 등급은 여기가 끝 · <b>잠재</b> 등급은 아래 큐브로 '+GNAME[GCAP[it.ig]]+'까지 올린다')+
+    '</span></span><span class="pr">'+(up?fmt(up.cost):'—')+'</span>';
   if(up) ub.addEventListener('click',upgradeItem);
   L.appendChild(ub);
   CUBES.forEach(function(cb){
@@ -1375,7 +1376,8 @@ function renderCubes(){
   });
   const cap=GCAP[it.ig], g=potGrade();
   const nxt=g<0?'레어 부여':(g+1<=cap?GNAME[g]+' → '+GNAME[g+1]+' '+(UPRATE[g]*100).toFixed(1)+'%':'이 장비의 상한('+GNAME[cap]+')에 도달');
-  $('pityV').innerHTML='<b>'+IGNAME[it.ig]+' 장비</b>의 잠재 상한은 <b>'+GNAME[cap]+'</b> · 다음 등급 — '+nxt+
+  $('pityV').innerHTML='<b>장비 등급</b>과 <b>잠재 등급</b>은 따로다 — 위 버튼이 장비, 아래 큐브가 잠재.<br>'+
+    '지금 <b>'+IGNAME[it.ig]+' 장비</b>라서 잠재는 <b>'+GNAME[cap]+'</b>까지 · 다음 등급 — '+nxt+
     '<br>큐브는 등급을 <b>올리기만 한다.</b> 종류가 달라도 확률은 같고, 기능만 다르다.';
 }
 function renderRecs(){
