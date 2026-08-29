@@ -728,6 +728,7 @@ td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
         <div class="potline" id="p0"><span class="dot"></span><span class="t">— 잠재능력 미부여 —</span></div>
         <div class="potline" id="p1"><span class="dot"></span><span class="t">—</span></div>
         <div class="potline" id="p2"><span class="dot"></span><span class="t">—</span></div>
+        <div class="potline" id="p3" hidden><span class="dot"></span><span class="t">—</span></div>
       </div>
     </section>
 
@@ -1089,9 +1090,12 @@ const POOL=[
 const PSUM=POOL.map(p=>p.reduce((a,x)=>a+x[1],0));
 const GNAME=['레어','에픽','유니크','레전더리'];
 const GKEY=['g1','g2','g3','g4'];
-const IGNAME=['레어','에픽','유니크'];
-// 장비 등급이 잠재 등급의 상한 — 유니크 장비라야 레전더리 잠재가 나온다
-const GCAP=[1,2,3];
+const IGNAME=['레어','에픽','유니크','레전더리'];
+// 장비 등급이 잠재 등급의 상한 — 유니크 장비라야 레전더리 잠재가 나온다.
+// 레전더리 장비는 상한이 더 오르는 대신 잠재가 한 줄 더 붙는다.
+const GCAP=[1,2,3,3];
+const POTN=it=>(it&&it.ig>=3)?4:3;   // 잠재 줄 수 — 레전더리 장비만 네 줄
+const POTMAX=4;
 // 큐브 등급 상승 확률. 등급이 올라갈수록 문이 좁아진다 (한 칸마다 대략 1/4).
 // 공식 페이지는 큐브 종류가 기능만 다르고 확률은 같다고 하지만, 여기서는
 // 블랙을 레드의 정확히 두 배로 둔다 — 비싼 큐브가 값을 해야 고르는 재미가 있다.
@@ -1116,9 +1120,9 @@ const UPGRADE=[{to:1,p:40,cost:400000},{to:2,p:25,cost:2000000}];
 // 초이스 큐브가 셋 중 가장 강하다 — 좋은 줄 둘을 지키고 나쁜 줄 하나만 바꾸니까.
 // 그래서 값도 제일 비싸다.
 const CUBES=[
-  {k:'red',   n:'레드 큐브',  c:'#FF5E6C', ic:'◆', cost:100000,  d:'세 줄 전부 재설정 · 결과 그대로 적용'},
-  {k:'black', n:'블랙 큐브',  c:'#FFC94A', ic:'✦', cost:270000,  d:'세 줄 재설정 후 이전/이후를 골라 적용'},
-  {k:'choice',n:'초이스 큐브', c:'#B15CFF', ic:'◈', cost:100000000, d:'고른 한 줄만 재설정 · 나머지 두 줄은 그대로'}
+  {k:'red',   n:'레드 큐브',  c:'#FF5E6C', ic:'◆', cost:100000,  d:'{N}줄 전부 재설정 · 결과 그대로 적용'},
+  {k:'black', n:'블랙 큐브',  c:'#FFC94A', ic:'✦', cost:270000,  d:'{N}줄 재설정 후 이전/이후를 골라 적용'},
+  {k:'choice',n:'초이스 큐브', c:'#B15CFF', ic:'◈', cost:100000000, d:'고른 한 줄만 재설정 · 나머지 {M}줄은 그대로'}
 ];
 // 사냥터는 구역 넷으로 나눈다 — 열여섯 줄을 한 화면에 쏟아부으면 고르는 게 아니라 훑는 게 된다.
 // lv  — 입장 레벨. 레벨이 안 되면 전투력이 아무리 높아도 못 들어간다.
@@ -1226,9 +1230,15 @@ function dropCube(i){
   return r<0.15?'black':'red';
 }
 const dropGrade=req=>req<160?0:req<640?1:2;
+// 레전더리 장비는 승급대로도 승급권으로도 못 만든다. 윗보스가 아주 가끔
+// 떨구는 게 유일한 길이다 — 요구 640 위(매그너스부터), 난이도가 높을수록 잘 나온다.
+// 주간 하드 기준 한 판에 0.8%. 여섯 부위를 다 채우려면 몇 달은 걸린다.
+const LEG_MIN=640;
+const legChance=(bs,d)=>bs.req<LEG_MIN?0:0.004*(1+d)*(bs.cyc==='월간'?3:1);
 // 총 스타포스 누적 보너스 — 다섯 부위 성수치를 합친 만큼 전투력이 통째로 오른다
 const SFTIERS=[[30,3],[60,7],[90,12],[120,18],[150,25],[180,35],[210,42]];
-const meltValue=g=>(g+1)*11000;
+// 레전더리는 승급으로 못 만드는 물건이라 분해값도 따로 논다
+const meltValue=g=>[11000,22000,33000,140000][g]||11000;
 const BAG_MAX=30;          // 보관함 칸 수 — 넘치면 새로 떨어진 건 그 자리에서 분해된다
 /* ---------- 직업 ---------- */
 // 같은 잠재 줄이라도 직업마다 값어치가 다르다. 부위별 '정답 줄'의 천장을 셋 다 똑같이
@@ -1305,7 +1315,7 @@ const ACH=[
  ['f2','총 스타포스 60','',                        s=>totalStars()>=60,   800000,  0,.2],
  ['f3','총 스타포스 100','',                       s=>totalStars()>=100,  3000000, 0,.3],
  ['f4','총 스타포스 150','',                       s=>totalStars()>=150,  12000000,0,.5],
- ['f5','총 스타포스 180','다섯 부위 전부 36성',     s=>totalStars()>=180,  40000000,0,.8],
+ ['f5','총 스타포스 180','여섯 부위를 고루 올린다',  s=>totalStars()>=180,  40000000,0,.8],
  ['g1','에픽 잠재','',                             s=>topGrade()>=1,      100000,  0,0],
  ['g2','유니크 잠재','',                           s=>topGrade()>=2,      400000,  .3,0],
  ['g3','레전더리 잠재','',                         s=>topGrade()>=3,      3000000, .5,0],
@@ -1315,7 +1325,9 @@ const ACH=[
  ['c4','큐브 8000회','',                           s=>s.st.cube>=8000,    15000000,.5,0],
  ['i1','에픽 장비','',                             s=>s.items.some(x=>x.ig>=1), 80000, 0,0],
  ['i2','유니크 장비','',                           s=>s.items.some(x=>x.ig>=2), 500000,0,0],
- ['i3','풀 유니크','다섯 부위 전부 유니크 장비',    s=>s.items.every(x=>x.ig>=2),2500000,0,.4],
+ ['i3','풀 유니크','여섯 부위 전부 유니크 장비',    s=>s.items.every(x=>x.ig>=2),2500000,0,.4],
+ ['i4','레전더리 장비','보스만 떨군다 — 승급으로는 못 만든다', s=>s.items.some(x=>x.ig>=3), 15000000,.4,0],
+ ['i5','풀 레전더리','여섯 부위 전부 레전더리 장비', s=>s.items.every(x=>x.ig>=3), 90000000,0,.8],
  ['b1','첫 격파','',                               s=>(s.bk||[]).some(x=>x>0), 100000, 0,0],
  ['b2','매그너스 격파','',                         s=>(s.bk||[])[7]>0,    600000,  0,.2],
  ['b3','윌 격파','',                               s=>(s.bk||[])[14]>0,    2500000, 0,.3],
@@ -1392,6 +1404,15 @@ const cpOf=l=>{ const d=OPT[l.k]; if(!d) return 0;
   if(!d.part) return d.cp(l.v)*jobW(l.k);
   let c=0; for(const k in d.part) c+=OPT[k].cp(l.v*d.part[k])*jobW(k);
   return c; };
+// 이 줄이 값을 하는가 — 전투력이든 벌이든.
+// 메소·드롭·경험치는 전투력 기여가 0이거나 미미해도 사냥 쪽 유효옥이다.
+// 벼틀 짝옥(part)도 안에 벌이 끼어 있으면 살려둔다.
+const EARN={mes:1,drp:1,exp:1};
+const earns=l=>{ const d=OPT[l.k]; if(!d) return false;
+  if(EARN[l.k]) return true;
+  if(d.part) for(const k in d.part) if(EARN[k]) return true;
+  return false; };
+const deadOpt=l=>cpOf(l)<3&&!earns(l);
 const potMultOf=lines=>1+lines.reduce((a,l)=>a+cpOf(l),0)/100;
 const slotPow=i=>{ const it=S.items[i]; if(!it||it.broken) return 0;
   return SLOTS[i].base*starMult(it.star)*potMultOf(it.lines); };
@@ -1670,13 +1691,13 @@ function renderItem(){
   const g=potGrade(), pg=$('gradeV');
   pg.className='gradetag '+(g<0?'g0':GKEY[g]);
   pg.textContent=g<0?'잠재능력 없음':GNAME[g]+' 잠재';
-  for(let i=0;i<3;i++){
+  const pn=POTN(it);
+  for(let i=0;i<POTMAX;i++){
     const el=$('p'+i), l=it.lines[i];
+    el.hidden=i>=pn;
+    if(el.hidden) continue;
     if(!l){ el.innerHTML='<span class="dot"></span><span class="t">'+(i===0?'— 잠재능력 미부여 —':'—')+'</span>'; continue; }
-    const d=OPT[l.k], col=GCOL[l.g], dead=cpOf(l)<3&&!d.gold&&!d.drop;
-    el.innerHTML='<span class="dot" style="background:'+col+'"></span>'+
-      '<span class="t"'+(dead?' style="color:var(--dimmer)"':'')+'>'+d.n+'</span>'+
-      '<span class="v" style="color:'+col+'">+'+l.v+d.u+'</span>';
+    el.innerHTML=lineHTML(l);
   }
 }
 function renderTop(){
@@ -1771,10 +1792,10 @@ function renderCubes(){
   ub.className='cube'; ub.style.setProperty('--c','#5CE68A');
   ub.disabled=busy||it.broken||!up||S.meso<(up?up.cost:0);
   ub.innerHTML='<span class="ic">↑</span><span><span class="nm">장비 등급 — '+
-    (up?IGNAME[it.ig]+' 장비 → '+IGNAME[up.to]+' 장비':'유니크 장비 (최고)')+'</span><span class="rt">'+
+    (up?IGNAME[it.ig]+' 장비 → '+IGNAME[up.to]+' 장비':it.ig>=3?'레전더리 장비 (최고)':'유니크 장비 — 승급으로는 여기까지')+'</span><span class="rt">'+
     (up?'성공 '+up.p+'% · <b>잠재 상한</b>이 '+GNAME[GCAP[up.to]]+'로 · <b>성수치 '+Math.round(UP_LOSS*100)+'% 감소 ('+
         it.star+'★ → '+Math.floor(it.star*(1-UP_LOSS))+'★)</b> · 실패하면 메소만 잃는다'
-       :'<b>장비</b> 등급은 여기가 끝 · <b>잠재</b> 등급은 아래 큐브로 '+GNAME[GCAP[it.ig]]+'까지 올린다')+
+       :it.ig>=3?'<b>장비</b> 등급은 여기가 끝 · 잠재가 <b>네 줄</b> 붙는다':'<b>레전더리 장비</b>는 승급으로 못 만든다 — 요구 '+LEG_MIN+' 위 보스가 아주 가끔 떨군다')+
     '</span></span><span class="pr">'+(up?fmt(up.cost):'—')+'</span>';
   if(up) ub.addEventListener('click',upgradeItem);
   L.appendChild(ub);
@@ -1789,7 +1810,7 @@ function renderCubes(){
     const up=(gg>=0&&gg<cap2)
       ? (ur?' · <b>등급 상승 '+(ur*100).toFixed(1)+'%</b>':' · 등급 상승 없음') : '';
     b.innerHTML='<span class="ic">'+cb.ic+'</span><span><span class="nm">'+cb.n+'</span>'+
-      '<span class="rt">'+cb.d+up+'</span></span><span class="pr">'+(fr?('보유 '+(S.inv[cb.k]|0)):fmt(cc))+'</span>';
+      '<span class="rt">'+cb.d.replace('{N}',POTN(it)>3?'네 ':'세 ').replace('{M}',POTN(it)>3?'세 ':'두 ')+up+'</span></span><span class="pr">'+(fr?('보유 '+(S.inv[cb.k]|0)):fmt(cc))+'</span>';
     b.addEventListener('click',function(){ useCube(cb); });
     L.appendChild(b);
   });
@@ -1914,10 +1935,13 @@ function nextGrade(it,k){
   if(g>=cap) return g;
   return Math.random()<upRate(k,g) ? g+1 : g;
 }
+// 점과 수치는 등급 색, 이름은 값을 하느냐로 갈린다.
+// 큰브 돌리는 연출·비교창·잠재 패널이 전부 이 함수 하나를 쓴다.
 const lineHTML=function(l){
-  const d=OPT[l.k], col=GCOL[l.g];
-  return '<span class="dot" style="background:'+col+'"></span><span class="t">'+d.n+
-         '</span><span class="v" style="color:'+col+'">+'+l.v+d.u+'</span>';
+  const d=OPT[l.k], col=GCOL[l.g], dead=deadOpt(l);
+  return '<span class="dot" style="background:'+col+'"></span>'+
+         '<span class="t"'+(dead?' style="color:var(--dimmer)"':'')+'>'+d.n+'</span>'+
+         '<span class="v" style="color:'+col+'">+'+l.v+d.u+'</span>';
 };
 let choiceMode=false;
 const freeCube=k=>!!(S.inv&&(S.inv[k]|0)>0);   // 가진 큐브가 있으면 메소를 안 쓴다
@@ -1949,13 +1973,15 @@ function spendCube(cb,only){
   const before=it.lines.map(function(l){ return Object.assign({},l); });
   const g=nextGrade(it,cb.k);
   let after;
+  const pn=POTN(it);
   if(only>=0){
     after=before.map(function(l){ return Object.assign({},l); });
+    while(after.length<pn) after.push(rollLine(slot,g));   // 줄이 늘어난 장비 대비
     after[only]=rollLine(slot,g);
   }
-  else after=[rollLine(slot,g),rollLine(slot,g),rollLine(slot,g)];
-  const stops=[420,700,980];
-  for(let i=0;i<3;i++){
+  else { after=[]; for(let i=0;i<pn;i++) after.push(rollLine(slot,g)); }
+  const stops=[420,700,980,1260];
+  for(let i=0;i<pn;i++){
     if(only>=0&&i!==only) continue;
     (function(idx){
       const el=$('p'+idx);
@@ -1963,7 +1989,7 @@ function spendCube(cb,only){
       setTimeout(function(){ clearInterval(iv); el.innerHTML=lineHTML(after[idx]); }, stops[idx]);
     })(i);
   }
-  setTimeout(function(){ finishCube(cb,before,after,g); }, only>=0?stops[only]+40:1020);
+  setTimeout(function(){ finishCube(cb,before,after,g); }, (only>=0?stops[only]:stops[pn-1])+40);
 }
 function finishCube(cb,before,after,g){
   const gBefore=before.length?before[0].g:-1;
@@ -2040,7 +2066,8 @@ function rollDrop(i,bs){
     flash('확정 성공권',bossName(i)+'이(가) 떨궜다','#5CE68A');
   }
   if(!T.eq||Math.random()>=T.eq*dropMult()) return;
-  const g=Math.min(2,dropGrade(bs.req)+dIdx()), slot=(Math.random()*SLOTS.length)|0;
+  const leg=Math.random()<legChance(bs,dIdx());
+  const g=leg?3:Math.min(2,dropGrade(bs.req)+dIdx()), slot=(Math.random()*SLOTS.length)|0;
   // 떨어진 장비는 그 자리에서 결정하지 않고 가방에 쌓인다. 급할 게 없다.
   if(!Array.isArray(S.bag)) S.bag=[];
   if(typeof S.tok!=='number') S.tok=0;
@@ -2063,7 +2090,8 @@ function rollDrop(i,bs){
   const up=g>S.items[slot].ig;
   log(bossName(i)+' — <b>'+IGNAME[g]+' '+SLOTS[slot].n+'</b>을(를) 떨궜다 · 가방으로'+
       (up?' <b>(지금보다 높다)</b>':''), up?'up':'');
-  if(up) flash(IGNAME[g]+' '+SLOTS[slot].n,'가방에 넣어뒀다','#5CE68A');
+  if(g>=3){ burst(160,'#5CE68A',{sp:1.5}); flash('레전더리 '+SLOTS[slot].n,'잠재가 네 줄 붙는 장비다','#5CE68A'); }
+  else if(up) flash(IGNAME[g]+' '+SLOTS[slot].n,'가방에 넣어뒀다','#5CE68A');
 }
 function showDrop(slot,g,fromName,bagIdx){
   const box=$('drop'), it=S.items[slot];
@@ -2132,7 +2160,7 @@ const TSHOP=[
   {k:'sh',     n:'쉴드 교환권',     t:10,  d:function(){ return '다음 강화 1회 쉴드 비용 면제 · 지금 '+(S.inv.sh|0)+'장'; },
    can:function(){ return true; }, buy:function(){ S.inv.sh=(S.inv.sh|0)+1; }},
   {k:'upg',    n:'장비 승급권',     t:28,  d:function(){ const it=cur();
-     return it.ig>=2?'유니크 장비다 — 더 올릴 등급이 없다':(SLOTS[S.sel||0].n+'을(를) 100% 승급 · 성수치 '+Math.round(UP_LOSS*100)+'% 손실은 그대로'); },
+     return it.ig>=2?'유니크 장비다 — 레전더리는 보스 드랍으로만 나온다':(SLOTS[S.sel||0].n+'을(를) 100% 승급 · 성수치 '+Math.round(UP_LOSS*100)+'% 손실은 그대로'); },
    can:function(){ const it=cur(); return !it.broken&&it.ig<2; },
    buy:function(){ const it=cur(), up=UPGRADE[it.ig], s0=it.star;
      it.ig=up.to; it.star=Math.floor(it.star*(1-UP_LOSS));
@@ -3565,7 +3593,7 @@ function enter(raw,serverSave){
       S.items[0].star=Math.max(0,Math.min(MAXSTAR,sv.star|0));
       S.items[0].ig=Math.max(0,Math.min(2,sv.ig|0));
       S.items[0].broken=!!sv.broken;
-      if(Array.isArray(sv.lines)) S.items[0].lines=sv.lines.filter(function(l){ return l&&OPT[l.k]; }).slice(0,3);
+      if(Array.isArray(sv.lines)) S.items[0].lines=sv.lines.filter(function(l){ return l&&OPT[l.k]; }).slice(0,POTMAX);
     }
   }
   // 부위를 늘렸을 때 있던 장비를 날리면 안 된다. 모자란 자리만 새로 채운다.
@@ -3663,7 +3691,7 @@ addEventListener('keydown',e=>{
   }
 });
 $('swSafe').addEventListener('click',()=>{ S.useSafe=!S.useSafe; renderStarPane(); save(); });
-[0,1,2].forEach(i=>$('p'+i).addEventListener('click',()=>pickLine(i)));
+[0,1,2,3].forEach(i=>$('p'+i).addEventListener('click',()=>pickLine(i)));
 $('swProt').addEventListener('click',()=>{ S.useProt=!S.useProt; renderStarPane(); save(); });
 const TABS=[['tabStar','paneStar'],['tabCube','paneCube'],['tabShop','paneShop']];
 TABS.forEach(function(pair,i){
@@ -3719,7 +3747,7 @@ initOnline();
 
 // 균형 점검용 노출 (게임 동작에는 영향 없음)
 try{ window.__CFG={SF,MAXSTAR,starCost,SHIELD,SLOTS,OPT,POOL,GCAP,UPRATE,UPGRADE,CUBES,
-  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
+  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,lineHTML,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,renderAll,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
   get state(){return S;}, cur, power, income, mesoMult, dropMult, starMult, potMultOf, odds, potGrade, topGrade, totalStars, sfBonus}; }catch(e){}
 })();
 </script>
