@@ -341,18 +341,18 @@ button:disabled{cursor:not-allowed;opacity:.45;}
 .hrow .bnm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 
 /* ---------- 지금 어느 화면인지 ---------- */
-/* 스크롤을 내려도 붙어 있어야 한다 — 화면 맨 위에만 있으면 정작 헤맬 때 안 보인다 */
-.nav{position:sticky;top:0;z-index:40;display:flex;align-items:center;justify-content:space-between;
-  gap:12px;margin:0 0 10px;padding:8px 14px;border-radius:var(--r);
-  background:rgba(21,18,44,.92);border:1px solid var(--edge);
+/* 스크롤을 내려도 붙어 있어야 한다 — 맨 위에만 있으면 정작 헤맬 때 안 보인다.
+   모양은 난이도·구역 탭과 같은 언어로 맞췄다. */
+.nav{position:sticky;top:0;z-index:40;display:grid;grid-template-columns:repeat(5,1fr);
+  gap:5px;margin:0 0 10px;padding:6px;border-radius:var(--r);
+  background:rgba(21,18,44,.94);border:1px solid var(--edge);
   -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);}
-.navname{font-family:'Gowun Batang',serif;font-weight:700;font-size:15px;color:var(--gold);
-  letter-spacing:.02em;white-space:nowrap;}
-.navdots{display:flex;align-items:center;gap:7px;}
-.navdot{width:8px;height:8px;padding:0;border-radius:99px;border:0;background:var(--edge2);
-  transition:width .22s cubic-bezier(.22,.61,.36,1), background-color .22s;}
-.navdot[aria-current="true"]{width:22px;background:var(--gold);}
-.navdot:not([aria-current="true"]):hover{background:var(--dim);}
+.ntab{position:relative;padding:9px 2px;border-radius:9px;font-weight:900;font-size:12.5px;
+  color:var(--dim);background:#15122C;border:1px solid var(--edge);white-space:nowrap;
+  transition:color .16s, border-color .16s, background-color .16s;}
+.ntab[aria-current="true"]{color:var(--gold);border-color:var(--gold);background:#2A2208;}
+.ntab:not([aria-current="true"]):hover{color:var(--text);border-color:var(--edge2);}
+@media (max-width:360px){ .nav{gap:3px;padding:4px;} .ntab{font-size:11.5px;padding:8px 1px;} }
 
 /* ---------- 구역 탭 ---------- */
 .ztabs{display:grid;grid-template-columns:repeat(2,1fr);gap:5px;margin-bottom:8px;}
@@ -548,10 +548,7 @@ button:disabled{cursor:not-allowed;opacity:.45;}
     <button class="burger" id="burger" aria-label="메뉴"><span></span><span></span><span></span></button>
   </div>
 
-  <div class="nav" id="nav">
-    <span class="navname" id="navName">강화</span>
-    <div class="navdots" id="navDots"></div>
-  </div>
+  <nav class="nav" id="nav" aria-label="화면"></nav>
 
   <div class="topbar">
     <div class="cell">
@@ -2098,21 +2095,20 @@ function showView(k){
   save();
 }
 
-// 화면 이름과 점 — 점은 눌러서 바로 건너뛴다
+// 화면 탭 — 이름을 그대로 적어둔다. 눌러서 바로 건너뛴다.
 function buildNav(){
-  const d=$('navDots'); d.innerHTML='';
+  const n=$('nav'); n.innerHTML='';
   VIEWS.forEach(function(v){
     const b=document.createElement('button');
-    b.className='navdot'; b.dataset.v=v[0];
-    b.setAttribute('aria-label',v[2]);
+    b.className='ntab'; b.dataset.v=v[0]; b.type='button';
+    b.textContent=v[2];
     b.addEventListener('click',function(){ if(S.view!==v[0]){ ac(); showView(v[0]); } });
-    d.appendChild(b);
+    n.appendChild(b);
   });
 }
 function renderNav(){
   const k=S.view||'up';
-  $('navName').textContent=(VIEWS[viewIdx(k)]||VIEWS[0])[2];
-  $('navDots').querySelectorAll('.navdot').forEach(function(b){
+  $('nav').querySelectorAll('.ntab').forEach(function(b){
     b.setAttribute('aria-current',String(b.dataset.v===k));
   });
 }
