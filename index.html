@@ -283,6 +283,26 @@ button:disabled{cursor:not-allowed;opacity:.45;}
 .hrow .ht{font-size:9px;font-weight:900;letter-spacing:.08em;padding:1px 6px;border-radius:99px;
   border:1px solid var(--edge2);color:var(--dim);margin-left:6px;}
 
+/* ---------- 레벨 · 업적 · 오프라인 ---------- */
+.xpbar{margin:-4px 0 0;}
+.xptrack{height:6px;border-radius:99px;background:#15122C;border:1px solid var(--edge);overflow:hidden;}
+.xpfill{height:100%;background:linear-gradient(90deg,#5CE68A,#2FA968);transition:width .3s;}
+.xptext{margin-top:5px;font-size:11px;color:var(--dimmer);text-align:center;font-weight:700;}
+.xptext b{color:#5CE68A;font-family:'Bebas Neue',sans-serif;font-size:14px;letter-spacing:.03em;}
+.achgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:7px;}
+.ach{background:#15122C;border:1px solid var(--edge);border-radius:10px;padding:9px 11px;
+  display:flex;flex-direction:column;gap:2px;opacity:.5;}
+.ach.on{opacity:1;border-color:var(--gold);background:#241C05;}
+.ach .an{font-size:12.5px;font-weight:900;color:var(--dim);}
+.ach.on .an{color:var(--gold);}
+.ach .ad{font-size:10.5px;color:var(--dimmer);font-weight:500;line-height:1.4;}
+.ach .ar{font-family:'Bebas Neue',sans-serif;font-size:14px;color:var(--meso);letter-spacing:.03em;}
+.ach:not(.on) .ar{color:var(--dimmer);}
+.offrow{display:flex;justify-content:space-between;align-items:baseline;padding:10px 12px;
+  background:#15122C;border:1px solid var(--edge);border-radius:10px;margin-bottom:7px;font-size:13px;font-weight:700;}
+.offrow b{font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--meso);letter-spacing:.03em;}
+.offnote{font-size:11px;color:var(--dimmer);text-align:center;margin-top:10px;line-height:1.6;}
+
 /* ---------- 보스 전투 ---------- */
 .battle{position:fixed;inset:0;z-index:88;display:grid;place-items:center;padding:18px;
   background:radial-gradient(80% 60% at 50% 45%, rgba(60,14,30,.86), rgba(9,6,18,.94));cursor:pointer;}
@@ -460,8 +480,12 @@ button:disabled{cursor:not-allowed;opacity:.45;}
       <span class="lbl">전투력</span>
       <span class="val pow" id="powV">0</span>
     </div>
-    <div class="cell"><span class="lbl">사냥터</span><span class="val" id="mapV" style="font-size:20px">—</span></div>
+    <div class="cell">
+      <span class="lbl">레벨</span>
+      <span class="val" id="lvV" style="color:#5CE68A">1</span>
+    </div>
   </div>
+  <div class="xpbar"><div class="xptrack"><div class="xpfill" id="xpFill"></div></div><div class="xptext" id="xpText"></div></div>
 
   <div class="event" id="eventBar">
     <span class="ename">럭키데이</span>
@@ -563,10 +587,15 @@ button:disabled{cursor:not-allowed;opacity:.45;}
   </section>
 
   <section class="card">
+    <h2>업적 <span id="achCount" style="float:right;color:var(--gold);font-family:'Bebas Neue',sans-serif;font-size:15px"></span></h2>
+    <div class="achgrid" id="achList"></div>
+  </section>
+
+  <section class="card">
     <h2>랭킹</h2>
     <div class="rankwrap">
       <table class="rank">
-        <thead><tr><th></th><th>아이디</th><th>최고 성수치</th><th>잠재</th><th>최고 전투력</th><th>최고 보스</th><th>파괴</th><th>강화 시도</th></tr></thead>
+        <thead><tr><th></th><th>아이디</th><th>최고 성수치</th><th>잠재</th><th>레벨</th><th>최고 전투력</th><th>최고 보스</th><th>업적</th><th>파괴</th><th>강화 시도</th></tr></thead>
         <tbody id="rankBody"></tbody>
       </table>
     </div>
@@ -584,6 +613,15 @@ button:disabled{cursor:not-allowed;opacity:.45;}
       <button class="reset" id="resetBtn">기록 전부 초기화</button>
     </div>
   </section>
+</div>
+
+<div class="compare" id="offline" hidden>
+  <div class="cmpcard">
+    <h2>다녀온 사이</h2>
+    <div style="text-align:center;font-family:'Gowun Batang',serif;font-weight:700;font-size:30px;color:var(--gold);margin-bottom:14px" id="offTime">—</div>
+    <div id="offBody"></div>
+    <div class="cmpbtns"><button class="btn gold" id="offTake">받기</button></div>
+  </div>
 </div>
 
 <div class="compare" id="drop" hidden>
@@ -781,11 +819,61 @@ const NAMES=[['여명의 장검','심연의 대검','폭풍의 창','재의 언�
              ['질풍의 장화','심연의 부츠','서리꽃 신','별무리 구두'],
              ['여명의 건틀릿','심연의 손아귀','폭풍의 장갑','재의 완갑']];
 
+// 캐릭터 레벨 — 모자의 경험치획득량 옵션이 여기서 값을 한다
+const MAXLV=60;
+const xpNeed=L=>Math.round(100*Math.pow(L,1.9));
+const OFF_CAP=8*3600;          // 오프라인 수입 상한 8시간
+const OFF_RATE=0.5;            // 자리를 비우면 절반만 번다
+
+// 업적 — 이미 쌓고 있는 통계를 그대로 쓴다
+const ACH=[
+ ['t1','첫 강화','강화를 한 번 해본다',            s=>s.st.try>=1,        20000],
+ ['t2','강화 100회','강화 시도 100회',             s=>s.st.try>=100,      60000],
+ ['t3','강화 1000회','강화 시도 1000회',           s=>s.st.try>=1000,     400000],
+ ['t4','강화 5000회','강화 시도 5000회',           s=>s.st.try>=5000,     2000000],
+ ['d1','첫 파괴','장비를 처음 잃는다',              s=>s.st.des>=1,        50000],
+ ['d2','파괴 10회','장비를 열 번 잃고도 계속한다',  s=>s.st.des>=10,       300000],
+ ['d3','파괴 50회','장비를 쉰 번 잃는다',           s=>s.st.des>=50,       1500000],
+ ['s1','10★','한 부위를 10성까지',                 s=>s.st.max>=10,       50000],
+ ['s2','15★','파괴 구간 직전까지',                 s=>s.st.max>=15,       150000],
+ ['s3','20★','성공률 6% 벽을 넘는다',              s=>s.st.max>=20,       600000],
+ ['s4','25★','25성',                              s=>s.st.max>=25,       1800000],
+ ['s5','30★','30성',                              s=>s.st.max>=30,       5000000],
+ ['s6','36★','더 올릴 별이 없다',                  s=>s.st.max>=36,       20000000],
+ ['f1','총 스타포스 30','다섯 부위 합 30',          s=>totalStars()>=30,   80000],
+ ['f2','총 스타포스 60','다섯 부위 합 60',          s=>totalStars()>=60,   250000],
+ ['f3','총 스타포스 100','다섯 부위 합 100',        s=>totalStars()>=100,  1000000],
+ ['f4','총 스타포스 150','다섯 부위 합 150',        s=>totalStars()>=150,  4000000],
+ ['g1','에픽 잠재','에픽 등급 잠재능력',            s=>(s.st.mg||0)>=1,    60000],
+ ['g2','유니크 잠재','유니크 등급 잠재능력',        s=>(s.st.mg||0)>=2,    400000],
+ ['g3','레전더리 잠재','레전더리 등급 잠재능력',    s=>(s.st.mg||0)>=3,    3000000],
+ ['c1','큐브 100회','큐브를 백 번 굴린다',          s=>s.st.cube>=100,     100000],
+ ['c2','큐브 500회','큐브를 오백 번 굴린다',        s=>s.st.cube>=500,     600000],
+ ['c3','큐브 2000회','큐브를 이천 번 굴린다',       s=>s.st.cube>=2000,    3000000],
+ ['i1','에픽 장비','장비 하나를 에픽으로',          s=>s.items.some(x=>x.ig>=1), 80000],
+ ['i2','유니크 장비','장비 하나를 유니크로',        s=>s.items.some(x=>x.ig>=2), 500000],
+ ['i3','풀 유니크','다섯 부위 전부 유니크 장비',    s=>s.items.every(x=>x.ig>=2), 4000000],
+ ['b1','첫 격파','보스를 처음 잡는다',              s=>(s.bk||[]).some(x=>x>0), 30000],
+ ['b2','매그너스 격파','매그너스를 잡는다',         s=>(s.bk||[])[6]>0,    300000],
+ ['b3','윌 격파','윌을 잡는다',                    s=>(s.bk||[])[9]>0,    900000],
+ ['b4','검은 마법사 격파','최종 보스를 잡는다',     s=>(s.bk||[])[11]>0,   3000000],
+ ['b5','보스 100회','보스를 백 번 잡는다',          s=>(s.bk||[]).reduce((a,x)=>a+x,0)>=100, 1200000],
+ ['b6','도감 완성','열두 보스를 전부 잡는다',       s=>(s.bk||[]).every(x=>x>0), 5000000],
+ ['p1','전투력 200','',                            s=>s.st.best>=200,     100000],
+ ['p2','전투력 400','',                            s=>s.st.best>=400,     700000],
+ ['p3','전투력 700','',                            s=>s.st.best>=700,     4000000],
+ ['l1','레벨 10','',                               s=>(s.lv||1)>=10,      80000],
+ ['l2','레벨 30','',                               s=>(s.lv||1)>=30,      700000],
+ ['l3','레벨 50','',                               s=>(s.lv||1)>=50,      4000000],
+ ['m1','1억 지출','메소 1억을 태운다',              s=>s.st.spent>=1e8,    1000000],
+ ['h1','명예의 전당','전투력 300 + 레전드리 잠재',  s=>s.st.hall>0,        5000000]
+];
+
 /* ---------- 상태 ---------- */
 const newItem=i=>({star:0, ig:0, lines:[], broken:false, name:NAMES[i][0]});
 const DEF=()=>({
   meso:300000, sel:0, items:[0,1,2,3,4].map(newItem),
-  useProt:false, useSafe:false, map:0, anim:true,
+  useProt:false, useSafe:false, map:0, anim:true, lv:1, xp:0, ach:{},
   bcd:BOSSES.map(function(){return 0;}), bk:BOSSES.map(function(){return 0;}),
   inv:{cube:0, sh:0, sure:0}, evT:0, evCd:180,
   st:{try:0,suc:0,keep:0,down:0,des:0,max:0,mg:0,cube:0,up:0,spent:0,best:0,hall:0}
@@ -812,7 +900,10 @@ const slotPow=i=>{ const it=S.items[i]; if(!it||it.broken) return 0;
 const totalStars=()=>S.items.reduce((a,it)=>a+(it.broken?0:it.star),0);
 function sfBonus(){ const t=totalStars(); let b=0; for(const x of SFTIERS) if(t>=x[0]) b=x[1]; return b; }
 function sfNext(){ const t=totalStars(); for(const x of SFTIERS) if(t<x[0]) return x; return null; }
-const power=()=>Math.round(S.items.reduce((a,_,i)=>a+slotPow(i),0)*(1+sfBonus()/100));
+const expMult=()=>1+sumOpt('exp')/100;
+const lvBonus=()=>((S.lv||1)-1)*2.5;              // 레벨이 기본 전투력을 올린다
+const power=()=>Math.round((S.items.reduce((a,_,i)=>a+slotPow(i),0)+lvBonus())*(1+sfBonus()/100));
+const xpRate=()=>{ const m=MAPS[S.map||0]; return m?m.rate/200*mapEff(S.map||0,power())*expMult():0; };
 const potGradeOf=it=>it&&it.lines.length?it.lines[0].g:-1;
 const potGrade=()=>potGradeOf(cur());
 const topGrade=()=>S.items.reduce((a,it)=>Math.max(a,potGradeOf(it)),-1);
@@ -1033,7 +1124,6 @@ function renderTop(){
   $('mesoV').textContent=fmt(S.meso);
   $('incV').innerHTML=fmt(income())+'<small>/초</small>';
   $('powV').textContent=power().toLocaleString('ko-KR');
-  $('mapV').textContent=MAPS[S.map||0].n;
   const rb=$('repBtn'); if(rb) rb.disabled=S.meso<restoreCost();
 }
 function renderEvent(){
@@ -1143,7 +1233,7 @@ function renderRecs(){
 function renderAll(){
   renderSlots();renderItem();renderTop();renderEvent();renderStarPane();
   if(cur().broken) repairUI(); else renderCubes();
-  renderShop();
+  renderShop(); renderLevel(); checkAch(); renderAch();
   if(!huntBuilt) buildHunt();
   updateHunt();
   renderRecs();
@@ -1499,6 +1589,76 @@ function bossBattle(i,win,done){
   at(t+950,endBattle);
 }
 
+/* ---------- 레벨 · 업적 · 오프라인 수입 ---------- */
+function gainXp(v){
+  if(!v||v<=0) return;
+  S.xp=(S.xp||0)+v;
+  let up=0;
+  while((S.lv||1)<MAXLV && S.xp>=xpNeed(S.lv||1)){ S.xp-=xpNeed(S.lv); S.lv=(S.lv||1)+1; up++; }
+  if(up){
+    SND.up(); burst(80,'#5CE68A',{sp:1.1});
+    flash('LV '+S.lv,'기본 전투력 +'+(up*2.5).toFixed(1),'#5CE68A');
+    log('<b>레벨 '+S.lv+' 달성</b> — 기본 전투력이 올랐다','up');
+  }
+}
+function renderLevel(){
+  const need=xpNeed(S.lv||1), p=Math.min(100,((S.xp||0)/need)*100);
+  $('lvV').textContent=S.lv||1;
+  $('xpFill').style.width=p+'%';
+  $('xpText').innerHTML='EXP <b>'+Math.floor(S.xp||0).toLocaleString('ko-KR')+'</b> / '+need.toLocaleString('ko-KR')+
+    ' · 초당 <b>'+Math.round(xpRate())+'</b>'+(expMult()>1?' (경험치획득량 +'+Math.round((expMult()-1)*100)+'%)':'');
+}
+function checkAch(){
+  if(!S.ach) S.ach={};
+  let first=null, n=0, gold=0;
+  ACH.forEach(function(a){
+    if(S.ach[a[0]]) return;
+    let ok=false; try{ ok=a[3](S); }catch(e){}
+    if(!ok) return;
+    S.ach[a[0]]=1; n++; gold+=a[4];
+    if(!first) first=a;
+    else log('업적 달성 — <b>'+a[1]+'</b> +'+fmt(a[4]),'ok');
+  });
+  if(!n) return;
+  S.meso+=gold;
+  renderAch(); renderTop();
+  SND.up(); burst(90,'#FFC94A',{sp:1.2});
+  flash('업적 달성',first[1]+(n>1?' 외 '+(n-1)+'개':'')+' · +'+fmt(gold),'#FFC94A');
+  log('<b>업적 달성 — '+first[1]+'</b> +'+fmt(first[4]),'up');
+}
+function renderAch(){
+  if(!S.ach) S.ach={};
+  const done=ACH.filter(function(a){ return S.ach[a[0]]; }).length;
+  $('achCount').innerHTML='<b>'+done+'</b> / '+ACH.length;
+  $('achList').innerHTML=ACH.map(function(a){
+    const ok=!!S.ach[a[0]];
+    return '<div class="ach'+(ok?' on':'')+'" title="'+a[2]+'">'+
+      '<span class="an">'+a[1]+'</span><span class="ad">'+(ok?'달성':a[2]||'—')+'</span>'+
+      '<span class="ar">'+fmt(a[4])+'</span></div>';
+  }).join('');
+}
+/* 오프라인 수입 */
+let offPend=0;
+function offerOffline(sec){
+  const el=Math.min(OFF_CAP,Math.floor(sec));
+  if(el<60) return;
+  offPend=el;
+  const meso=Math.round(income()*el*OFF_RATE), xp=Math.round(xpRate()*el*OFF_RATE);
+  const h=Math.floor(el/3600), m=Math.floor(el%3600/60);
+  $('offTime').textContent=(h?h+'시간 ':'')+m+'분';
+  $('offBody').innerHTML=
+    '<div class="offrow"><span>사냥 수입</span><b>'+fmt(meso)+' 메소</b></div>'+
+    '<div class="offrow"><span>경험치</span><b>'+xp.toLocaleString('ko-KR')+'</b></div>'+
+    '<div class="offnote">자리를 비운 동안엔 절반만 번다 · 최대 8시간까지 쌓인다</div>';
+  $('offTake').onclick=function(){
+    S.meso+=meso; gainXp(xp); offPend=0;
+    $('offline').hidden=true; SND.coin(); burst(60,'#FFD66B',{sp:.8});
+    log('자리를 비운 동안 <b>+'+fmt(meso)+'</b> 메소를 벌어뒀다','ok');
+    renderAll(); save();
+  };
+  $('offline').hidden=false;
+}
+
 /* ---------- 사냥터 · 보스 ---------- */
 let huntBuilt=false;
 function buildHunt(){
@@ -1588,6 +1748,7 @@ function resolveBoss(i,win){
     let r=bossReward(i);
     if(first) r+=Math.round(bs.base*5*mesoMult());
     S.bk[i]++; S.meso+=r; S.bcd[i]=bs.cd;
+    gainXp(Math.round(bs.base/400*expMult()));
     SND.coin();
     if(q) burst(first?90:(i>=4?55:26),'#FFD66B',{x:q.left+q.width/2,y:q.top+q.height/2,sp:first?1.4:.8});
     if(first){
@@ -1710,7 +1871,8 @@ const lockOf=id=>{ const e=BOARD.find(x=>x.id===id); return (e&&e.h)||null; };
 const topBoss=function(){ let b=0; if(S.bk) for(let i=0;i<S.bk.length;i++) if(S.bk[i]>0) b=i+1; return b; };
 function myRec(){
   return {id:USER, star:S.st.max|0, grade:Math.max(S.st.mg||0,topGrade())|0, power:S.st.best|0,
-          hall:S.st.hall?1:0, des:S.st.des|0, tries:S.st.try|0, boss:topBoss(), ts:Date.now(), h:authOf(USER)||null};
+          hall:S.st.hall?1:0, des:S.st.des|0, tries:S.st.try|0, boss:topBoss(),
+          ach:Object.keys(S.ach||{}).length, lv:S.lv||1, ts:Date.now(), h:authOf(USER)||null};
 }
 function mergeBoard(){
   const m=new Map(), lock=new Map();
@@ -1719,7 +1881,7 @@ function mergeBoard(){
     const id=String(e.id);
     const r={id:id, star:Math.min(36,+e.star||0), grade:Math.min(3,+e.grade||0),
              power:+e.power||0, hall:e.hall?1:0, des:+e.des||0, tries:+e.tries||0,
-             boss:Math.min(8,+e.boss||0), ts:+e.ts||0};
+             boss:Math.min(12,+e.boss||0), ach:Math.min(99,+e.ach||0), lv:Math.min(99,+e.lv||1), ts:+e.ts||0};
     // 잠금(h)은 가장 먼저 등록된 것을 끝까지 유지한다 — 나중 사람이 바꿔치기 못 하도록
     if(typeof e.h==='string'&&e.h){
       const cur=lock.get(id);
@@ -1746,7 +1908,7 @@ function note(t){ $('rankNote').textContent=t; }
 function renderRank(){
   const body=$('rankBody');
   if(!BOARD.length){
-    body.innerHTML='<tr><td class="empty" colspan="8">아직 등록된 기록이 없다. 별을 올리고 아래 버튼으로 등록해보자.</td></tr>';
+    body.innerHTML='<tr><td class="empty" colspan="10">아직 등록된 기록이 없다. 별을 올리고 아래 버튼으로 등록해보자.</td></tr>';
   } else {
     body.innerHTML=BOARD.map((e,i)=>
       '<tr class="'+(e.id===USER?'me':'')+'">'+
@@ -1754,8 +1916,10 @@ function renderRank(){
       '<td>'+esc(e.id)+(e.hall?'<span class="hall">명예의 전당</span>':'')+'</td>'+
       '<td class="num sv">'+e.star+'★</td>'+
       '<td>'+GNAME[e.grade]+'</td>'+
+      '<td class="num">'+(e.lv||1)+'</td>'+
       '<td class="num">'+e.power.toLocaleString('ko-KR')+'</td>'+
       '<td>'+(e.boss?esc(BOSSES[e.boss-1].n):'—')+'</td>'+
+      '<td class="num">'+(e.ach||0)+'</td>'+
       '<td class="num">'+e.des+'</td>'+
       '<td class="num">'+e.tries+'</td></tr>').join('');
   }
@@ -1939,6 +2103,7 @@ function enter(raw,serverSave){
   renderAll();
   log(S.st.try? '<b>'+esc(id)+'</b> — 저장된 기록을 불러왔다' : '<b>'+esc(id)+'</b> — 메소 30만으로 시작한다','');
   renderRank(); save();
+  if(sv&&sv.ts) offerOffline((Date.now()-sv.ts)/1000);
 }
 
 /* ---------- 루프 ---------- */
@@ -1946,7 +2111,8 @@ let last=performance.now(), acc=0, saveT=0;
 function loop(t){
   const dt=Math.min(.05,(t-last)/1000); last=t;
   if(!USER){ fxStep(dt); requestAnimationFrame(loop); return; }
-  S.meso+=income()*dt;   // 파괴 상태에서도 기본 수입은 흐른다
+  S.meso+=income()*dt;
+  gainXp(xpRate()*dt);   // 파괴 상태에서도 기본 수입은 흐른다
   if(!S.bcd||S.bcd.length!==BOSSES.length) S.bcd=BOSSES.map(function(){return 0;});
   if(!S.bk||S.bk.length!==BOSSES.length) S.bk=BOSSES.map(function(){return 0;});
   for(let i=0;i<S.bcd.length;i++) if(S.bcd[i]>0) S.bcd[i]=Math.max(0,S.bcd[i]-dt);
@@ -1960,7 +2126,7 @@ function loop(t){
       flash('럭키데이','60초 동안 성공 확률이 두 배','#FFC94A'); renderAll(); }
   }
   acc+=dt;
-  if(acc>.12){ acc=0; renderTop(); renderEvent(); updateHunt(); if(!busy) renderStarPane(); }
+  if(acc>.12){ acc=0; renderTop(); renderLevel(); renderEvent(); updateHunt(); checkAch(); if(!busy) renderStarPane(); }
   saveT+=dt; if(saveT>5){ saveT=0; save(); }
   netT+=dt; if(netT>8){ netT=0; pushSave(false); }
 

@@ -38,7 +38,9 @@ function cleanRec(r) {
   return {
     star:  n(r.star, 36),
     grade: n(r.grade, 3),
-    boss:  n(r.boss, 8),
+    boss:  n(r.boss, 12),
+    ach:   n(r.ach, 99),
+    lv:    n(r.lv, 99),
     ig:    n(r.ig, 2),
     power: n(r.power, 100000),
     hall:  r.hall ? 1 : 0,
@@ -158,9 +160,14 @@ module.exports = async (req, res) => {
       if (body.rec) {
         const rec = cleanRec(body.rec);
         // 최고 보스는 어떤 기록이 이기든 가장 높은 것을 유지한다
-        const topBoss = Math.max((u.rec && u.rec.boss) || 0, rec.boss || 0);
+        // 최고 보스·업적·레벨은 어떤 기록이 이기든 가장 높은 것을 유지한다
+        const keep = {
+          boss: Math.max((u.rec && u.rec.boss) || 0, rec.boss || 0),
+          ach:  Math.max((u.rec && u.rec.ach)  || 0, rec.ach  || 0),
+          lv:   Math.max((u.rec && u.rec.lv)   || 0, rec.lv   || 0)
+        };
         if (better(rec, u.rec)) u.rec = rec;      // 기록은 더 좋을 때만 갱신
-        if (u.rec) u.rec.boss = topBoss;
+        if (u.rec) { u.rec.boss = keep.boss; u.rec.ach = keep.ach; u.rec.lv = keep.lv; }
       }
       if (typeof body.save === 'string' && body.save.length <= MAX_SAVE) u.save = body.save;
       await writeUser(id, u);
