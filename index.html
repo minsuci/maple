@@ -303,6 +303,24 @@ button:disabled{cursor:not-allowed;opacity:.45;}
 .offrow b{font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--meso);letter-spacing:.03em;}
 .offnote{font-size:11px;color:var(--dimmer);text-align:center;margin-top:10px;line-height:1.6;}
 
+/* ---------- 출석 ---------- */
+.attgrid{display:flex;flex-direction:column;gap:6px;}
+.att{display:grid;grid-template-columns:56px 1fr auto;gap:10px;align-items:center;
+  background:#15122C;border:1px solid var(--edge);border-radius:10px;padding:9px 12px;opacity:.55;}
+.att.done{opacity:.4;}
+.att.done .ad::after{content:" ✓";color:var(--ok);}
+.att.now{opacity:1;border-color:var(--gold);background:#241C05;box-shadow:0 0 0 1px var(--gold) inset;}
+.att .ad{font-size:11px;font-weight:900;color:var(--dimmer);}
+.att.now .ad{color:var(--gold);}
+.att .at{font-size:12.5px;font-weight:700;}
+.att .am{font-family:'Bebas Neue',sans-serif;font-size:17px;color:var(--meso);letter-spacing:.03em;}
+.attnote{margin:12px 0 0;font-size:11.5px;color:var(--dimmer);text-align:center;line-height:1.6;}
+.attnote b{color:var(--gold);}
+.burger{position:relative;}
+.burger.dot::after{content:"";position:absolute;top:-3px;right:-3px;width:9px;height:9px;
+  border-radius:50%;background:var(--bad);border:2px solid var(--void);}
+.mitem .badge{float:right;width:9px;height:9px;border-radius:50%;background:var(--bad);margin-top:5px;}
+
 /* ---------- 난이도 · 메뉴 ---------- */
 .difftabs{display:flex;gap:5px;margin-bottom:8px;}
 .dtab{flex:1;padding:8px;border-radius:9px;font-weight:900;font-size:11.5px;color:var(--dim);
@@ -674,10 +692,23 @@ button:disabled{cursor:not-allowed;opacity:.45;}
   </div>
 </div>
 
+<div class="compare" id="attend" hidden>
+  <div class="cmpcard">
+    <h2>출석</h2>
+    <div class="attgrid" id="attList"></div>
+    <p class="attnote" id="attNote"></p>
+    <div class="cmpbtns">
+      <button class="btn gold" id="attBtn">받기</button>
+      <button class="btn" id="attClose">닫기</button>
+    </div>
+  </div>
+</div>
+
 <div class="menu" id="menu" hidden>
   <div class="mcard">
     <button class="mitem" data-v="up" aria-selected="true">강화<small>장비창 · 스타포스 · 큐브 · 상점</small></button>
     <button class="mitem" data-v="hunt">사냥<small>사냥터 · 보스 12종</small></button>
+    <button class="mitem" id="mAtt">출석<span class="badge" id="attBadge" hidden></span><small>하루 한 번 · 7일 주기</small></button>
     <button class="mitem" data-v="ach">업적<small>41종</small></button>
     <button class="mitem" data-v="rank">랭킹<small>길드 기록</small></button>
     <button class="mitem" data-v="rec">기록<small>내 통계</small></button>
@@ -926,11 +957,25 @@ const ACH=[
  ['h1','명예의 전당','전투력 300 + 레전드리 잠재',  s=>s.st.hall>0,        5000000]
 ];
 
+// 출석 — 7일 주기. 하루 건너뛰면 1일차로 돌아간다.
+// 메소는 지금 초당 수입 기준이라 후반에도 값이 죽지 않는다 (m = 분 단위).
+const DAILY=[
+  {m:10,           t:'메소 10분치'},
+  {m:0,  cube:1,   t:'큐브 교환권 1장'},
+  {m:20,           t:'메소 20분치'},
+  {m:0,  sh:1,     t:'쉴드 교환권 1장'},
+  {m:40,           t:'메소 40분치'},
+  {m:0,  cube:2,   t:'큐브 교환권 2장'},
+  {m:60, sure:1,   t:'확정 성공권 + 메소 1시간치'}
+];
+const dayIdx=()=>Math.floor((Date.now()-new Date().getTimezoneOffset()*60000)/86400000);
+
 /* ---------- 상태 ---------- */
 const newItem=i=>({star:0, ig:0, lines:[], broken:false, name:NAMES[i][0]});
 const DEF=()=>({
   meso:300000, sel:0, items:[0,1,2,3,4].map(newItem),
   useProt:false, useSafe:false, map:0, anim:true, hard:false, view:'up', lv:1, xp:0, ach:{},
+  att:{last:0, day:0, total:0},
   bcd:BOSSES.map(function(){return 0;}), bk:BOSSES.map(function(){return 0;}),
   inv:{cube:0, sh:0, sure:0}, evT:0, evCd:180,
   st:{try:0,suc:0,keep:0,down:0,des:0,max:0,mg:0,cube:0,up:0,spent:0,best:0,hall:0}
@@ -1298,7 +1343,7 @@ function renderRecs(){
 function renderAll(){
   renderSlots();renderItem();renderTop();renderEvent();renderStarPane();
   if(cur().broken) repairUI(); else renderCubes();
-  renderShop(); renderLevel(); checkAch(); renderAch();
+  renderShop(); renderLevel(); renderDaily(); checkAch(); renderAch();
   if(!huntBuilt) buildHunt();
   updateHunt();
   renderRecs();
@@ -1730,6 +1775,53 @@ function renderDiffTabs(){
   $('dNormal').setAttribute('aria-selected',String(!S.hard));
   $('dHard').setAttribute('aria-selected',String(!!S.hard));
 }
+/* ---------- 출석 ---------- */
+function attState(){
+  if(!S.att) S.att={last:0, day:0, total:0};
+  const gap=dayIdx()-(S.att.last||0);
+  if(!S.att.last) return {can:true, day:1, fresh:true};
+  if(gap<=0) return {can:false, day:S.att.day||1};
+  if(gap===1) return {can:true, day:((S.att.day||0)%7)+1};
+  return {can:true, day:1, broke:true};                 // 하루라도 건너뛰면 처음부터
+}
+function dailyMeso(min){ return Math.round(income()*60*min); }
+function renderDaily(){
+  const st=attState(), cur=st.day;
+  $('attList').innerHTML=DAILY.map(function(d,i){
+    const n=i+1, done=!st.can? n<=(S.att.day||0) : n<cur;
+    const now=st.can&&n===cur;
+    return '<div class="att'+(done?' done':'')+(now?' now':'')+'">'+
+      '<span class="ad">'+n+'일차</span>'+
+      '<span class="at">'+d.t+'</span>'+
+      (d.m?'<span class="am">'+fmt(dailyMeso(d.m))+'</span>':'<span class="am">—</span>')+'</div>';
+  }).join('');
+  const b=$('attBtn');
+  b.disabled=!st.can;
+  b.textContent=st.can?(cur+'일차 받기'):'오늘은 이미 받았다';
+  $('attNote').innerHTML=st.can
+    ? (st.broke?'연속이 끊겨서 <b>1일차</b>부터 다시 시작한다.':'연속 출석하면 7일차에 <b>확정 성공권</b>이 나온다.')
+    : '내일 다시 오면 <b>'+(((S.att.day||0)%7)+1)+'일차</b> 보상을 받는다 · 누적 <b>'+(S.att.total||0)+'</b>일';
+  $('attBadge').hidden=!st.can;
+  $('burger').classList.toggle('dot',st.can);
+}
+function claimDaily(){
+  const st=attState();
+  if(!st.can) return;
+  const d=DAILY[st.day-1];
+  if(!S.inv) S.inv={cube:0,sh:0,sure:0};
+  let msg=[];
+  if(d.m){ const g=dailyMeso(d.m); S.meso+=g; msg.push(fmt(g)+' 메소'); }
+  if(d.cube){ S.inv.cube+=d.cube; msg.push('큐브 교환권 '+d.cube+'장'); }
+  if(d.sh){ S.inv.sh+=d.sh; msg.push('쉴드 교환권 '+d.sh+'장'); }
+  if(d.sure){ S.inv.sure+=d.sure; msg.push('확정 성공권 '+d.sure+'장'); }
+  S.att.last=dayIdx(); S.att.day=st.day; S.att.total=(S.att.total||0)+1;
+  SND.coin(); burst(st.day===7?110:50,'#FFD66B',{sp:st.day===7?1.3:.8});
+  if(st.day===7) flash('7일차','연속 출석 완주 · '+msg.join(' · '),'#FFD66B');
+  log('<b>'+st.day+'일차 출석</b> — '+msg.join(' · '),'up');
+  $('attend').hidden=true;
+  renderAll(); save();
+}
+
 /* ---------- 화면 전환 ---------- */
 const VIEWS=[['up','viewUp'],['hunt','viewHunt'],['ach','viewAch'],['rank','viewRank'],['rec','viewRec']];
 function showView(k){
@@ -2202,6 +2294,7 @@ function enter(raw,serverSave){
   showView(S.view||'up');
   renderRank(); save();
   if(sv&&sv.ts) offerOffline((Date.now()-sv.ts)/1000);
+  if($('offline').hidden&&attState().can){ renderDaily(); $('attend').hidden=false; }
 }
 
 /* ---------- 루프 ---------- */
@@ -2270,6 +2363,9 @@ $('switchBtn').addEventListener('click',()=>{ save(); USER=null; $('whoV').textC
 $('battle').addEventListener('click',function(){ if(!$('battle').hidden) endBattle(); });
 $('animTog').addEventListener('click',function(){ S.anim=(S.anim===false); updateHunt(); save(); });
 $('burger').addEventListener('click',function(){ $('menu').hidden=false; });
+$('mAtt').addEventListener('click',function(){ $('menu').hidden=true; renderDaily(); $('attend').hidden=false; });
+$('attBtn').addEventListener('click',function(){ ac(); claimDaily(); });
+$('attClose').addEventListener('click',function(){ $('attend').hidden=true; });
 $('menu').addEventListener('click',function(e){ if(e.target===$('menu')) $('menu').hidden=true; });
 document.querySelectorAll('.mitem').forEach(function(b){ b.addEventListener('click',function(){ showView(b.dataset.v); }); });
 $('dNormal').addEventListener('click',function(){ S.hard=false; renderDiff(); });
