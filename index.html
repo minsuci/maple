@@ -439,6 +439,35 @@ td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
 .bufchip b{font-family:'Bebas Neue',sans-serif;font-size:14px;}
 .bufchip i{font-style:normal;color:var(--dimmer);margin-left:3px;}
 
+/* ---------- 보스 상세 ---------- */
+.bpcard{max-width:460px;}
+.bphead{display:grid;grid-template-columns:96px 1fr;gap:14px;align-items:center;margin-bottom:14px;text-align:left;}
+.bpart{width:96px;height:96px;overflow:visible;filter:drop-shadow(0 0 16px var(--c,#4FA8FF)) drop-shadow(0 3px 5px #000A);}
+.bphead h2{margin:0;text-align:left;font-size:20px;font-weight:900;letter-spacing:-.01em;line-height:1.15;}
+.bpsub{margin:4px 0 0;font-size:11.5px;color:var(--dim);line-height:1.6;}
+.bpdiffs{display:flex;flex-direction:column;gap:6px;}
+.bpd{display:grid;grid-template-columns:62px 1fr auto;gap:11px;align-items:center;text-align:left;
+  background:#15122C;border:1px solid var(--edge);border-radius:10px;padding:10px 12px;}
+.bpd:hover:not(:disabled){border-color:var(--edge2);}
+.bpd[aria-current="true"]{border-color:var(--gold);background:#241C05;}
+.bpd:disabled{opacity:.4;}
+.bpd .dn{font-weight:900;font-size:12.5px;}
+.bpd[aria-current="true"] .dn{color:var(--gold);}
+.bpd .dd{display:block;font-size:11px;color:var(--dim);margin-top:2px;}
+.bpd .dr{font-family:'Bebas Neue',sans-serif;font-size:17px;color:var(--meso);white-space:nowrap;}
+.bpd .ok{font-size:9px;font-weight:900;letter-spacing:.06em;color:#2A1A00;background:var(--ok);
+  border-radius:99px;padding:2px 6px;margin-left:5px;}
+.hrow .cyc{font-size:9px;font-weight:900;letter-spacing:.06em;padding:1px 6px;border-radius:99px;
+  background:#1B1638;border:1px solid var(--edge2);color:var(--dimmer);margin-left:5px;}
+
+@media(max-width:400px){
+  .bphead{grid-template-columns:76px 1fr;gap:11px;}
+  .bpart{width:76px;height:76px;}
+  .bpd{grid-template-columns:50px 1fr auto;gap:8px;padding:9px 10px;}
+  .bpd .dn{font-size:11.5px;}
+  .bpd .dd{font-size:10.5px;}
+  .bpd .dr{font-size:15px;}
+}
 /* ---------- 스킬 ---------- */
 .skills{display:grid;grid-template-columns:repeat(auto-fit,minmax(0,1fr));gap:5px;margin-bottom:6px;}
 .skbtn{padding:7px 4px;border-radius:9px;background:#15122C;border:1px solid var(--edge);
@@ -454,10 +483,6 @@ td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
 .sknote{margin:0 0 10px;font-size:11px;color:var(--dimmer);line-height:1.6;}
 .sknote b{color:var(--gold);}
 
-.difftabs{display:flex;gap:5px;margin-bottom:8px;}
-.dtab{flex:1;padding:8px;border-radius:9px;font-weight:900;font-size:11.5px;color:var(--dim);
-  background:#15122C;border:1px solid var(--edge);}
-.dtab[aria-selected="true"]{color:var(--gold);border-color:var(--gold);background:#2A2208;}
 #dHard[aria-selected="true"]{color:#FF8A96;border-color:var(--bad);background:#2A0F19;}
 .burger{width:38px;height:34px;border-radius:9px;border:1px solid var(--edge);background:#15122C;
   display:grid;place-items:center;gap:3px;padding:8px 9px;}
@@ -789,11 +814,6 @@ td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
         <div class="skills" id="skillBar"></div>
         <p class="sknote" id="skillNote"></p>
 
-        <div class="difftabs">
-          <button class="dtab" id="dNormal" aria-selected="true">일반</button>
-          <button class="dtab" id="dHard" aria-selected="false">하드</button>
-          <button class="dtab" id="dChaos" aria-selected="false">카오스</button>
-        </div>
         <div class="hlist" id="bossList"></div>
       </div>
     </div>
@@ -886,6 +906,24 @@ td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
     <p class="attnote" id="jobNote"></p>
     <div class="cmpbtns">
       <button class="btn" id="jobClose">닫기</button>
+    </div>
+  </div>
+</div>
+
+<div class="compare" id="bossPick" hidden>
+  <div class="cmpcard bpcard">
+    <div class="bphead">
+      <svg class="bpart" id="bpArt" viewBox="0 0 64 64" aria-hidden="true"></svg>
+      <div>
+        <h2 id="bpName">보스</h2>
+        <p class="bpsub" id="bpSub"></p>
+      </div>
+    </div>
+    <div class="bpdiffs" id="bpDiffs"></div>
+    <p class="attnote" id="bpNote"></p>
+    <div class="cmpbtns">
+      <button class="btn gold" id="bpGo">도전</button>
+      <button class="btn" id="bpClose">닫기</button>
     </div>
   </div>
 </div>
@@ -1391,6 +1429,10 @@ const CRT=[0,0,0.001,0.014,0.066,0.176,0.333,0.502,0.651,0.766,
            0.851,0.908,0.945,0.968,0.982,0.990,0.994,0.997,0.998,0.999];
 const BROUNDS=6;
 const dmgMean=r=>100*(r/0.85)/BROUNDS;        // 한 합 평균 대미지
+const clearRate2=(i,d,p)=>{ const req=bossReqAt(i,d); if(!req) return 0;
+  const r=(p||0)/req; if(r<=0.5) return 0; if(r>=1.45) return 1;
+  const x=(r-0.5)/0.05, k=Math.floor(x);
+  return CRT[k]+(CRT[Math.min(CRT.length-1,k+1)]-CRT[k])*(x-k); };
 function clearRate(i,p){
   const b=BOSSES[i]; if(!b) return 0;
   const r=(p||0)/bossReq(i);
@@ -1775,6 +1817,7 @@ function renderAll(){
   renderSlots();renderItem();renderTop();renderEvent();renderStarPane();
   if(cur().broken) repairUI(); else renderCubes();
   renderShop(); renderTShop(); renderLevel(); renderDaily(); checkAch(); renderAch();
+  if(!$('bossPick').hidden) renderBossPick();
   const jv=$('jobV'); jv.hidden=!USER; jv.textContent=curJob().n;
   $('mJobSub').textContent=curJob().n+' · '+curJob().w;
   if(S.view==='inv') renderBag();   // 가방에서 분해·착용하면 목록이 바로 줄어야 한다
@@ -2621,12 +2664,6 @@ function offerOffline(sec){
   $('offline').hidden=false;
 }
 
-function renderDiffTabs(){
-  const d=dIdx();
-  $('dNormal').setAttribute('aria-selected',String(d===0));
-  $('dHard').setAttribute('aria-selected',String(d===1));
-  $('dChaos').setAttribute('aria-selected',String(d===2));
-}
 /* ---------- 출석 ---------- */
 function attState(){
   if(!S.att) S.att={last:0, day:0, total:0};
@@ -3001,22 +3038,15 @@ function buildHunt(){
       '<svg class="bic" viewBox="0 0 64 64" aria-hidden="true">'+bossArt(i)+'</svg>'+
       '<span class="bnm">'+bs.n+'</span><span class="ht">'+bs.t+'</span></span>'+
       '<span class="hr">—</span><span class="hcd">—</span>';
-    b.addEventListener('click',function(){ ac(); fightBoss(i); });
+    b.addEventListener('click',function(){ ac(); openBoss(i); });
     bl.appendChild(b);
   });
   buildSkills();
   huntBuilt=true;
 }
-function renderDiff(){
-  const d=dIdx();
-  $('dNormal').setAttribute('aria-selected',String(d===0));
-  $('dHard').setAttribute('aria-selected',String(d===1));
-  $('dChaos').setAttribute('aria-selected',String(d===2));
-  updateHunt(); save();
-}
 function updateHunt(){
   if(!huntBuilt) return;
-  renderDiffTabs(); renderSkills();
+  renderSkills();
   const p=power(), best=bestMap(p);
   if(S.zone==null) S.zone=zoneOf(S.map||0);
   $('zoneTabs').querySelectorAll('.ztab').forEach(function(el,z){
@@ -3040,22 +3070,21 @@ function updateHunt(){
     if(i!==best&&tag) tag.remove();
   });
   $('bossList').querySelectorAll('.hrow').forEach(function(el,i){
-    el.hidden=!bossHas(i,dIdx());
-    if(el.hidden) return;
-    const bs=BOSSES[i], cd=(S.bcd&&S.bcd[i])||0, cr=clearRate(i,p);
-    const cleared=killsOf(i,dIdx())>0;
-    el.querySelector('.bnm').textContent=bossName(i);
-    el.querySelector('.bic').classList.toggle('hard',dIdx()>0);
-    el.disabled=cr<=0||cd>0||fighting>=0;
-    el.classList.toggle('ready',cr>0&&cd<=0&&fighting<0);
-    el.classList.toggle('cleared',cleared);
-    el.querySelector('.hr').textContent=bs.cyc+' · 요구 '+bossReq(i)+' · 클리어 '+Math.round(cr*100)+'%'+
-      (dIdx()?' · 메소 x'+(bossRewAt(i,dIdx())/bs.rew).toFixed(1):'');
+    const bs=BOSSES[i], cd=(S.bcd&&S.bcd[i])||0;
+    let top=-1; for(let d=2;d>=0;d--) if(bossHas(i,d)&&clearRate2(i,d,p)>0){ top=d; break; }
+    let done=-1; for(let d=2;d>=0;d--) if(bossHas(i,d)&&killsOf(i,d)>0){ done=d; break; }
+    el.querySelector('.bnm').innerHTML=bs.n+'<span class="cyc">'+bs.cyc+'</span>';
+    el.querySelector('.bic').classList.toggle('hard',done>0);
+    el.disabled=top<0||fighting>=0;
+    el.classList.toggle('ready',top>=0&&cd<=0&&fighting<0);
+    el.classList.toggle('cleared',done>=0);
+    el.querySelector('.hr').textContent = top<0 ? '전투력 부족'
+      : (DNAME[top]+' '+Math.round(clearRate2(i,top,p)*100)+'%'+(done>=0?' · 최고 '+DNAME[done]:'')+' · '+bs.t);
     el.querySelector('.hcd').textContent =
       fighting===i ? '교전 중…' :
-      cr<=0 ? '전투력 부족' :
+      top<0 ? '—' :
       cd>0 ? fmtCd(cd) :
-      (cleared?'+':'첫 클리어 +')+fmt(bossReward(i)+(cleared?0:firstBonus(i)));
+      fmt(Math.round(bossRewAt(i,top)*mesoMult()));
   });
   const m=MAPS[S.map||0];
   $('animTog').setAttribute('aria-checked',String(S.anim!==false));
@@ -3065,6 +3094,70 @@ function updateHunt(){
     '사냥터는 <b>레벨로 열리고 전투력으로 효율이 정해진다</b> — 갓 열린 곳보다 앞 사냥터를 100%로 도는 게 나을 때가 많다.<br>'+
     '보스는 쿨타임이 따로 도니까 돌려가며 잡는 게 이득이고, <b>상위 보스일수록 좋은 장비를 떨군다</b> (드롭률 +'+Math.round((dropMult()-1)*100)+'%).';
 }
+/* ---------- 보스 상세 — 보스를 먼저 고르고 난이도를 고른다 ---------- */
+let pickBoss=-1;
+function openBoss(i){
+  pickBoss=i;
+  const b=BOSSES[i];
+  const art=$('bpArt');
+  art.innerHTML=bossArt(i);
+  art.style.setProperty('--c',['#4FA8FF','#B15CFF','#FF7A3D','#FF4D6A'][Math.min(3,Math.floor(i/6))]);
+  $('bpName').textContent=b.n;
+  // 이번에 고를 난이도를 곰라준다 — 반은 넘기는 것 중 제일 높은 걸 기본값으로
+  const pw=power();
+  let d=-1;
+  for(let k=2;k>=0;k--) if(bossHas(i,k)&&clearRate2(i,k,pw)>=0.5){ d=k; break; }
+  if(d<0) for(let k=2;k>=0;k--) if(bossHas(i,k)&&clearRate2(i,k,pw)>0){ d=k; break; }
+  if(d<0){ d=0; while(d<2&&!bossHas(i,d)) d++; }
+  S.diff=d;
+  renderBossPick();
+  $('bossPick').hidden=false;
+}
+function renderBossPick(){
+  const i=pickBoss; if(i<0) return;
+  const b=BOSSES[i], p=power(), cd=(S.bcd&&S.bcd[i])||0;
+  $('bpSub').innerHTML=b.cyc+' · 쿨타임 <b>'+fmtCd(b.cd)+'</b> · 주는 것 <b>'+b.t+'</b>'+
+    (cd>0?' · <b style="color:var(--bad)">'+fmtCd(cd)+' 남음</b>':'');
+  const L=$('bpDiffs'); L.innerHTML='';
+  [0,1,2].forEach(function(d){
+    if(!bossHas(i,d)) return;
+    const req=bossReqAt(i,d), cr=Math.round(clearRate(i,p)*100*0+ (function(){
+      const r=p/req; if(r<=0.5) return 0; if(r>=1.45) return 1;
+      const x=(r-0.5)/0.05, k=Math.floor(x);
+      return CRT[k]+(CRT[Math.min(CRT.length-1,k+1)]-CRT[k])*(x-k);
+    })()*100);
+    const el=document.createElement('button');
+    el.className='bpd'; el.dataset.d=d;
+    el.setAttribute('aria-current',String(dIdx()===d));
+    el.disabled=cr<=0;
+    const kills=killsOf(i,d);
+    el.innerHTML='<span class="dn" style="color:'+DCOL[d]+'">'+DNAME[d]+
+        (kills?'<span class="ok">'+kills+'회</span>':'')+'</span>'+
+      '<span><span class="dd">요구 전투력 <b>'+req+'</b> · 클리어 <b>'+cr+'%</b></span></span>'+
+      '<span class="dr">'+fmt(Math.round(bossRewAt(i,d)*mesoMult()))+'</span>';
+    el.addEventListener('click',function(){ if(cr<=0) return; ac(); S.diff=d; renderBossPick(); save(); });
+    L.appendChild(el);
+  });
+  const d=dIdx(), req=bossReqAt(i,d);
+  const rr=p/req;
+  const cr=rr<=0.5?0:rr>=1.45?1:(function(){const x=(rr-0.5)/0.05,k=Math.floor(x);
+    return CRT[k]+(CRT[Math.min(CRT.length-1,k+1)]-CRT[k])*(x-k);})();
+  const first=killsOf(i,d)===0;
+  $('bpNote').innerHTML=cd>0
+    ? '아직 쿨타임이다. <b>'+fmtCd(cd)+'</b> 뒤에 다시 올 수 있다 — 자리를 비운 동안에도 쿨은 흐른다.'
+    : cr<=0 ? '<b>전투력이 모자란다.</b> 요구치의 절반은 넘겨야 도전할 수 있다.'
+    : ('이길 확률 <b>'+Math.round(cr*100)+'%</b>'+(first?' · <b>첫 클리어 보너스</b>가 붙는다':'')+
+       ' · 증표 <b>'+tokFor(i,d)+'</b>개');
+  const go=$('bpGo');
+  go.disabled=cd>0||cr<=0||fighting>=0;
+  go.textContent=cd>0?fmtCd(cd):(DNAME[d]+' 도전');
+}
+function fightPicked(){
+  const i=pickBoss; if(i<0) return;
+  $('bossPick').hidden=true;
+  fightBoss(i);
+}
+
 let fighting=-1;
 function fightBoss(i){
   const bs=BOSSES[i];
@@ -3608,9 +3701,9 @@ $('attBtn').addEventListener('click',function(){ ac(); claimDaily(); });
 $('attClose').addEventListener('click',function(){ $('attend').hidden=true; });
 $('menu').addEventListener('click',function(e){ if(e.target===$('menu')) $('menu').hidden=true; });
 document.querySelectorAll('.mitem').forEach(function(b){ b.addEventListener('click',function(){ showView(b.dataset.v); }); });
-$('dNormal').addEventListener('click',function(){ S.diff=0; renderDiff(); });
-$('dHard').addEventListener('click',function(){ S.diff=1; renderDiff(); });
-$('dChaos').addEventListener('click',function(){ S.diff=2; renderDiff(); });
+$('bpClose').addEventListener('click',function(){ $('bossPick').hidden=true; });
+$('bpGo').addEventListener('click',function(){ ac(); fightPicked(); });
+$('bossPick').addEventListener('click',function(e){ if(e.target===$('bossPick')) $('bossPick').hidden=true; });
 addEventListener('visibilitychange',()=>{ if(document.hidden){ save(); pushSave(true); } });
 
 /* ---------- 시작 ---------- */
@@ -3626,7 +3719,7 @@ initOnline();
 
 // 균형 점검용 노출 (게임 동작에는 영향 없음)
 try{ window.__CFG={SF,MAXSTAR,starCost,SHIELD,SLOTS,OPT,POOL,GCAP,UPRATE,UPGRADE,CUBES,
-  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
+  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
   get state(){return S;}, cur, power, income, mesoMult, dropMult, starMult, potMultOf, odds, potGrade, topGrade, totalStars, sfBonus}; }catch(e){}
 })();
 </script>
