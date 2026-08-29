@@ -1000,7 +1000,17 @@ const OPT={
   hpr:{n:'HP회복력',     u:'', v:[35,70,140,168],          cp:v=>v*0.03},
   mpr:{n:'MP회복력',     u:'', v:[20,42,53,63],            cp:v=>v*0.05},
   mes:{n:'메소획득량',    u:'%',v:[6.1,8.2,12.2,14.7],      cp:v=>0, gold:1},
-  drp:{n:'아이템 드롭률', u:'%',v:[6.1,8.2,12.2,14.7],      cp:v=>0, drop:1}
+  drp:{n:'아이템 드롭률', u:'%',v:[6.1,8.2,12.2,14.7],      cp:v=>0, drop:1},
+  // ---- 벨트 전용 ----
+  // 메m 은 프리셋이 있어서 보스용 벨트와 사냥용 벨트를 따로 차고 바꿔 낀다.
+  // 프리셋을 만들 게 아니라면 한 벨트가 두 몫을 해야 한다. 그래서 벨트 옵션은
+  // 전부 짝으로 되어 있다 — part 에 적힌 몫이 각각 그대로 붙는다.
+  // 순수 보스공격력(18.7)보다 전투력은 74% 만 나오고, 대신 반대쪽이 딸려온다.
+  bex:{n:'보스공격력·경험치',   u:'%',v:[3.0,9.0,12.0,13.9], cp:v=>0, part:{bat:1,exp:1}},
+  bme:{n:'보스공격력·메소',     u:'%',v:[3.0,9.0,12.0,13.9], cp:v=>0, part:{bat:1,mes:1}},
+  bdr:{n:'보스공격력·드롭률',   u:'%',v:[3.0,9.0,12.0,13.9], cp:v=>0, part:{bat:1,drp:1}},
+  emd:{n:'경험치·메소',         u:'%',v:[5.5,9.5,13.0,15.5], cp:v=>0, part:{exp:1,mes:1}},
+  edr:{n:'경험치·드롭률',       u:'%',v:[5.5,9.5,13.0,15.5], cp:v=>0, part:{exp:1,drp:1}}
 };
 // 직업마다 정답 줄이 다르니, 그 줄들이 뜨는 확률을 서로 맞춰놨다.
 // 무기 물리=마법 15.65 · 한벌옷 HP=MP=치명타저항 14.7 · 모자 HP=MP=치명타확률 21.13
@@ -1015,7 +1025,11 @@ const POOL=[
   // 한 자리에서 겨룬다. 전투력만 보면 보스공격력이 정답이지만, 메소·드롭은 전투력에
   // 1도 안 잡히면서 수입을 크게 올린다 — 세 줄로 메소 +44%, 경험치 +63% 까지 간다.
   // 그래서 벨트는 '무엇을 고를까'가 남는 유일한 부위다.
-  [['bat',22.0],['exp',18.0],['mes',18.0],['drp',15.0],['hp',13.0],['mp',8.0],['hpr',6.0]]
+  // 벨트는 한 줄이 두 몫을 한다. 프리셋 대신 하나로 겸하는 자리다.
+  // 순수 보스공격력은 일부러 뺐다. 짝 옵션이 전투력을 0.2% 밖에 안 깎으면서
+  // 경험치·메소를 40% 넘게 올려주니, 순수 줄은 아무도 안 고르는 함정이 된다.
+  // 그래서 벨트는 '두 몫을 하느냐'가 아니라 '어느 쪽을 겸하느냐'만 고르면 된다.
+  [['bex',26.0],['bme',24.0],['bdr',22.0],['emd',16.0],['edr',12.0]]
 ];
 const PSUM=POOL.map(p=>p.reduce((a,x)=>a+x[1],0));
 const GNAME=['레어','에픽','유니크','레전더리'];
@@ -1292,7 +1306,14 @@ function starMult(star){
   for(let i=1;i<=star;i++) m += i<=15?4 : i<=25?7 : 11;
   return 1+m/100;
 }
-const cpOf=l=>{ const d=OPT[l.k]; return d?d.cp(l.v)*jobW(l.k):0; };
+// 짝 옵션은 part 에 적힌 몫이 각각 따로 붙는다
+const partOf=(l,k)=>{ const d=OPT[l.k]; if(!d) return 0;
+  if(l.k===k) return l.v;
+  return (d.part&&d.part[k])?l.v*d.part[k]:0; };
+const cpOf=l=>{ const d=OPT[l.k]; if(!d) return 0;
+  if(!d.part) return d.cp(l.v)*jobW(l.k);
+  let c=0; for(const k in d.part) c+=OPT[k].cp(l.v*d.part[k])*jobW(k);
+  return c; };
 const potMultOf=lines=>1+lines.reduce((a,l)=>a+cpOf(l),0)/100;
 const slotPow=i=>{ const it=S.items[i]; if(!it||it.broken) return 0;
   return SLOTS[i].base*starMult(it.star)*potMultOf(it.lines); };
@@ -1314,7 +1335,7 @@ const xpRate=()=>{ const m=MAPS[S.map||0]; return m?m.xp*mapEff(S.map||0,power()
 const potGradeOf=it=>it&&it.lines.length?it.lines[0].g:-1;
 const potGrade=()=>potGradeOf(cur());
 const topGrade=()=>S.items.reduce((a,it)=>Math.max(a,potGradeOf(it)),-1);
-const sumOpt=key=>S.items.reduce((a,it)=>a+(it.broken?0:it.lines.reduce((b,l)=>b+(l.k===key?l.v:0),0)),0);
+const sumOpt=key=>S.items.reduce((a,it)=>a+(it.broken?0:it.lines.reduce((b,l)=>b+partOf(l,key),0)),0);
 const mesoMult=()=>1+sumOpt('mes')/100;
 const dropMult=()=>1+sumOpt('drp')/100;
 function mapEff(i,p){ const m=MAPS[i]; if(!m||!mapOpen(i)) return 0; if(!m.req) return 1;
