@@ -376,6 +376,22 @@ td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
 .bagrow{display:grid;grid-template-columns:34px 1fr auto auto;gap:11px;align-items:center;text-align:left;
   background:#15122C;border:1px solid var(--edge);border-radius:10px;padding:9px 12px;width:100%;}
 .bagrow.empty{opacity:.42;}
+.bagrow.drop{grid-template-columns:34px 1fr auto;}
+.bagrow.drop.up{border-color:var(--ok);background:#0E2418;}
+.bagrow .upmark{font-size:9px;font-weight:900;letter-spacing:.06em;color:#2A1A00;background:var(--ok);
+  border-radius:99px;padding:2px 7px;margin-left:6px;}
+.bagrow .bbtns{display:flex;gap:6px;}
+.mini{font-size:11px;font-weight:900;padding:7px 10px;border-radius:8px;white-space:nowrap;
+  background:#1B1638;border:1px solid var(--edge2);color:var(--text);}
+.mini:hover{border-color:var(--gold);color:var(--gold);}
+.mini.melt{color:var(--dim);}
+.bagcount{font-family:'Bebas Neue',sans-serif;font-size:14px;color:var(--dimmer);margin-left:8px;letter-spacing:.04em;}
+@media (max-width:420px){
+  .bagrow.drop{grid-template-columns:28px 1fr;}
+  .bagrow .bbtns{grid-column:1/-1;margin-top:2px;}
+  .mini{flex:1;}
+}
+
 .bagrow.gear:hover{border-color:var(--edge2);background:#1B1638;}
 .bagrow.gear.on{border-color:var(--gold);background:#241C05;}
 .bagrow.broken{border-color:var(--bad);}
@@ -695,6 +711,10 @@ td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
     <h3>소지품 — 가지고 있으면 메소보다 먼저 쓴다</h3>
     <div class="baglist" id="bagItems"></div>
     <p class="attnote" id="bagNote"></p>
+    <h3>보관함 — 보스가 떨군 장비 <span class="bagcount" id="bagCount">0 / 30</span></h3>
+    <div class="baglist" id="bagDrops"></div>
+    <p class="attnote" id="dropNote"></p>
+    <div class="btnrow"><button class="btn" id="meltJunk" hidden>정리</button></div>
     <h3>장비 — 눌러서 그 부위로 간다</h3>
     <div class="baglist" id="bagGear"></div>
   </section>
@@ -1059,6 +1079,7 @@ const dropGrade=req=>req<160?0:req<640?1:2;
 // 총 스타포스 누적 보너스 — 다섯 부위 성수치를 합친 만큼 전투력이 통째로 오른다
 const SFTIERS=[[30,3],[60,7],[90,12],[120,18],[150,25],[180,35]];
 const meltValue=g=>(g+1)*11000;
+const BAG_MAX=30;          // 보관함 칸 수 — 넘치면 새로 떨어진 건 그 자리에서 분해된다
 /* ---------- 직업 ---------- */
 // 같은 잠재 줄이라도 직업마다 값어치가 다르다. 부위별 '정답 줄'의 천장을 셋 다 똑같이
 // 맞췄고 (무기 20.7 · 한벌옷/모자/신발 9.95 · 장갑 16.83), 정답 줄이 뜨는 확률도
@@ -1173,7 +1194,7 @@ const DEF=()=>({
   job:'war', useProt:false, useSafe:false, map:0, zone:0, mv:0, anim:true, hard:false, view:'up', lv:1, xp:0, ach:{},
   att:{last:0, day:0, total:0},
   bcd:BOSSES.map(function(){return 0;}), bk:BOSSES.map(function(){return 0;}),
-  inv:defInv(), evT:0, evCd:180,
+  inv:defInv(), bag:[], evT:0, evCd:180,
   st:{try:0,suc:0,keep:0,down:0,des:0,max:0,mg:0,cube:0,up:0,spent:0,best:0,hall:0}
 });
 let S=DEF();
@@ -1582,6 +1603,7 @@ function renderAll(){
   renderShop(); renderLevel(); renderDaily(); checkAch(); renderAch();
   const jv=$('jobV'); jv.hidden=!USER; jv.textContent=curJob().n;
   $('mJobSub').textContent=curJob().n+' · '+curJob().w;
+  if(S.view==='inv') renderBag();   // 가방에서 분해·착용하면 목록이 바로 줄어야 한다
   if(!huntBuilt) buildHunt();
   updateHunt();
   renderRecs();
@@ -1797,12 +1819,21 @@ function rollDrop(i,bs){
   if(T.sh  &&Math.random()<T.sh  ){ S.inv.sh++;   log(bossName(i)+' — <b>쉴드 교환권</b>을 떨궜다 (다음 강화 1회 쉴드 비용 면제)','up'); }
   if(T.sure&&Math.random()<T.sure){ S.inv.sure++; log(bossName(i)+' — <b>확정 성공권</b>을 떨궜다 (강화 1회 무조건 성공 · '+SURE_MAX+'★까지)','up'); }
   if(!T.eq||Math.random()>=T.eq*dropMult()) return;
-  const g=Math.min(2,dropGrade(bs.req)+(S.hard?1:0)), slot=(Math.random()*SLOTS.length)|0, it=S.items[slot];
-  if(g>it.ig && $('drop').hidden){ showDrop(slot,g,bs.n); return; }
-  const m=meltValue(g); S.meso+=m;
-  log(bossName(i)+' — '+IGNAME[g]+' '+SLOTS[slot].n+' 드롭, 분해해서 <b>+'+fmt(m)+'</b> 메소','');
+  const g=Math.min(2,dropGrade(bs.req)+(S.hard?1:0)), slot=(Math.random()*SLOTS.length)|0;
+  // 떨어진 장비는 그 자리에서 결정하지 않고 가방에 쌓인다. 급할 게 없다.
+  if(!Array.isArray(S.bag)) S.bag=[];
+  if(S.bag.length>=BAG_MAX){
+    const m=meltValue(g); S.meso+=m;
+    log(bossName(i)+' — '+IGNAME[g]+' '+SLOTS[slot].n+' 드롭, <b>가방이 꽉 차서</b> 분해했다 (+'+fmt(m)+')','fail');
+    return;
+  }
+  S.bag.push({slot:slot, ig:g, name:pickName(slot), from:bs.n, ts:Date.now()});
+  const up=g>S.items[slot].ig;
+  log(bossName(i)+' — <b>'+IGNAME[g]+' '+SLOTS[slot].n+'</b>을(를) 떨궜다 · 가방으로'+
+      (up?' <b>(지금보다 높다)</b>':''), up?'up':'');
+  if(up) flash(IGNAME[g]+' '+SLOTS[slot].n,'가방에 넣어뒀다','#5CE68A');
 }
-function showDrop(slot,g,bossName){
+function showDrop(slot,g,fromName,bagIdx){
   const box=$('drop'), it=S.items[slot];
   const cost=Math.round(starCost(it.star)*3*SLOTS[slot].cost/10)*10, keep=Math.max(0,it.star-6);
   const side=function(t,gr,star,sub){
@@ -1810,18 +1841,21 @@ function showDrop(slot,g,bossName){
       '<div class="cpow" style="font-size:26px">'+star+'★</div>'+
       '<div style="font-size:11px;color:var(--dimmer)">'+sub+'</div></div>';
   };
-  $('dropTitle').textContent=bossName+'이(가) '+IGNAME[g]+' '+SLOTS[slot].n+'을(를) 떨궜다';
+  const drop=(bagIdx>=0&&S.bag&&S.bag[bagIdx])?S.bag[bagIdx]:null;
+  $('dropTitle').textContent=(fromName?fromName+'이(가) 떨군 ':'')+IGNAME[g]+' '+SLOTS[slot].n;
   $('dropBody').innerHTML=side('지금 '+SLOTS[slot].n,it.ig,it.star,'잠재 '+(potGradeOf(it)<0?'없음':GNAME[potGradeOf(it)]))+
-    side('떨어진 장비',g,0,'잠재 없음');
+    side('가방의 장비',g,0,'잠재 없음');
   const wear=$('dropWear'), move=$('dropMove'), melt=$('dropMelt');
   wear.textContent='그대로 착용 (0★)';
   move.textContent='스타포스 이전 — '+fmt(cost)+' 메소 ('+keep+'★)';
   move.disabled=S.meso<cost||it.star<7;
   melt.textContent='분해 (+'+fmt(meltValue(g))+')';
+  const drophere=function(){ if(bagIdx>=0&&S.bag) S.bag.splice(bagIdx,1); };
   const take=function(star){
     it.ig=g; it.star=star; it.lines=[]; it.broken=false;
-    it.name=pickName(slot);
+    it.name=drop?drop.name:pickName(slot);
     S.st.max=Math.max(S.st.max,star);
+    drophere();
     box.hidden=true; SND.up(); burst(120,'#5CE68A',{sp:1.3});
     flash(IGNAME[g]+' '+SLOTS[slot].n,star?('스타포스 이전 — '+star+'★'):'0★부터 다시','#5CE68A');
     log('<b>'+IGNAME[g]+' '+SLOTS[slot].n+'</b>으로 갈아탔다 — '+star+'★, 잠재 초기화','up');
@@ -1829,9 +1863,9 @@ function showDrop(slot,g,bossName){
   };
   wear.onclick=function(){ take(0); };
   move.onclick=function(){ if(S.meso<cost) return; S.meso-=cost; S.st.spent+=cost; take(keep); };
-  melt.onclick=function(){ const m=meltValue(g); S.meso+=m; box.hidden=true;
-    log(IGNAME[g]+' 장비를 분해했다 — <b>+'+fmt(m)+'</b> 메소','');
-    renderTop(); save(); };
+  melt.onclick=function(){ const m=meltValue(g); S.meso+=m; drophere(); box.hidden=true;
+    log(IGNAME[g]+' '+SLOTS[slot].n+'을(를) 분해했다 — <b>+'+fmt(m)+'</b> 메소','');
+    renderAll(); save(); };
   box.hidden=false;
 }
 
@@ -2312,6 +2346,19 @@ function setJob(k){
 }
 function openJobs(mode){ jobMode=mode||'change'; renderJobs(); $('jobPick').hidden=false; }
 
+function meltJunk(){
+  if(!Array.isArray(S.bag)) return;
+  let m=0, n=0;
+  S.bag=S.bag.filter(function(b){
+    if(b.ig>S.items[b.slot].ig) return true;
+    m+=meltValue(b.ig); n++; return false;
+  });
+  if(!n) return;
+  S.meso+=m; SND.coin();
+  log('가방의 <b>'+n+'개</b>를 분해했다 — <b>+'+fmt(m)+'</b> 메소','ok');
+  renderAll(); save();
+}
+
 /* ---------- 가방 ---------- */
 const BAG=[
   {k:'red',    n:'레드 큐브',   ic:'◆', c:'#FF5E6C', d:'세 줄 전부 재설정 · 결과 그대로'},
@@ -2339,6 +2386,35 @@ function renderBag(){
   $('bagNote').innerHTML=none
     ? '아직 가진 게 없다. <b>큐브는 보스가 떨군다</b> — 위쪽 보스일수록 좋은 큐브가 나온다.'
     : '큐브를 가지고 있으면 <b>메소 대신 그것부터 쓴다.</b> 초이스는 진 힐라·검은 마법사가 드물게 떨군다.';
+
+  const D=$('bagDrops'); D.innerHTML='';
+  if(!Array.isArray(S.bag)) S.bag=[];
+  let junk=0;
+  S.bag.forEach(function(b,idx){
+    const up=b.ig>S.items[b.slot].ig; if(!up) junk++;
+    const el=document.createElement('div');
+    el.className='bagrow drop'+(up?' up':'');
+    el.innerHTML='<svg class="bgi" viewBox="0 0 64 64" aria-hidden="true">'+
+        (b.slot===0?(WEAPON_ART[jobKey()]||WEAPON_ART.war):SLOT_ART[b.slot])+'</svg>'+
+      '<span><span class="bn">'+SLOTS[b.slot].n+' <span class="gradetag '+GKEY[b.ig]+'">'+IGNAME[b.ig]+'</span>'+
+        (up?'<span class="upmark">지금보다 높다</span>':'')+'</span>'+
+      '<span class="bd">'+esc(b.name)+(b.from?' · '+esc(b.from)+' 드롭':'')+'</span></span>'+
+      '<span class="bbtns"><button class="mini wear">착용</button>'+
+      '<button class="mini melt">분해 +'+fmt(meltValue(b.ig))+'</button></span>';
+    el.querySelector('.wear').addEventListener('click',function(){ ac(); showDrop(b.slot,b.ig,b.from,idx); });
+    el.querySelector('.melt').addEventListener('click',function(){
+      ac(); const m=meltValue(b.ig); S.meso+=m; S.bag.splice(idx,1);
+      log(IGNAME[b.ig]+' '+SLOTS[b.slot].n+'을(를) 분해했다 — <b>+'+fmt(m)+'</b> 메소','');
+      renderAll(); save();
+    });
+    D.appendChild(el);
+  });
+  $('bagCount').textContent=S.bag.length+' / '+BAG_MAX;
+  $('meltJunk').hidden=!junk;
+  $('meltJunk').textContent='지금보다 낮은 것 '+junk+'개 전부 분해';
+  $('dropNote').innerHTML=S.bag.length
+    ? '<b>착용</b>하면 성수치를 이어받을지 여기서 고른다 · 잠재는 어떤 쪽이든 초기화된다.'
+    : '보스를 잡으면 여기로 들어온다. 그 자리에서 고를 필요 없이 <b>모아뒀다 결정하면 된다.</b>';
 
   const G=$('bagGear'); G.innerHTML='';
   S.items.forEach(function(it,i){
@@ -2916,6 +2992,7 @@ function enter(raw,serverSave){
     }
   }
   S.inv=Object.assign(defInv(), S.inv||{});
+  if(!Array.isArray(S.bag)) S.bag=[];
   if(S.inv.cube){                            // 교환권을 없앴다 — 갖고 있던 건 블랙 큐브로
     S.inv.black=(S.inv.black|0)+S.inv.cube; delete S.inv.cube;
   }
@@ -3027,6 +3104,7 @@ $('battle').addEventListener('click',function(){ if(!$('battle').hidden) endBatt
 $('animTog').addEventListener('click',function(){ S.anim=(S.anim===false); updateHunt(); save(); });
 $('burger').addEventListener('click',function(){ $('menu').hidden=false; });
 $('mAtt').addEventListener('click',function(){ $('menu').hidden=true; renderDaily(); $('attend').hidden=false; });
+$('meltJunk').addEventListener('click',function(){ ac(); meltJunk(); });
 $('mJob').addEventListener('click',function(){ $('menu').hidden=true; openJobs('change'); });
 $('jobClose').addEventListener('click',function(){ $('jobPick').hidden=true; save(); });
 $('attBtn').addEventListener('click',function(){ ac(); claimDaily(); });
@@ -3050,7 +3128,7 @@ initOnline();
 
 // 균형 점검용 노출 (게임 동작에는 영향 없음)
 try{ window.__CFG={SF,MAXSTAR,starCost,SHIELD,SLOTS,OPT,POOL,GCAP,UPRATE,UPGRADE,CUBES,
-  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,dropCube,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,catchUp,BOSSES,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
+  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,catchUp,BOSSES,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
   get state(){return S;}, cur, power, income, mesoMult, dropMult, starMult, potMultOf, odds, potGrade, topGrade, totalStars, sfBonus}; }catch(e){}
 })();
 </script>
