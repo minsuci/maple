@@ -1094,7 +1094,9 @@ const IGNAME=['레어','에픽','유니크','레전더리'];
 // 장비 등급이 잠재 등급의 상한 — 유니크 장비라야 레전더리 잠재가 나온다.
 // 레전더리 장비는 상한이 더 오르는 대신 잠재가 한 줄 더 붙는다.
 const GCAP=[1,2,3,3];
-const POTN=it=>(it&&it.ig>=3)?4:3;   // 잠재 줄 수 — 레전더리 장비만 네 줄
+// 잠재 줄 수 — 레전더리 장비라도 처음엔 세 줄이다. 금빛 각인으로 네 번째를 연다.
+const POTN=it=>(it&&it.ig>=3&&it.p4)?4:3;
+const ENG={cost:100000000, p:40};   // 값 1억 · 성공 40% · 실패해도 각인은 소모된다
 const POTMAX=4;
 // 큐브 등급 상승 확률. 등급이 올라갈수록 문이 좁아진다 (한 칸마다 대략 1/4).
 // 공식 페이지는 큐브 종류가 기능만 다르고 확률은 같다고 하지만, 여기서는
@@ -1211,7 +1213,7 @@ const tokFor=(i,d)=>TOKCY[BOSSES[i].cyc]*(d===2?3:d===1?2:1);
 const bossReq=i=>bossReqAt(i,dIdx());
 const bossName=i=>BOSSES[i].n+(dIdx()?' '+DNAME[dIdx()]:'');
 // 성향별 드롭 확률 [장비, 큐브권, 쉴드권, 성공권]
-const defInv=()=>({red:0, black:0, choice:0, sh:0, sure:0});
+const defInv=()=>({red:0, black:0, choice:0, sh:0, sure:0, eng:0});
 const BTYPE={
   '메소'  :{eq:.08, cube:0,   sh:0,   sure:0},
   '장비'  :{eq:.20, cube:0,   sh:0,   sure:0},
@@ -1372,7 +1374,7 @@ const dayIdx=()=>Math.floor((Date.now()-new Date().getTimezoneOffset()*60000)/86
 /* ---------- 상태 ---------- */
 // let S=DEF() 안에서 불리므로 직업을 물어보면 안 된다 (S 가 아직 없다).
 // 직업을 고르는 순간 setJob 이 무기 이름을 갈아준다.
-const newItem=i=>({star:0, ig:0, lines:[], broken:false, name:(i===0?WNAMES.war:NAMES[i])[0]});
+const newItem=i=>({star:0, ig:0, lines:[], broken:false, p4:false, name:(i===0?WNAMES.war:NAMES[i])[0]});
 const DEF=()=>({
   meso:300000, sel:0, items:SLOTS.map(function(_,i){return newItem(i);}),
   job:'war', diff:0, skcd:[0,0,0,0,0], tok:0, buf:{mes:0,drp:0}, useProt:false, useSafe:false, map:0, zone:0, mv:0, anim:true, hard:false, view:'up', lv:1, xp:0, ach:{},
@@ -1795,10 +1797,24 @@ function renderCubes(){
     (up?IGNAME[it.ig]+' 장비 → '+IGNAME[up.to]+' 장비':it.ig>=3?'레전더리 장비 (최고)':'유니크 장비 — 승급으로는 여기까지')+'</span><span class="rt">'+
     (up?'성공 '+up.p+'% · <b>잠재 상한</b>이 '+GNAME[GCAP[up.to]]+'로 · <b>성수치 '+Math.round(UP_LOSS*100)+'% 감소 ('+
         it.star+'★ → '+Math.floor(it.star*(1-UP_LOSS))+'★)</b> · 실패하면 메소만 잃는다'
-       :it.ig>=3?'<b>장비</b> 등급은 여기가 끝 · 잠재가 <b>네 줄</b> 붙는다':'<b>레전더리 장비</b>는 승급으로 못 만든다 — 요구 '+LEG_MIN+' 위 보스가 아주 가끔 떨군다')+
+       :it.ig>=3?'<b>장비</b> 등급은 여기가 끝 · <b>금빛 각인</b>으로 잠재를 네 줄까지 연다':'<b>레전더리 장비</b>는 승급으로 못 만든다 — 요구 '+LEG_MIN+' 위 보스가 아주 가끔 떨군다')+
     '</span></span><span class="pr">'+(up?fmt(up.cost):'—')+'</span>';
   if(up) ub.addEventListener('click',upgradeItem);
   L.appendChild(ub);
+  // 레전더리 장비에만 나오는 칸 — 네 번째 잠재 줄을 여는 자리
+  if(it.ig>=3){
+    const have=(S.inv.eng|0), eb=document.createElement('button');
+    eb.className='cube'; eb.style.setProperty('--c','#FFD23F');
+    eb.disabled=busy||it.broken||it.p4||have<1;
+    eb.innerHTML='<span class="ic">❖</span><span><span class="nm">금빛 각인 — 잠재 '+
+      (it.p4?'네 줄 (열림)':'네 번째 줄 해금')+'</span><span class="rt">'+
+      (it.p4?'이 장비는 이미 네 줄이다'
+           :have<1?'가진 각인이 없다 — <b>상점</b>에서 산다'
+           :'성공 <b>'+ENG.p+'%</b> · 실패하면 각인만 사라진다 · 열리면 그 자리에 한 줄이 바로 굴러간다')+
+      '</span></span><span class="pr">'+(it.p4?'—':'보유 '+have)+'</span>';
+    if(!eb.disabled) eb.addEventListener('click',engrave);
+    L.appendChild(eb);
+  }
   CUBES.forEach(function(cb){
     const b=document.createElement('button');
     b.className='cube'+(choiceMode&&cb.k==='choice'?' armed':'');
@@ -2027,6 +2043,32 @@ function showCompare(before,after,g,gBefore){
   $('keepNew').onclick=function(){ box.hidden=true; applyLines(after,g,gBefore,{n:'블랙 큐브'}); };
 }
 
+/* ---------- 금빛 각인 ---------- */
+// 레전더리 장비의 네 번째 잠재 줄을 연다. 실패해도 각인만 사라지고 장비는 멀쩡하다.
+// 이미 잠재가 붙어 있으면 새 줄을 같은 등급으로 하나 굴려서 채운다.
+function engrave(){
+  const it=cur();
+  if(busy||it.broken||it.ig<3||it.p4||(S.inv.eng|0)<1) return;
+  S.inv.eng--;
+  busy=true; renderCubes();
+  setTimeout(function(){
+    if(Math.random()*100<ENG.p){
+      it.p4=true;
+      const g=potGradeOf(it);
+      if(g>=0) it.lines.push(rollLine(S.sel||0,g));
+      SND.up(); burst(150,'#FFD23F',{sp:1.4});
+      flash('금빛 각인','잠재 네 번째 줄이 열렸다','#FFD23F');
+      log('<b>금빛 각인 성공</b> — '+SLOTS[S.sel||0].n+'의 잠재가 <b>네 줄</b>이 됐다','up');
+      showResult('ok','각인 성공 — <b>잠재 네 줄</b>');
+    } else {
+      SND.fail(); log('금빛 각인 실패 — 각인만 사라졌다','fail');
+      showResult('fail','각인 실패 — 남은 각인 <b>'+(S.inv.eng|0)+'</b>장');
+      const box=$('itembox'); box.classList.remove('shake'); void box.offsetWidth; box.classList.add('shake');
+    }
+    busy=false; renderAll(); save();
+  },420);
+}
+
 /* ---------- 장비 승급 ---------- */
 function upgradeItem(){
   const it=cur(), up=UPGRADE[it.ig];
@@ -2090,7 +2132,7 @@ function rollDrop(i,bs){
   const up=g>S.items[slot].ig;
   log(bossName(i)+' — <b>'+IGNAME[g]+' '+SLOTS[slot].n+'</b>을(를) 떨궜다 · 가방으로'+
       (up?' <b>(지금보다 높다)</b>':''), up?'up':'');
-  if(g>=3){ burst(160,'#5CE68A',{sp:1.5}); flash('레전더리 '+SLOTS[slot].n,'잠재가 네 줄 붙는 장비다','#5CE68A'); }
+  if(g>=3){ burst(160,'#5CE68A',{sp:1.5}); flash('레전더리 '+SLOTS[slot].n,'금빛 각인으로 잠재를 네 줄까지 연다','#5CE68A'); }
   else if(up) flash(IGNAME[g]+' '+SLOTS[slot].n,'가방에 넣어뒀다','#5CE68A');
 }
 function showDrop(slot,g,fromName,bagIdx){
@@ -2112,7 +2154,7 @@ function showDrop(slot,g,fromName,bagIdx){
   melt.textContent='분해 (+'+fmt(meltValue(g))+')';
   const drophere=function(){ if(bagIdx>=0&&S.bag) S.bag.splice(bagIdx,1); };
   const take=function(star){
-    it.ig=g; it.star=star; it.lines=[]; it.broken=false;
+    it.ig=g; it.star=star; it.lines=[]; it.broken=false; it.p4=false;   // 갈아끼운 장비는 각인도 다시 해야 한다
     it.name=drop?drop.name:pickName(slot);
     S.st.max=Math.max(S.st.max,star);
     drophere();
@@ -2229,6 +2271,13 @@ const SHOP=[
    buy:function(){ S.buf.drp=BUFFS.drp.dur; SND.up();
      flash('드롭 부스터','10분 동안 드롭률 +60%','#7CFFB0');
      log('<b>드롭 부스터</b> — 10분 동안 아이템 드롭률 +60%','up'); }},
+  {k:'eng', n:'금빛 각인',
+   d:function(){ const it=cur();
+     return '레전더리 장비의 <b>잠재 네 번째 줄</b>을 연다 · 성공 '+ENG.p+'% · 지금 '+(S.inv.eng|0)+'장'+
+       (it.ig>=3?(it.p4?' · 이 장비는 이미 열려 있다':' · 강화대에서 쓴다'):' · 레전더리 장비에만 쓴다'); },
+   price:function(){ return ENG.cost; }, can:function(){ return true; },
+   buy:function(){ S.inv.eng=(S.inv.eng|0)+1; SND.up();
+     log('<b>금빛 각인</b>을 샀다 — 강화대에서 레전더리 장비에 쓴다','up'); }},
   {k:'ev', n:'럭키데이 소환',
    d:function(){ return EV()?'이미 진행 중이다':'성공 확률 2배 · 강화 비용 30% 할인을 60초 동안'; },
    price:function(){ return 800000; }, can:function(){ return !EV(); },
@@ -2252,7 +2301,8 @@ function renderShop(){
     });
     L.appendChild(b);
   });
-  $('shopNote').innerHTML='상점은 <b>시간</b>만 판다 — 초반 15성을 건너뛰거나 럭키데이를 앞당기는 것.<br>'+
+  $('shopNote').innerHTML='상점은 <b>시간</b>만 판다 — 초반 15성을 건너뛰거나 럭키데이를 앞당기는 것. '+
+    '<b>금빛 각인</b>만 예외다 — 레전더리 장비가 없으면 살 이유가 없는 물건이라 값으로 막아뒀다.<br>'+
     '<b>소모품은 전부 보스가 떨군다.</b> 큐브는 파풀라투스·아카이럼·진 힐라(초이스는 진 힐라·검은 마법사만), '+
     '쉴드 교환권은 반 레온, <b>확정 성공권은 윌·검은 마법사가 아주 드물게</b> 준다.';
 }
@@ -2846,7 +2896,8 @@ const BAG=[
   {k:'black',  n:'블랙 큐브',   ic:'✦', c:'#FFC94A', d:'세 줄 재설정 후 이전/이후를 고른다'},
   {k:'choice', n:'초이스 큐브', ic:'◈', c:'#B15CFF', d:'고른 한 줄만 재설정 · 나머지는 그대로'},
   {k:'sh',     n:'쉴드 교환권', ic:'◇', c:'#4FA8FF', d:'다음 강화 1회 쉴드 비용 면제'},
-  {k:'sure',   n:'확정 성공권', ic:'★', c:'#5CE68A', d:'강화 1회 무조건 성공'}
+  {k:'sure',   n:'확정 성공권', ic:'★', c:'#5CE68A', d:'강화 1회 무조건 성공'},
+  {k:'eng',    n:'금빛 각인',   ic:'❖', c:'#FFD23F', d:'레전더리 장비의 잠재 네 번째 줄을 연다 · 성공 '+ENG.p+'%'}
 ];
 const BAGTOK={n:'토벌 증표', ic:'◈', c:'#7CFFB0', d:'상점의 토벌 교환소에서 쓴다'};
 const bagVal=k=>{ const c=CUBES.find(function(x){return x.k===k;}); return c?c.cost:0; };
@@ -3267,7 +3318,7 @@ function repairUI(){
   b.className='btn big'; b.style.marginTop='8px';
   b.textContent='새 장비 받기 (무료 · 전부 초기화)';
   b.addEventListener('click',function(){
-    it.broken=false; repairShown=false; it.star=0; it.ig=0; it.lines=[];
+    it.broken=false; repairShown=false; it.star=0; it.ig=0; it.lines=[]; it.p4=false;
     it.name=pickName(S.sel||0);
     log('새 '+nm+' <b>'+it.name+'</b> 를 받았다','');
     renderAll(); save();
@@ -3596,6 +3647,12 @@ function enter(raw,serverSave){
       if(Array.isArray(sv.lines)) S.items[0].lines=sv.lines.filter(function(l){ return l&&OPT[l.k]; }).slice(0,POTMAX);
     }
   }
+  // 네 줄짜리 레전더리를 이미 가진 사람은 그대로 인정한다 — 각인이 생기기 전에 얻은 것들이다.
+  if(Array.isArray(S.items)) S.items.forEach(function(it){
+    if(!it) return;
+    if(typeof it.p4!=='boolean') it.p4=!!(it.ig>=3&&Array.isArray(it.lines)&&it.lines.length>3);
+    if(!it.p4&&Array.isArray(it.lines)&&it.lines.length>3) it.lines.length=3;
+  });
   // 부위를 늘렸을 때 있던 장비를 날리면 안 된다. 모자란 자리만 새로 채운다.
   while(S.items.length<SLOTS.length) S.items.push(newItem(S.items.length));
   if(S.items.length>SLOTS.length) S.items.length=SLOTS.length;
@@ -3747,7 +3804,7 @@ initOnline();
 
 // 균형 점검용 노출 (게임 동작에는 영향 없음)
 try{ window.__CFG={SF,MAXSTAR,starCost,SHIELD,SLOTS,OPT,POOL,GCAP,UPRATE,UPGRADE,CUBES,
-  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,lineHTML,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,renderAll,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
+  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,lineHTML,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,renderAll,engrave,ENG,renderShop,renderCubes,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
   get state(){return S;}, cur, power, income, mesoMult, dropMult, starMult, potMultOf, odds, potGrade, topGrade, totalStars, sfBonus}; }catch(e){}
 })();
 </script>
