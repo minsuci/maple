@@ -321,6 +321,20 @@ button:disabled{cursor:not-allowed;opacity:.45;}
   border-radius:50%;background:var(--bad);border:2px solid var(--void);}
 .mitem .badge{float:right;width:9px;height:9px;border-radius:50%;background:var(--bad);margin-top:5px;}
 
+/* ---------- 구역 탭 ---------- */
+.ztabs{display:grid;grid-template-columns:repeat(2,1fr);gap:5px;margin-bottom:8px;}
+.ztab{position:relative;padding:7px 8px;border-radius:9px;text-align:left;
+  background:#15122C;border:1px solid var(--edge);}
+.ztab .zn{display:block;font-weight:900;font-size:11px;color:var(--dim);line-height:1.3;}
+.ztab .zl{display:block;font-size:9.5px;font-weight:700;letter-spacing:.06em;color:var(--dimmer);margin-top:1px;}
+.ztab[aria-selected="true"]{border-color:var(--gold);background:#2A2208;}
+.ztab[aria-selected="true"] .zn{color:var(--gold);}
+.ztab.here .zn::after{content:" \25CF";font-size:8px;color:var(--ok);vertical-align:middle;}
+.ztab.locked{opacity:.5;}
+.ztab.tip::after{content:"";position:absolute;top:-3px;right:-3px;width:8px;height:8px;
+  border-radius:50%;background:var(--gold);border:2px solid var(--void);}
+.hrow[hidden]{display:none;}
+
 /* ---------- 난이도 · 메뉴 ---------- */
 .difftabs{display:flex;gap:5px;margin-bottom:8px;}
 .dtab{flex:1;padding:8px;border-radius:9px;font-weight:900;font-size:11.5px;color:var(--dim);
@@ -613,7 +627,8 @@ button:disabled{cursor:not-allowed;opacity:.45;}
     <h2>사냥</h2>
     <div class="hunt">
       <div>
-        <h3>사냥터 — 전투력이 모자라면 효율이 떨어진다</h3>
+        <h3>사냥터 — 레벨로 들어가고, 전투력으로 효율이 정해진다</h3>
+        <div class="ztabs" id="zoneTabs"></div>
         <div class="hlist" id="mapList"></div>
       </div>
       <div>
@@ -707,7 +722,7 @@ button:disabled{cursor:not-allowed;opacity:.45;}
 <div class="menu" id="menu" hidden>
   <div class="mcard">
     <button class="mitem" data-v="up" aria-selected="true">강화<small>장비창 · 스타포스 · 큐브 · 상점</small></button>
-    <button class="mitem" data-v="hunt">사냥<small>사냥터 · 보스 12종</small></button>
+    <button class="mitem" data-v="hunt">사냥<small>사냥터 16곳 · 보스 12종</small></button>
     <button class="mitem" id="mAtt">출석<span class="badge" id="attBadge" hidden></span><small>하루 한 번 · 7일 주기</small></button>
     <button class="mitem" data-v="ach">업적<small>41종</small></button>
     <button class="mitem" data-v="rank">랭킹<small>길드 기록</small></button>
@@ -798,6 +813,7 @@ const SF=[
 ];
 while(SF.length<36) SF.push([6,74,15,5]);
 const MAXSTAR=36;
+const SURE_MAX=30;        // 확정 성공권은 30★까지만 — 마지막 여섯 별은 확률로만 뚫는다
 const starCost=s=>Math.round(500*Math.pow(1.23,s)/10)*10;
 const SHIELD={prot:2, safe:4};
 
@@ -858,14 +874,41 @@ const CUBES=[
   {k:'black', n:'블랙 큐브',  c:'#FFC94A', ic:'✦', cost:60000,  d:'세 줄 재설정 후 이전/이후를 골라 적용'},
   {k:'choice',n:'초이스 큐브', c:'#B15CFF', ic:'◈', cost:250000, d:'고른 한 줄만 재설정 · 나머지 두 줄은 그대로. 등급이 오르면 그 줄이 첫 줄로 온다'}
 ];
-const MAPS=[
-  {n:'개미굴',          req:0,   rate:2000},
-  {n:'마계 폐허',        req:120, rate:4000},
-  {n:'커닝시티 지하',    req:200, rate:6500},
-  {n:'시간의 신전',      req:300, rate:10000},
-  {n:'츄츄 아일랜드',    req:420, rate:15000},
-  {n:'검은 마법사의 성', req:600, rate:22000}
+// 사냥터는 구역 넷으로 나눈다 — 열여섯 줄을 한 화면에 쏟아부으면 고르는 게 아니라 훑는 게 된다.
+// lv  — 입장 레벨. 레벨이 안 되면 전투력이 아무리 높아도 못 들어간다.
+// req — 효율 100%에 필요한 전투력 (모자라면 (p/req)² 만큼만 번다).
+// rate— 초당 메소, xp — 초당 경험치. 둘을 따로 둔 이유는 메소는 구간마다 크게 벌려도 되지만
+//       경험치는 만렙 300 곡선에 묶여 있어서 완만해야 하기 때문이다.
+const ZONES=[
+  {n:'빅토리아 아일랜드',     s:0},
+  {n:'엘나스 · 아쿠아로드',    s:4},
+  {n:'루디브리엄 · 미나르',   s:8},
+  {n:'아케인리버 · 그란디스', s:12}
 ];
+const MAPS=[
+  {n:'개미굴',          lv:1,   req:0,    rate:3600,  xp:10},
+  {n:'슬리피우드',       lv:10,  req:110,  rate:4500,  xp:25},
+  {n:'커닝시티 지하',    lv:20,  req:140,  rate:5600,  xp:32},
+  {n:'페리온 협곡',      lv:30,  req:175,  rate:7000,  xp:40},
+
+  {n:'얼음 협곡',        lv:40,  req:215,  rate:8700,  xp:50},
+  {n:'오르비스 탑',      lv:55,  req:270,  rate:10800, xp:62},
+  {n:'해저 폐선',        lv:70,  req:335,  rate:13500, xp:75},
+  {n:'드래곤의 둥지',    lv:85,  req:420,  rate:16900, xp:88},
+
+  {n:'장난감 성',        lv:100, req:525,  rate:21000, xp:100},
+  {n:'시간의 신전',      lv:120, req:655,  rate:26200, xp:112},
+  {n:'미나르 숲',        lv:140, req:820,  rate:32800, xp:120},
+  {n:'마계 폐허',        lv:160, req:1025, rate:40800, xp:126},
+
+  {n:'츄츄 아일랜드',    lv:185, req:1280, rate:50800, xp:122},
+  {n:'레헬른',          lv:210, req:1600, rate:63400, xp:130},
+  {n:'아르카나',        lv:240, req:2000, rate:79000, xp:138},
+  {n:'검은 마법사의 성', lv:270, req:2500, rate:98000, xp:145}
+];
+const zoneOf=i=>{ for(let z=ZONES.length-1;z>=0;z--) if(i>=ZONES[z].s) return z; return 0; };
+const zoneEnd=z=>(z+1<ZONES.length?ZONES[z+1].s:MAPS.length);
+const mapOpen=i=>!!MAPS[i]&&(S.lv||1)>=MAPS[i].lv;
 // 보스마다 보상 성향이 다르다 — 필요한 걸 주는 놈을 골라 잡는 구조
 // 일반과 하드를 각각 정의한다. 두 사다리는 서로 섞여도 된다 —
 // 발록 하드가 자쿰 일반보다 쉽고, 검은 마법사 일반이 아카이럼 하드보다 어렵다.
@@ -977,7 +1020,7 @@ const dayIdx=()=>Math.floor((Date.now()-new Date().getTimezoneOffset()*60000)/86
 const newItem=i=>({star:0, ig:0, lines:[], broken:false, name:NAMES[i][0]});
 const DEF=()=>({
   meso:300000, sel:0, items:[0,1,2,3,4].map(newItem),
-  useProt:false, useSafe:false, map:0, anim:true, hard:false, view:'up', lv:1, xp:0, ach:{},
+  useProt:false, useSafe:false, map:0, zone:0, mv:0, anim:true, hard:false, view:'up', lv:1, xp:0, ach:{},
   att:{last:0, day:0, total:0},
   bcd:BOSSES.map(function(){return 0;}), bk:BOSSES.map(function(){return 0;}),
   inv:{cube:0, sh:0, sure:0}, evT:0, evCd:180,
@@ -1016,14 +1059,14 @@ function lvBonus(){
   return b;
 }
 const power=()=>Math.round((S.items.reduce((a,_,i)=>a+slotPow(i),0)+lvBonus())*(1+sfBonus()/100));
-const xpRate=()=>{ const m=MAPS[S.map||0]; return m?m.rate/200*mapEff(S.map||0,power())*expMult():0; };
+const xpRate=()=>{ const m=MAPS[S.map||0]; return m?m.xp*mapEff(S.map||0,power())*expMult():0; };
 const potGradeOf=it=>it&&it.lines.length?it.lines[0].g:-1;
 const potGrade=()=>potGradeOf(cur());
 const topGrade=()=>S.items.reduce((a,it)=>Math.max(a,potGradeOf(it)),-1);
 const sumOpt=key=>S.items.reduce((a,it)=>a+(it.broken?0:it.lines.reduce((b,l)=>b+(l.k===key?l.v:0),0)),0);
 const mesoMult=()=>1+sumOpt('mes')/100;
 const dropMult=()=>1+sumOpt('drp')/100;
-function mapEff(i,p){ const m=MAPS[i]; if(!m) return 0; if(!m.req) return 1;
+function mapEff(i,p){ const m=MAPS[i]; if(!m||!mapOpen(i)) return 0; if(!m.req) return 1;
   const r=Math.min(1,(p||0)/m.req); return r*r; }
 function mapIncome(i,p){ const m=MAPS[i]; return m?Math.round(m.rate*mapEff(i,p)*mesoMult()):0; }
 function bestMap(p){ let b=0,v=-1; for(let i=0;i<MAPS.length;i++){ const x=mapIncome(i,p); if(x>v){v=x;b=i;} } return b; }
@@ -1277,10 +1320,10 @@ function renderStarPane(){
   if(!S.inv) S.inv={cube:0,sh:0,sure:0};
   $('invBar').innerHTML=[['큐브 교환권',S.inv.cube],['쉴드 교환권',S.inv.sh],['확정 성공권',S.inv.sure]]
     .map(function(x){ return '<span class="chip'+(x[1]>0?' on':'')+'">'+x[0]+' <b>'+x[1]+'</b></span>'; }).join('');
-  const sb=$('sureBtn'), hasSure=S.inv.sure>0;
+  const sb=$('sureBtn'), hasSure=S.inv.sure>0, sureOk=it.star<SURE_MAX;
   sb.hidden=!hasSure;                       // 성공권이 없으면 자리도 차지하지 않는다
-  sb.disabled=busy||it.broken||it.star>=MAXSTAR||!hasSure||S.meso<cost();
-  sb.textContent='확정 강화 '+S.inv.sure;
+  sb.disabled=busy||it.broken||it.star>=MAXSTAR||!hasSure||!sureOk||S.meso<cost();
+  sb.textContent=sureOk?('확정 강화 '+S.inv.sure):(SURE_MAX+'★까지만');
   $('oS').textContent=O.suc.toFixed(1);
   $('oK').textContent=O.keep.toFixed(1);
   $('oW').textContent=O.down.toFixed(1);
@@ -1359,7 +1402,7 @@ let sureUse=false;
 function starClick(sure){
   const it=cur();
   if(busy||it.broken||it.star>=MAXSTAR) return;
-  if(sure&&!(S.inv&&S.inv.sure>0)) return;
+  if(sure&&(!(S.inv&&S.inv.sure>0)||it.star>=SURE_MAX)) return;
   const c=cost();
   if(S.meso<c) return;
   if(shTicket()){ S.inv.sh--; log('쉴드 교환권 사용 — 쉴드 비용 면제',''); }
@@ -1558,7 +1601,7 @@ function rollDrop(i,bs){
   if(!S.inv) S.inv={cube:0,sh:0,sure:0};
   if(T.cube&&Math.random()<T.cube){ S.inv.cube++; log(bossName(i)+' — <b>큐브 교환권</b>을 떨궜다 (아무 큐브나 1회 무료)','up'); }
   if(T.sh  &&Math.random()<T.sh  ){ S.inv.sh++;   log(bossName(i)+' — <b>쉴드 교환권</b>을 떨궜다 (다음 강화 1회 쉴드 비용 면제)','up'); }
-  if(T.sure&&Math.random()<T.sure){ S.inv.sure++; log(bossName(i)+' — <b>확정 성공권</b>을 떨궜다 (강화 1회 무조건 성공)','up'); }
+  if(T.sure&&Math.random()<T.sure){ S.inv.sure++; log(bossName(i)+' — <b>확정 성공권</b>을 떨궜다 (강화 1회 무조건 성공 · '+SURE_MAX+'★까지)','up'); }
   if(!T.eq||Math.random()>=T.eq*dropMult()) return;
   const g=Math.min(2,dropGrade(bs.req)+(S.hard?1:0)), slot=(Math.random()*SLOTS.length)|0, it=S.items[slot];
   if(g>it.ig && $('drop').hidden){ showDrop(slot,g,bs.n); return; }
@@ -1619,7 +1662,7 @@ const SHOP=[
    price:function(){ return 250000; }, can:function(){ return true; },
    buy:function(){ S.inv.sh++; SND.coin(); log('쉴드 교환권을 샀다',''); }},
   {k:'sure', n:'확정 성공권',
-   d:function(){ return '강화 1회 무조건 성공 · 지금 '+S.inv.sure+'장 · 윌도 떨군다'; },
+   d:function(){ return '강화 1회 무조건 성공 · '+SURE_MAX+'★까지만 쓸 수 있다 · 지금 '+S.inv.sure+'장 · 윌도 떨군다'; },
    price:function(){ return 2500000; }, can:function(){ return true; },
    buy:function(){ S.inv.sure++; SND.coin(); log('<b>확정 성공권</b>을 샀다','ok'); }},
   {k:'ev', n:'럭키데이 소환',
@@ -1845,13 +1888,21 @@ function showView(k){
 /* ---------- 사냥터 · 보스 ---------- */
 let huntBuilt=false;
 function buildHunt(){
+  const zt=$('zoneTabs'); zt.innerHTML='';
+  ZONES.forEach(function(z,zi){
+    const b=document.createElement('button');
+    b.className='ztab'; b.dataset.zone=zi;
+    b.innerHTML='<span class="zn">'+z.n+'</span><span class="zl">lv '+MAPS[z.s].lv+'+</span>';
+    b.addEventListener('click',function(){ ac(); S.zone=zi; updateHunt(); save(); });
+    zt.appendChild(b);
+  });
   const ml=$('mapList'); ml.innerHTML='';
   MAPS.forEach(function(m,i){
     const b=document.createElement('button');
     b.className='hrow'; b.dataset.map=i;
     b.innerHTML='<span class="hn">'+m.n+'</span>'+
       '<span class="hr">요구 '+m.req+'</span><span class="hv">0<small>/초</small></span>';
-    b.addEventListener('click',function(){ S.map=i; updateHunt(); renderTop(); save(); });
+    b.addEventListener('click',function(){ if(!mapOpen(i)) return; S.map=i; updateHunt(); renderTop(); save(); });
     ml.appendChild(b);
   });
   const bl=$('bossList'); bl.innerHTML='';
@@ -1874,11 +1925,23 @@ function updateHunt(){
   if(!huntBuilt) return;
   renderDiffTabs();
   const p=power(), best=bestMap(p);
+  if(S.zone==null) S.zone=zoneOf(S.map||0);
+  $('zoneTabs').querySelectorAll('.ztab').forEach(function(el,z){
+    el.setAttribute('aria-selected',String(S.zone===z));
+    el.classList.toggle('here',zoneOf(S.map||0)===z);          // 지금 사냥 중인 구역
+    el.classList.toggle('tip',zoneOf(best)===z&&S.zone!==z);   // 추천이 숨어 있는 구역
+    el.classList.toggle('locked',!mapOpen(ZONES[z].s));
+  });
   $('mapList').querySelectorAll('.hrow').forEach(function(el,i){
-    const v=mapIncome(i,p);
+    el.hidden=zoneOf(i)!==S.zone;
+    if(el.hidden) return;
+    const open=mapOpen(i), v=mapIncome(i,p);
+    el.disabled=!open;
     el.classList.toggle('on',(S.map||0)===i);
-    el.querySelector('.hv').innerHTML=fmt(v)+'<small>/초</small>';
-    el.querySelector('.hr').textContent='요구 '+MAPS[i].req+' · 효율 '+Math.round(mapEff(i,p)*100)+'%';
+    el.querySelector('.hv').innerHTML=open?(fmt(v)+'<small>/초</small>'):'<small>잠김</small>';
+    el.querySelector('.hr').textContent=open
+      ? ('요구 '+MAPS[i].req+' · 효율 '+Math.round(mapEff(i,p)*100)+'%')
+      : ('레벨 '+MAPS[i].lv+' 필요');
     const nm=el.querySelector('.hn'), tag=nm.querySelector('.best');
     if(i===best&&!tag) nm.insertAdjacentHTML('beforeend','<span class="best">추천</span>');
     if(i!==best&&tag) tag.remove();
@@ -1901,7 +1964,9 @@ function updateHunt(){
   const m=MAPS[S.map||0];
   $('animTog').setAttribute('aria-checked',String(S.anim!==false));
   $('huntNote').innerHTML='지금 <b>'+m.n+'</b>에서 사냥 중 · 효율 <b>'+Math.round(mapEff(S.map||0,p)*100)+
-    '%</b> · 초당 <b>'+fmt(mapIncome(S.map||0,p))+'</b> 메소 (메소획득량 +'+Math.round((mesoMult()-1)*100)+'%)<br>'+
+    '%</b> · 초당 <b>'+fmt(mapIncome(S.map||0,p))+'</b> 메소 · <b>'+Math.round(xpRate())+'</b> 경험치'+
+    ' (메소획득량 +'+Math.round((mesoMult()-1)*100)+'%)<br>'+
+    '사냥터는 <b>레벨로 열리고 전투력으로 효율이 정해진다</b> — 갓 열린 곳보다 앞 사냥터를 100%로 도는 게 나을 때가 많다.<br>'+
     '보스는 쿨타임이 따로 도니까 돌려가며 잡는 게 이득이고, <b>상위 보스일수록 좋은 장비를 떨군다</b> (드롭률 +'+Math.round((dropMult()-1)*100)+'%).';
 }
 let fighting=-1;
@@ -2292,6 +2357,11 @@ function enter(raw,serverSave){
     }
   }
   S.sel=Math.max(0,Math.min(SLOTS.length-1,S.sel|0));
+  if((S.mv|0)<2){                              // 사냥터가 6곳 → 16곳이 되면서 번호가 어긋난다
+    S.mv=2; S.map=bestMap(power()); S.zone=zoneOf(S.map);
+  }
+  if(!mapOpen(S.map||0)) S.map=bestMap(power());
+  S.zone=Math.max(0,Math.min(ZONES.length-1,S.zone|0));
   repairShown=false;
   $('login').hidden=true;
   $('whoV').textContent=id;
@@ -2392,7 +2462,7 @@ initOnline();
 
 // 균형 점검용 노출 (게임 동작에는 영향 없음)
 try{ window.__CFG={SF,MAXSTAR,starCost,SHIELD,SLOTS,OPT,POOL,GCAP,UPRATE,UPGRADE,CUBES,
-  MAPS,BOSSES,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
+  MAPS,ZONES,zoneOf,mapOpen,xpRate,BOSSES,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
   get state(){return S;}, cur, power, income, mesoMult, dropMult, starMult, potMultOf, odds, potGrade, topGrade, totalStars, sfBonus}; }catch(e){}
 })();
 </script>
