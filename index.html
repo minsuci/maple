@@ -687,7 +687,7 @@ button:disabled{cursor:not-allowed;opacity:.45;}
       <button class="btn" id="dropWear">그대로 착용</button>
       <button class="btn" id="dropMelt" style="flex:0 0 auto">분해</button>
     </div>
-    <p class="lnote" style="margin-top:12px">갈아타면 잠재능력은 초기화된다. 성수치를 지키려면 스타포스 이전을 쓰자 (2성 손실).</p>
+    <p class="lnote" style="margin-top:12px">갈아타면 잠재능력은 초기화된다. 성수치를 지키려면 스타포스 이전을 쓰자 (6성 손실).</p>
   </div>
   </div>
 </div>
@@ -847,7 +847,10 @@ const GCAP=[1,2,3];
 // 큐브 등급 상승 확률 (공식 미공개 구간 — 내가 정했다).
 // 공식 문구대로 큐브 종류는 기능만 다르고 확률은 전부 같다.
 const UPRATE=[0.06,0.018,0.004];
-const UPGRADE=[{to:1,p:40,cost:200000},{to:2,p:25,cost:800000}];
+// 승급하면 성수치를 40% 내려놓는다. 대가가 없으면 36성을 찍어놓고 메소만 내면
+// 등급이 따라오니, 등급을 언제 올릴지 고민할 이유가 사라진다.
+const UP_LOSS=0.4;
+const UPGRADE=[{to:1,p:40,cost:400000},{to:2,p:25,cost:2000000}];
 // 초이스 큐브가 셋 중 가장 강하다 — 좋은 줄 둘을 지키고 나쁜 줄 하나만 바꾸니까.
 // 그래서 값도 제일 비싸다.
 const CUBES=[
@@ -1311,7 +1314,8 @@ function renderCubes(){
   ub.disabled=busy||it.broken||!up||S.meso<(up?up.cost:0);
   ub.innerHTML='<span class="ic">↑</span><span><span class="nm">장비 승급 — '+
     (up?IGNAME[it.ig]+' → '+IGNAME[up.to]:'유니크 (최고 등급)')+'</span><span class="rt">'+
-    (up?'성공 '+up.p+'% · 성수치와 잠재를 그대로 유지한다. 등급이 올라가야 더 높은 잠재가 열린다'
+    (up?'성공 '+up.p+'% · 잠재 상한이 '+GNAME[GCAP[up.to]]+'로 · <b>성수치 '+Math.round(UP_LOSS*100)+'% 감소 ('+
+        it.star+'★ → '+Math.floor(it.star*(1-UP_LOSS))+'★)</b> · 실패하면 메소만 잃는다'
        :'더 올릴 등급이 없다')+'</span></span><span class="pr">'+(up?fmt(up.cost):'—')+'</span>';
   if(up) ub.addEventListener('click',upgradeItem);
   L.appendChild(ub);
@@ -1534,9 +1538,12 @@ function upgradeItem(){
   busy=true; renderCubes();
   setTimeout(function(){
     if(Math.random()*100<up.p){
-      it.ig=up.to; SND.up(); burst(120,'#5CE68A',{sp:1.3});
-      flash(IGNAME[it.ig]+' 장비','잠재 상한이 '+GNAME[GCAP[it.ig]]+'로 올라갔다','#5CE68A');
-      log('<b>장비 승급 성공</b> — '+SLOTS[S.sel||0].n+' '+IGNAME[it.ig]+' 등급','up');
+      const s0=it.star;
+      it.ig=up.to; it.star=Math.floor(it.star*(1-UP_LOSS));
+      SND.up(); burst(120,'#5CE68A',{sp:1.3});
+      flash(IGNAME[it.ig]+' 장비',s0>it.star?(s0+'★ → '+it.star+'★ · 잠재 상한 '+GNAME[GCAP[it.ig]]):('잠재 상한이 '+GNAME[GCAP[it.ig]]+'로'),'#5CE68A');
+      log('<b>장비 승급 성공</b> — '+SLOTS[S.sel||0].n+' '+IGNAME[it.ig]+' 등급'+(s0>it.star?' · 성수치 <b>'+s0+'★ → '+it.star+'★</b>':''),'up');
+      showResult('ok','승급 <b>'+IGNAME[it.ig]+'</b> · 성수치 '+s0+'★ → '+it.star+'★');
     } else {
       SND.fail(); log('장비 승급 실패 — 메소만 날아갔다','fail');
       const box=$('itembox'); box.classList.remove('shake'); void box.offsetWidth; box.classList.add('shake');
@@ -1560,7 +1567,7 @@ function rollDrop(i,bs){
 }
 function showDrop(slot,g,bossName){
   const box=$('drop'), it=S.items[slot];
-  const cost=Math.round(starCost(it.star)*3*SLOTS[slot].cost/10)*10, keep=Math.max(0,it.star-2);
+  const cost=Math.round(starCost(it.star)*3*SLOTS[slot].cost/10)*10, keep=Math.max(0,it.star-6);
   const side=function(t,gr,star,sub){
     return '<div class="cside"><h3>'+t+'</h3><span class="gradetag '+GKEY[gr]+'">'+IGNAME[gr]+' 장비</span>'+
       '<div class="cpow" style="font-size:26px">'+star+'★</div>'+
@@ -1572,7 +1579,7 @@ function showDrop(slot,g,bossName){
   const wear=$('dropWear'), move=$('dropMove'), melt=$('dropMelt');
   wear.textContent='그대로 착용 (0★)';
   move.textContent='스타포스 이전 — '+fmt(cost)+' 메소 ('+keep+'★)';
-  move.disabled=S.meso<cost||it.star<3;
+  move.disabled=S.meso<cost||it.star<7;
   melt.textContent='분해 (+'+fmt(meltValue(g))+')';
   const take=function(star){
     it.ig=g; it.star=star; it.lines=[]; it.broken=false;
