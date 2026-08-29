@@ -426,6 +426,13 @@ td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
 .cube .pr.tok{color:#7CFFB0;}
 .cube .pr.tok::after{content:" 증표";font-family:'Gothic A1',sans-serif;font-size:9.5px;font-weight:700;color:var(--dimmer);}
 
+/* ---------- 시간제 버프 ---------- */
+.bufbar{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 10px;}
+.bufchip{font-size:10.5px;font-weight:700;color:var(--c);background:#15122C;
+  border:1px solid var(--c);border-radius:99px;padding:5px 11px;white-space:nowrap;}
+.bufchip b{font-family:'Bebas Neue',sans-serif;font-size:14px;}
+.bufchip i{font-style:normal;color:var(--dimmer);margin-left:3px;}
+
 /* ---------- 스킬 ---------- */
 .skills{display:grid;grid-template-columns:repeat(auto-fit,minmax(0,1fr));gap:5px;margin-bottom:6px;}
 .skbtn{padding:7px 4px;border-radius:9px;background:#15122C;border:1px solid var(--edge);
@@ -655,6 +662,7 @@ td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
   </div>
   <div class="xpbar"><div class="xptrack"><div class="xpfill" id="xpFill"></div></div><div class="xptext" id="xpText"></div></div>
 
+  <div class="bufbar" id="bufBar" hidden></div>
   <div class="event" id="eventBar">
     <span class="ename">럭키데이</span>
     <span class="edesc" id="eventDesc">성공 확률 2배 · 강화 비용 30% 할인</span>
@@ -1285,7 +1293,7 @@ const dayIdx=()=>Math.floor((Date.now()-new Date().getTimezoneOffset()*60000)/86
 const newItem=i=>({star:0, ig:0, lines:[], broken:false, name:(i===0?WNAMES.war:NAMES[i])[0]});
 const DEF=()=>({
   meso:300000, sel:0, items:SLOTS.map(function(_,i){return newItem(i);}),
-  job:'war', skcd:[0,0,0,0,0], tok:0, useProt:false, useSafe:false, map:0, zone:0, mv:0, anim:true, hard:false, view:'up', lv:1, xp:0, ach:{},
+  job:'war', skcd:[0,0,0,0,0], tok:0, buf:{mes:0,drp:0}, useProt:false, useSafe:false, map:0, zone:0, mv:0, anim:true, hard:false, view:'up', lv:1, xp:0, ach:{},
   att:{last:0, day:0, total:0},
   bcd:BOSSES.map(function(){return 0;}), bk:BOSSES.map(function(){return 0;}),
   inv:defInv(), bag:[], evT:0, evCd:180,
@@ -1336,8 +1344,8 @@ const potGradeOf=it=>it&&it.lines.length?it.lines[0].g:-1;
 const potGrade=()=>potGradeOf(cur());
 const topGrade=()=>S.items.reduce((a,it)=>Math.max(a,potGradeOf(it)),-1);
 const sumOpt=key=>S.items.reduce((a,it)=>a+(it.broken?0:it.lines.reduce((b,l)=>b+partOf(l,key),0)),0);
-const mesoMult=()=>1+sumOpt('mes')/100;
-const dropMult=()=>1+sumOpt('drp')/100;
+const mesoMult=()=>(1+sumOpt('mes')/100)*(1+bufOn('mes'));
+const dropMult=()=>(1+sumOpt('drp')/100)*(1+bufOn('drp'));
 function mapEff(i,p){ const m=MAPS[i]; if(!m||!mapOpen(i)) return 0; if(!m.req) return 1;
   const r=Math.min(1,(p||0)/m.req); return r*r; }
 function mapIncome(i,p){ const m=MAPS[i]; return m?Math.round(m.rate*mapEff(i,p)*mesoMult()):0; }
@@ -1604,7 +1612,18 @@ function renderTop(){
   const rb=$('repBtn'); if(rb) rb.disabled=S.meso<restoreCost();
 }
 function renderEvent(){
-  const el=$('eventBar'), on=EV();
+  const el=$('eventBar'), on=EV();  // 켜져 있는 버프를 럭키데이 줄 옆에 같이 보여준다
+  const bb=$('bufBar'); bb.innerHTML='';
+  Object.keys(BUFFS).forEach(function(k){
+    const t=(S.buf&&S.buf[k])|0; if(t<=0) return;
+    const b=BUFFS[k];
+    const el=document.createElement('span');
+    el.className='bufchip'; el.style.setProperty('--c',b.c);
+    el.innerHTML=b.n+' <b>+'+Math.round(b.v*100)+'%</b> <i>'+fmtCd(t)+'</i>';
+    bb.appendChild(el);
+  });
+  bb.hidden=!bb.children.length;
+
   el.classList.toggle('on',on);
   if(on){
     $('eventDesc').textContent='성공 확률 2배 · 강화 비용 30% 할인';
@@ -1950,6 +1969,7 @@ function rollDrop(i,bs){
   // 떨어진 장비는 그 자리에서 결정하지 않고 가방에 쌓인다. 급할 게 없다.
   if(!Array.isArray(S.bag)) S.bag=[];
   if(typeof S.tok!=='number') S.tok=0;
+  S.buf=Object.assign({mes:0,drp:0}, S.buf||{});
   if(!Array.isArray(S.skcd)||S.skcd.length!==SKILLS.length) S.skcd=SKILLS.map(function(){return 0;});
   delete S.arm;                              // 장전을 없앴다 — 스킬은 전투 중에만 쓴다
   if(S.bag.length>=BAG_MAX){
@@ -1998,6 +2018,20 @@ function showDrop(slot,g,fromName,bagIdx){
     renderAll(); save(); };
   box.hidden=false;
 }
+
+// 시간제 버프. 값은 지금 수입에 맞춰 오른다 — 초반에 싸고 후반에 비싸야
+// 언제 사든 같은 무게의 결정이 된다.
+// 메소 버프는 보스 보상에도 걸린다(bossReward 가 mesoMult 를 쓴다). 그래서
+// 사냥만 하면 본전이고, 보스 한 바퀴를 끼고 쓰면 남는다 — 언제 쓸지가 선택이 된다.
+const BUFFS={
+  mes:{n:'메소 부스터',   v:0.60, dur:600, rate:0.60, c:'#FFD66B'},
+  drp:{n:'드롭 부스터',   v:0.60, dur:600, rate:0.45, c:'#7CFFB0'}
+};
+const bufOn=k=>((S.buf&&S.buf[k])>0)?BUFFS[k].v:0;
+// 값은 버프를 뺀 수입으로 잰다. 안 그러면 메소 버프를 먼저 산 사람이
+// 드롭 버프를 더 비싸게 사게 된다 — 사는 순서가 값을 바꾸면 안 된다.
+const bufCost=k=>{ const b=BUFFS[k];
+  return Math.max(1000000, Math.round(income()/(1+bufOn('mes'))*b.dur*b.rate/1e5)*1e5); };
 
 /* ---------- 토벌 증표 ---------- */
 // 쿨타임에 비례해서 준다. 잡은 횟수로 주면 쿨 12초짜리 발록만 두들기게 된다.
@@ -2071,6 +2105,20 @@ const SHOP=[
      flash('15 ★',nm+' 스타포스 15성','#FFC94A');
      showResult('ok','15성 주문서 — <b>'+nm+' 15★</b>');
      log('<b>15성 주문서</b> — '+nm+'을(를) 즉시 15★로','up'); }},
+  {k:'bmes', n:'메소 부스터',
+   d:function(){ const t=(S.buf&&S.buf.mes)|0;
+     return t>0?('진행 중 · '+fmtCd(t)+' 남았다'):'메소 획득량 +60% 를 10분 동안 · 보스 보상에도 걸린다'; },
+   price:function(){ return bufCost('mes'); }, can:function(){ return !((S.buf&&S.buf.mes)>0); },
+   buy:function(){ S.buf.mes=BUFFS.mes.dur; SND.up();
+     flash('메소 부스터','10분 동안 메소 +60%','#FFD66B');
+     log('<b>메소 부스터</b> — 10분 동안 메소 획득량 +60%','up'); }},
+  {k:'bdrp', n:'드롭 부스터',
+   d:function(){ const t=(S.buf&&S.buf.drp)|0;
+     return t>0?('진행 중 · '+fmtCd(t)+' 남았다'):'아이템 드롭률 +60% 를 10분 동안 · 장비와 큐브가 더 나온다'; },
+   price:function(){ return bufCost('drp'); }, can:function(){ return !((S.buf&&S.buf.drp)>0); },
+   buy:function(){ S.buf.drp=BUFFS.drp.dur; SND.up();
+     flash('드롭 부스터','10분 동안 드롭률 +60%','#7CFFB0');
+     log('<b>드롭 부스터</b> — 10분 동안 아이템 드롭률 +60%','up'); }},
   {k:'ev', n:'럭키데이 소환',
    d:function(){ return EV()?'이미 진행 중이다':'성공 확률 2배 · 강화 비용 30% 할인을 60초 동안'; },
    price:function(){ return 800000; }, can:function(){ return !EV(); },
@@ -3326,6 +3374,8 @@ function enter(raw,serverSave){
 function catchUp(sec){
   const el=Math.min(OFF_CAP,sec);
   if(el<3) return;
+  // 버프를 켜두고 나갔다 오는 걸로 이득을 보면 안 된다. 먼저 태우고 수입을 잰다.
+  if(S.buf) for(const k in S.buf) if(S.buf[k]>0) S.buf[k]=Math.max(0,S.buf[k]-el);
   const m=income()*el, xp=xpRate()*el;
   S.meso+=m; gainXp(xp);
   if(Array.isArray(S.bcd)) for(let i=0;i<S.bcd.length;i++) if(S.bcd[i]>0) S.bcd[i]=Math.max(0,S.bcd[i]-el);
@@ -3351,6 +3401,10 @@ function loop(t){
   if(!S.bk||S.bk.length!==BOSSES.length) S.bk=BOSSES.map(function(){return 0;});
   for(let i=0;i<S.bcd.length;i++) if(S.bcd[i]>0) S.bcd[i]=Math.max(0,S.bcd[i]-dt);
   if(Array.isArray(S.skcd)) for(let k=0;k<S.skcd.length;k++) if(S.skcd[k]>0) S.skcd[k]=Math.max(0,S.skcd[k]-dt);
+  if(S.buf) for(const k in S.buf) if(S.buf[k]>0){
+    S.buf[k]=Math.max(0,S.buf[k]-dt);
+    if(!S.buf[k]) log('<b>'+BUFFS[k].n+'</b>가 끝났다','');
+  }
   if(S.evT>0){
     S.evT-=dt;
     if(S.evT<=0){ S.evT=0; S.evCd=180; log('럭키데이 종료','') ; renderAll(); }
