@@ -420,6 +420,11 @@ td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
 .hrow[hidden]{display:none;}
 
 /* ---------- 난이도 · 메뉴 ---------- */
+.tokhave{float:right;font-size:11px;font-weight:700;color:var(--dimmer);letter-spacing:.04em;}
+.tokhave b{font-family:'Bebas Neue',sans-serif;font-size:16px;color:#7CFFB0;margin-left:3px;}
+.cube .pr.tok{color:#7CFFB0;}
+.cube .pr.tok::after{content:" 증표";font-family:'Gothic A1',sans-serif;font-size:9.5px;font-weight:700;color:var(--dimmer);}
+
 /* ---------- 스킬 ---------- */
 .skills{display:grid;grid-template-columns:repeat(auto-fit,minmax(0,1fr));gap:5px;margin-bottom:6px;}
 .skbtn{padding:7px 4px;border-radius:9px;background:#15122C;border:1px solid var(--edge);
@@ -725,6 +730,11 @@ td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
       <div class="pane" id="paneShop" role="tabpanel" aria-labelledby="tabShop" hidden>
         <div class="cubes" id="shopList"></div>
         <p class="pity" id="shopNote"></p>
+        <h3>토벌 교환소 — 보스에 쓴 시간으로 산다 <span class="tokhave">보유 <b id="tokHave">0</b></span></h3>
+        <div class="cubes" id="tokList"></div>
+        <p class="pity">증표는 <b>보스 쿨타임에 비례</b>해 나온다 — 열두 마리를 한 바퀴 돌면 일반 25 · 하드 50.
+          발록처럼 쿨이 짧은 놈은 주지 않는다. 자리를 비운 동안에도 보스 쿨은 흐르니, 가끔 들어와 한 바퀴 도는 걸로 모인다.</p>
+
       </div>
 
       <div class="log" id="log"></div>
@@ -1231,7 +1241,7 @@ const dayIdx=()=>Math.floor((Date.now()-new Date().getTimezoneOffset()*60000)/86
 const newItem=i=>({star:0, ig:0, lines:[], broken:false, name:(i===0?WNAMES.war:NAMES[i])[0]});
 const DEF=()=>({
   meso:300000, sel:0, items:[0,1,2,3,4].map(newItem),
-  job:'war', skcd:[0,0,0,0,0], useProt:false, useSafe:false, map:0, zone:0, mv:0, anim:true, hard:false, view:'up', lv:1, xp:0, ach:{},
+  job:'war', skcd:[0,0,0,0,0], tok:0, useProt:false, useSafe:false, map:0, zone:0, mv:0, anim:true, hard:false, view:'up', lv:1, xp:0, ach:{},
   att:{last:0, day:0, total:0},
   bcd:BOSSES.map(function(){return 0;}), bk:BOSSES.map(function(){return 0;}),
   inv:defInv(), bag:[], evT:0, evCd:180,
@@ -1652,7 +1662,7 @@ function renderRecs(){
 function renderAll(){
   renderSlots();renderItem();renderTop();renderEvent();renderStarPane();
   if(cur().broken) repairUI(); else renderCubes();
-  renderShop(); renderLevel(); renderDaily(); checkAch(); renderAch();
+  renderShop(); renderTShop(); renderLevel(); renderDaily(); checkAch(); renderAch();
   const jv=$('jobV'); jv.hidden=!USER; jv.textContent=curJob().n;
   $('mJobSub').textContent=curJob().n+' · '+curJob().w;
   if(S.view==='inv') renderBag();   // 가방에서 분해·착용하면 목록이 바로 줄어야 한다
@@ -1878,6 +1888,7 @@ function rollDrop(i,bs){
   const g=Math.min(2,dropGrade(bs.req)+(S.hard?1:0)), slot=(Math.random()*SLOTS.length)|0;
   // 떨어진 장비는 그 자리에서 결정하지 않고 가방에 쌓인다. 급할 게 없다.
   if(!Array.isArray(S.bag)) S.bag=[];
+  if(typeof S.tok!=='number') S.tok=0;
   if(!Array.isArray(S.skcd)||S.skcd.length!==SKILLS.length) S.skcd=SKILLS.map(function(){return 0;});
   delete S.arm;                              // 장전을 없앴다 — 스킬은 전투 중에만 쓴다
   if(S.bag.length>=BAG_MAX){
@@ -1925,6 +1936,60 @@ function showDrop(slot,g,fromName,bagIdx){
     log(IGNAME[g]+' '+SLOTS[slot].n+'을(를) 분해했다 — <b>+'+fmt(m)+'</b> 메소','');
     renderAll(); save(); };
   box.hidden=false;
+}
+
+/* ---------- 토벌 증표 ---------- */
+// 쿨타임에 비례해서 준다. 잡은 횟수로 주면 쿨 12초짜리 발록만 두들기게 된다.
+// 이렇게 두면 어느 보스를 돌든 한 바퀴당 증표가 비슷해서, 증표는 운이 아니라
+// '보스에 쓴 시간'을 재는 자원이 된다. 발록은 0 — 쿨이 너무 짧다.
+//
+// 값은 '한 바퀴'로 매겼다. 이 게임은 붙들고 하는 게 아니라 가끔 들어와
+// 열두 마리를 쭉 돌고 나가는 것이고, 보스 쿨은 자리 비운 동안에도 흐른다.
+// 한 바퀴 = 일반 25 · 하드 50. 하루 세 번이면 초이스 큐브가 이틀에 하나.
+const tokFor=i=>Math.round(BOSSES[i].cd/40)*(S.hard?2:1);
+const TSHOP=[
+  {k:'red10',  n:'레드 큐브 ×10',   t:3,   d:function(){ return '가방에 레드 큐브 10개'; },
+   can:function(){ return true; }, buy:function(){ S.inv.red=(S.inv.red|0)+10; }},
+  {k:'blk10',  n:'블랙 큐브 ×10',   t:8,   d:function(){ return '가방에 블랙 큐브 10개'; },
+   can:function(){ return true; }, buy:function(){ S.inv.black=(S.inv.black|0)+10; }},
+  {k:'sh',     n:'쉴드 교환권',     t:10,  d:function(){ return '다음 강화 1회 쉴드 비용 면제 · 지금 '+(S.inv.sh|0)+'장'; },
+   can:function(){ return true; }, buy:function(){ S.inv.sh=(S.inv.sh|0)+1; }},
+  {k:'upg',    n:'장비 승급권',     t:28,  d:function(){ const it=cur();
+     return it.ig>=2?'유니크 장비다 — 더 올릴 등급이 없다':(SLOTS[S.sel||0].n+'을(를) 100% 승급 · 성수치 '+Math.round(UP_LOSS*100)+'% 손실은 그대로'); },
+   can:function(){ const it=cur(); return !it.broken&&it.ig<2; },
+   buy:function(){ const it=cur(), up=UPGRADE[it.ig], s0=it.star;
+     it.ig=up.to; it.star=Math.floor(it.star*(1-UP_LOSS));
+     SND.up(); burst(110,'#5CE68A',{sp:1.2});
+     flash(IGNAME[it.ig]+' 장비',s0>it.star?(s0+'★ → '+it.star+'★'):'승급 성공','#5CE68A');
+     log('<b>장비 승급권</b> — '+SLOTS[S.sel||0].n+' '+IGNAME[it.ig]+' 등급'+(s0>it.star?' · 성수치 '+s0+'★ → '+it.star+'★':''),'up'); }},
+  {k:'skcd',   n:'스킬 쿨 초기화',  t:60,  d:function(){ const n=(S.skcd||[]).filter(function(v){return v>0;}).length;
+     return n?('식은 스킬 '+n+'개의 쿨타임을 전부 없앤다'):'지금은 전부 준비돼 있다'; },
+   can:function(){ return (S.skcd||[]).some(function(v){ return v>0; }); },
+   buy:function(){ S.skcd=SKILLS.map(function(){return 0;}); SND.up(); log('<b>스킬 쿨 초기화</b> — 전부 준비 완료','up'); }},
+  {k:'sure',   n:'확정 성공권',     t:100, d:function(){ return '강화 1회 무조건 성공 · '+SURE_MAX+'★까지 · 지금 '+(S.inv.sure|0)+'장'; },
+   can:function(){ return true; }, buy:function(){ S.inv.sure=(S.inv.sure|0)+1; }},
+  {k:'choice', n:'초이스 큐브',     t:300, d:function(){ return '가방에 초이스 큐브 1개 · 지금 '+(S.inv.choice|0)+'개'; },
+   can:function(){ return true; }, buy:function(){ S.inv.choice=(S.inv.choice|0)+1; }}
+];
+function buyTok(x){
+  if((S.tok|0)<x.t||!x.can()) return;
+  S.tok=(S.tok|0)-x.t;
+  x.buy(); SND.coin();
+  log('<b>'+x.n+'</b> — 토벌 증표 '+x.t+'개','ok');
+  renderAll(); save();
+}
+function renderTShop(){
+  const L=$('tokList'); L.innerHTML='';
+  TSHOP.forEach(function(x){
+    const b=document.createElement('button');
+    b.className='cube'; b.style.setProperty('--c','#7CFFB0');
+    b.disabled=(S.tok|0)<x.t||!x.can();
+    b.innerHTML='<span class="ic">◈</span><span><span class="nm">'+x.n+'</span>'+
+      '<span class="rt">'+x.d()+'</span></span><span class="pr tok">'+x.t+'</span>';
+    b.addEventListener('click',function(){ ac(); buyTok(x); });
+    L.appendChild(b);
+  });
+  $('tokHave').textContent=(S.tok|0).toLocaleString('ko-KR');
 }
 
 /* ---------- 상점 ----------
@@ -2460,6 +2525,7 @@ const BAG=[
   {k:'sh',     n:'쉴드 교환권', ic:'◇', c:'#4FA8FF', d:'다음 강화 1회 쉴드 비용 면제'},
   {k:'sure',   n:'확정 성공권', ic:'★', c:'#5CE68A', d:'강화 1회 무조건 성공'}
 ];
+const BAGTOK={n:'토벌 증표', ic:'◈', c:'#7CFFB0', d:'상점의 토벌 교환소에서 쓴다'};
 const bagVal=k=>{ const c=CUBES.find(function(x){return x.k===k;}); return c?c.cost:0; };
 function renderBag(){
   if(!S.inv) S.inv=defInv();
@@ -2476,6 +2542,15 @@ function renderBag(){
       '<span class="bv">'+(v?fmt(v):'—')+'</span>';
     L.appendChild(el);
   });
+  (function(){                               // 증표는 개수만 세는 물건이라 따로 붙인다
+    const el=document.createElement('div');
+    const n=S.tok|0; if(n>0) none=false;
+    el.className='bagrow'+(n?'':' empty'); el.style.setProperty('--c',BAGTOK.c);
+    el.innerHTML='<span class="bic">'+BAGTOK.ic+'</span>'+
+      '<span><span class="bn">'+BAGTOK.n+'</span><span class="bd">'+BAGTOK.d+'</span></span>'+
+      '<span class="bq">'+n+'<small>개</small></span><span class="bv">—</span>';
+    L.appendChild(el);
+  })();
   $('bagNote').innerHTML=none
     ? '아직 가진 게 없다. <b>큐브는 보스가 떨군다</b> — 위쪽 보스일수록 좋은 큐브가 나온다.'
     : '큐브를 가지고 있으면 <b>메소 대신 그것부터 쓴다.</b> 초이스는 진 힐라·검은 마법사가 드물게 떨군다.';
@@ -2764,6 +2839,8 @@ function resolveBoss(i,win,dmg){
     if(dmg) r=Math.round(r*(1+dmg*0.5));   // 이미 잡을 상대였다면 남는 힘이 보상으로
     if(S.hard){ if(!S.bkh||S.bkh.length!==BOSSES.length) S.bkh=BOSSES.map(function(){return 0;}); S.bkh[i]++; }
     else S.bk[i]++;
+    const tk=tokFor(i);
+    if(tk){ S.tok=(S.tok|0)+tk; }
     S.meso+=r; S.bcd[i]=bs.cd;
     gainXp(Math.round(bs.rew/2000*expMult()));
     SND.coin();
@@ -3278,7 +3355,7 @@ initOnline();
 
 // 균형 점검용 노출 (게임 동작에는 영향 없음)
 try{ window.__CFG={SF,MAXSTAR,starCost,SHIELD,SLOTS,OPT,POOL,GCAP,UPRATE,UPGRADE,CUBES,
-  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,SKILLS,skReady,skLearned,skHit,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,catchUp,BOSSES,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
+  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,catchUp,BOSSES,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
   get state(){return S;}, cur, power, income, mesoMult, dropMult, starMult, potMultOf, odds, potGrade, topGrade, totalStars, sfBonus}; }catch(e){}
 })();
 </script>
