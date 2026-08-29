@@ -321,6 +321,19 @@ button:disabled{cursor:not-allowed;opacity:.45;}
   border-radius:50%;background:var(--bad);border:2px solid var(--void);}
 .mitem .badge{float:right;width:9px;height:9px;border-radius:50%;background:var(--bad);margin-top:5px;}
 
+/* ---------- 화면 넘기기 ---------- */
+@keyframes vNext{ from{transform:translateX(9%);opacity:0;} to{transform:none;opacity:1;} }
+@keyframes vPrev{ from{transform:translateX(-9%);opacity:0;} to{transform:none;opacity:1;} }
+.view.vnext{animation:vNext .24s cubic-bezier(.22,.61,.36,1);}
+.view.vprev{animation:vPrev .24s cubic-bezier(.22,.61,.36,1);}
+.view{transition:transform .2s cubic-bezier(.22,.61,.36,1), opacity .2s;}
+.view.dragging{transition:none;}                 /* 끌 때는 손가락을 그대로 따라와야 한다 */
+.swipehint{position:fixed;top:50%;transform:translateY(-50%);z-index:60;pointer-events:none;
+  padding:9px 14px;border-radius:99px;font-size:12.5px;font-weight:900;letter-spacing:.02em;
+  color:var(--gold);background:#241C05;border:1px solid var(--gold);box-shadow:0 6px 20px #0008;}
+.swipehint.l{left:12px;} .swipehint.r{right:12px;}
+.swipehint.go{color:#2A1A00;background:var(--gold);}
+
 /* ---------- 구역 탭 ---------- */
 .ztabs{display:grid;grid-template-columns:repeat(2,1fr);gap:5px;margin-bottom:8px;}
 .ztab{position:relative;padding:7px 8px;border-radius:9px;text-align:left;
@@ -718,6 +731,8 @@ button:disabled{cursor:not-allowed;opacity:.45;}
     </div>
   </div>
 </div>
+
+<div class="swipehint" id="swipeHint" hidden></div>
 
 <div class="menu" id="menu" hidden>
   <div class="mcard">
@@ -1875,8 +1890,12 @@ function claimDaily(){
 }
 
 /* ---------- 화면 전환 ---------- */
-const VIEWS=[['up','viewUp'],['hunt','viewHunt'],['ach','viewAch'],['rank','viewRank'],['rec','viewRec']];
+// 세 번째 칸은 스와이프할 때 어디로 가는지 띄워주는 이름이다
+const VIEWS=[['up','viewUp','강화'],['hunt','viewHunt','사냥'],['ach','viewAch','업적'],
+             ['rank','viewRank','랭킹'],['rec','viewRec','기록']];
+const viewIdx=k=>Math.max(0,VIEWS.findIndex(function(v){ return v[0]===(k||S.view||'up'); }));
 function showView(k){
+  const from=viewIdx(), to=viewIdx(k);
   S.view=k;
   VIEWS.forEach(function(v){ const el=$(v[1]); if(el) el.hidden=(v[0]!==k); });
   document.querySelectorAll('.mitem').forEach(function(b){ b.setAttribute('aria-selected',String(b.dataset.v===k)); });
@@ -1884,8 +1903,85 @@ function showView(k){
   window.scrollTo(0,0);
   if(k==='rank') renderRank();
   if(k==='ach') renderAch();
+  if(to!==from){                              // 들어오는 쪽만 밀어 넣는다 — 화면마다 높이가 달라서
+    const el=$(VIEWS[to][1]);                 // 두 장을 나란히 끌면 아래가 출렁인다
+    el.classList.remove('vnext','vprev');
+    void el.offsetWidth;                      // 애니메이션 재시작
+    el.classList.add(to>from?'vnext':'vprev');
+  }
   save();
 }
+
+/* ---------- 화면 넘기기 — 스와이프 ---------- */
+// 손가락을 따라 화면이 밀리고, 충분히 밀면 넘어간다. 안 밀면 제자리로 돌아온다.
+// 세로 스크롤을 뺏으면 안 되니 첫 움직임에서 축을 정하고 그 제스처 내내 유지한다.
+const SW={el:null, x0:0, y0:0, dx:0, axis:'', t0:0};
+function swipeTarget(dir){ const i=viewIdx()+dir; return (i<0||i>=VIEWS.length)?null:VIEWS[i]; }
+function swipeBlocked(t){
+  if(!$('menu').hidden) return true;
+  if(document.querySelector('.compare:not([hidden])')) return true;   // 모달이 떠 있으면 양보
+  for(let n=t; n&&n!==document.body; n=n.parentElement){              // 가로로 스크롤되는 칸도 양보
+    if(n.scrollWidth>n.clientWidth+4){
+      const ox=getComputedStyle(n).overflowX;
+      if(ox==='auto'||ox==='scroll') return true;
+    }
+  }
+  return false;
+}
+const swipeGo=dx=>Math.abs(dx)>Math.min(92,innerWidth*0.22);   // 여기를 넘겨야 넘어간다
+function swipeHint(dx){
+  const h=$('swipeHint'), t=swipeTarget(dx<0?1:-1), a=Math.abs(dx), go=swipeGo(dx);
+  if(!t||a<24){ h.hidden=true; return; }
+  h.hidden=false;
+  h.className='swipehint '+(dx<0?'r':'l')+(go?' go':'');   // 넘어갈 만큼 밀면 알약이 채워진다
+  h.textContent=dx<0?(t[2]+' →'):('← '+t[2]);
+  h.style.opacity=String(go?1:Math.min(.85,(a-24)/76));
+}
+function swipeStart(e){
+  if(e.touches.length!==1||swipeBlocked(e.target)) return;
+  const t=e.touches[0];
+  SW.x0=t.clientX; SW.y0=t.clientY; SW.dx=0; SW.axis=''; SW.t0=Date.now();
+  SW.el=$(VIEWS[viewIdx()][1]);
+}
+function swipeMove(e){
+  if(!SW.el||e.touches.length!==1) return;
+  const t=e.touches[0], dx=t.clientX-SW.x0, dy=t.clientY-SW.y0;
+  if(!SW.axis){
+    if(Math.abs(dx)<8&&Math.abs(dy)<8) return;
+    SW.axis=Math.abs(dx)>Math.abs(dy)*1.4?'x':'y';   // 애매하면 세로 스크롤이 이긴다
+    if(SW.axis!=='x'){ SW.el=null; return; }
+    SW.el.classList.add('dragging');
+  }
+  e.preventDefault();
+  SW.dx=swipeTarget(dx<0?1:-1)?dx:dx*0.22;           // 끝이면 뻑뻑하게
+  SW.el.style.transform='translateX('+SW.dx+'px)';
+  SW.el.style.opacity=String(Math.max(.5,1-Math.abs(SW.dx)/innerWidth*1.1));
+  swipeHint(SW.dx);
+}
+function swipeEnd(){
+  if(!SW.el) return;
+  const el=SW.el, dx=SW.dx, ms=Date.now()-SW.t0;
+  SW.el=null; SW.axis='';
+  el.classList.remove('dragging'); el.style.transform=''; el.style.opacity='';
+  $('swipeHint').hidden=true;
+  const far=swipeGo(dx)||(Math.abs(dx)>34&&ms<260);   // 짧고 빠르면 튕긴 걸로 본다
+  if(!far) return;
+  const tgt=swipeTarget(dx<0?1:-1);
+  if(tgt){ ac(); showView(tgt[0]); }
+}
+addEventListener('touchstart',swipeStart,{passive:true});
+addEventListener('touchmove',swipeMove,{passive:false});
+addEventListener('touchend',swipeEnd,{passive:true});
+addEventListener('touchcancel',swipeEnd,{passive:true});
+addEventListener('keydown',function(e){                 // 데스크톱에서는 화살표로
+  if(e.metaKey||e.ctrlKey||e.altKey) return;
+  if(/^(INPUT|TEXTAREA|SELECT)$/.test((e.target.tagName||''))) return;
+  if(swipeBlocked(e.target)) return;
+  const d=e.key==='ArrowRight'?1:(e.key==='ArrowLeft'?-1:0);
+  if(!d) return;
+  const t=swipeTarget(d);
+  if(t){ e.preventDefault(); ac(); showView(t[0]); }
+});
 
 /* ---------- 사냥터 · 보스 ---------- */
 let huntBuilt=false;
