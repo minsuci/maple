@@ -40,7 +40,7 @@ function cleanRec(r) {
     grade: n(r.grade, 3),
     boss:  n(r.boss, 12),
     ach:   n(r.ach, 99),
-    lv:    n(r.lv, 99),
+    lv:    n(r.lv, 300),
     ig:    n(r.ig, 2),
     power: n(r.power, 100000),
     hall:  r.hall ? 1 : 0,

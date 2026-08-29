@@ -820,8 +820,8 @@ const NAMES=[['여명의 장검','심연의 대검','폭풍의 창','재의 언�
              ['여명의 건틀릿','심연의 손아귀','폭풍의 장갑','재의 완갑']];
 
 // 캐릭터 레벨 — 모자의 경험치획득량 옵션이 여기서 값을 한다
-const MAXLV=60;
-const xpNeed=L=>Math.round(100*Math.pow(L,1.9));
+const MAXLV=300;
+const xpNeed=L=>Math.round(25*Math.pow(L,1.6));
 const OFF_CAP=8*3600;          // 오프라인 수입 상한 8시간
 const OFF_RATE=0.5;            // 자리를 비우면 절반만 번다
 
@@ -862,9 +862,10 @@ const ACH=[
  ['p1','전투력 200','',                            s=>s.st.best>=200,     100000],
  ['p2','전투력 400','',                            s=>s.st.best>=400,     700000],
  ['p3','전투력 700','',                            s=>s.st.best>=700,     4000000],
- ['l1','레벨 10','',                               s=>(s.lv||1)>=10,      80000],
- ['l2','레벨 30','',                               s=>(s.lv||1)>=30,      700000],
- ['l3','레벨 50','',                               s=>(s.lv||1)>=50,      4000000],
+ ['l1','레벨 30','',                               s=>(s.lv||1)>=30,      150000],
+ ['l2','레벨 100','',                              s=>(s.lv||1)>=100,     1200000],
+ ['l3','레벨 200','',                              s=>(s.lv||1)>=200,     6000000],
+ ['l4','만렙 300','더 오를 레벨이 없다',            s=>(s.lv||1)>=300,     30000000],
  ['m1','1억 지출','메소 1억을 태운다',              s=>s.st.spent>=1e8,    1000000],
  ['h1','명예의 전당','전투력 300 + 레전드리 잠재',  s=>s.st.hall>0,        5000000]
 ];
@@ -901,7 +902,7 @@ const totalStars=()=>S.items.reduce((a,it)=>a+(it.broken?0:it.star),0);
 function sfBonus(){ const t=totalStars(); let b=0; for(const x of SFTIERS) if(t>=x[0]) b=x[1]; return b; }
 function sfNext(){ const t=totalStars(); for(const x of SFTIERS) if(t<x[0]) return x; return null; }
 const expMult=()=>1+sumOpt('exp')/100;
-const lvBonus=()=>((S.lv||1)-1)*2.5;              // 레벨이 기본 전투력을 올린다
+const lvBonus=()=>((S.lv||1)-1)*2;                // 레벨이 기본 전투력을 올린다 (300렙 = +598)
 const power=()=>Math.round((S.items.reduce((a,_,i)=>a+slotPow(i),0)+lvBonus())*(1+sfBonus()/100));
 const xpRate=()=>{ const m=MAPS[S.map||0]; return m?m.rate/200*mapEff(S.map||0,power())*expMult():0; };
 const potGradeOf=it=>it&&it.lines.length?it.lines[0].g:-1;
@@ -1597,15 +1598,15 @@ function gainXp(v){
   while((S.lv||1)<MAXLV && S.xp>=xpNeed(S.lv||1)){ S.xp-=xpNeed(S.lv); S.lv=(S.lv||1)+1; up++; }
   if(up){
     SND.up(); burst(80,'#5CE68A',{sp:1.1});
-    flash('LV '+S.lv,'기본 전투력 +'+(up*2.5).toFixed(1),'#5CE68A');
+    flash('LV '+S.lv,'기본 전투력 +'+(up*2),'#5CE68A');
     log('<b>레벨 '+S.lv+' 달성</b> — 기본 전투력이 올랐다','up');
   }
 }
 function renderLevel(){
-  const need=xpNeed(S.lv||1), p=Math.min(100,((S.xp||0)/need)*100);
-  $('lvV').textContent=S.lv||1;
+  const max=(S.lv||1)>=MAXLV, need=xpNeed(S.lv||1), p=max?100:Math.min(100,((S.xp||0)/need)*100);
+  $('lvV').textContent=(S.lv||1)>=MAXLV?'MAX':(S.lv||1);
   $('xpFill').style.width=p+'%';
-  $('xpText').innerHTML='EXP <b>'+Math.floor(S.xp||0).toLocaleString('ko-KR')+'</b> / '+need.toLocaleString('ko-KR')+
+  $('xpText').innerHTML=max?'만렙 300 · 기본 전투력 +'+lvBonus():'EXP <b>'+Math.floor(S.xp||0).toLocaleString('ko-KR')+'</b> / '+need.toLocaleString('ko-KR')+
     ' · 초당 <b>'+Math.round(xpRate())+'</b>'+(expMult()>1?' (경험치획득량 +'+Math.round((expMult()-1)*100)+'%)':'');
 }
 function checkAch(){
@@ -1881,7 +1882,7 @@ function mergeBoard(){
     const id=String(e.id);
     const r={id:id, star:Math.min(36,+e.star||0), grade:Math.min(3,+e.grade||0),
              power:+e.power||0, hall:e.hall?1:0, des:+e.des||0, tries:+e.tries||0,
-             boss:Math.min(12,+e.boss||0), ach:Math.min(99,+e.ach||0), lv:Math.min(99,+e.lv||1), ts:+e.ts||0};
+             boss:Math.min(12,+e.boss||0), ach:Math.min(99,+e.ach||0), lv:Math.min(300,+e.lv||1), ts:+e.ts||0};
     // 잠금(h)은 가장 먼저 등록된 것을 끝까지 유지한다 — 나중 사람이 바꿔치기 못 하도록
     if(typeof e.h==='string'&&e.h){
       const cur=lock.get(id);
