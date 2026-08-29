@@ -1743,7 +1743,7 @@ function spendCube(cb,only){
     (function(idx){
       const el=$('p'+idx);
       const iv=setInterval(function(){ el.innerHTML=lineHTML(rollLine(slot,g)); SND.roll(); },55);
-      setTimeout(function(){ clearInterval(iv); }, stops[idx]);
+      setTimeout(function(){ clearInterval(iv); el.innerHTML=lineHTML(after[idx]); }, stops[idx]);
     })(i);
   }
   setTimeout(function(){ finishCube(cb,before,after,g); }, only>=0?stops[only]+40:1020);
