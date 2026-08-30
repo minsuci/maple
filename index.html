@@ -913,11 +913,12 @@ td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
     <h2 id="dropTitle">장비 드롭</h2>
     <div class="cmpbody" id="dropBody"></div>
     <div class="cmpbtns" style="flex-wrap:wrap">
-      <button class="btn gold" id="dropMove">스타포스 이전</button>
+      <button class="btn gold" id="dropTr">전수</button>
+      <button class="btn" id="dropMove">스타포스 이전</button>
       <button class="btn" id="dropWear">그대로 착용</button>
       <button class="btn" id="dropMelt" style="flex:0 0 auto">분해</button>
     </div>
-    <p class="lnote" style="margin-top:12px">갈아타면 잠재능력은 초기화된다. 성수치를 지키려면 스타포스 이전을 쓰자 (6성 손실).</p>
+    <p class="lnote" id="dropNote" style="margin-top:12px"></p>
   </div>
   </div>
 </div>
@@ -1134,6 +1135,9 @@ const GCAP=[1,2,3,3];
 // 잠재 줄 수 — 레전더리 장비라도 처음엔 세 줄이다. 금빛 각인으로 네 번째를 연다.
 const POTN=it=>(it&&it.ig>=3&&it.p4)?4:3;
 const ENG={cost:100000000, p:40};   // 값 1억 · 성공 40% · 실패해도 각인은 소모된다
+// 전수 — 어렵게 올린 걸 새 장비로 옮긴다. 별은 넷 깎이고 잠재는 그대로 따라간다.
+// 각인(네 번째 줄)은 안 따라간다. 그건 장비에 새긴 것이지 옮기는 게 아니다.
+const TR={cost:20000000, loss:4};
 const POTMAX=4;
 // 큐브 등급 상승 확률. 등급이 올라갈수록 문이 좁아진다 (한 칸마다 대략 1/4).
 // 공식 페이지는 큐브 종류가 기능만 다르고 확률은 같다고 하지만, 여기서는
@@ -1254,7 +1258,7 @@ const tokFor=(i,d)=>TOKCY[BOSSES[i].cyc]*(d===2?3:d===1?2:1);
 const bossReq=i=>bossReqAt(i,dIdx());
 const bossName=i=>BOSSES[i].n+(dIdx()?' '+DNAME[dIdx()]:'');
 // 성향별 드롭 확률 [장비, 큐브권, 쉴드권, 성공권]
-const defInv=()=>({red:0, black:0, choice:0, sh:0, sure:0, eng:0});
+const defInv=()=>({red:0, black:0, choice:0, sh:0, sure:0, eng:0, tr:0});
 const BTYPE={
   '메소'  :{eq:.08, cube:0,   sh:0,   sure:0},
   '장비'  :{eq:.20, cube:0,   sh:0,   sure:0},
@@ -2188,28 +2192,50 @@ function showDrop(slot,g,fromName,bagIdx){
   $('dropTitle').textContent=(fromName?fromName+'이(가) 떨군 ':'')+IGNAME[g]+' '+SLOTS[slot].n;
   $('dropBody').innerHTML=side('지금 '+SLOTS[slot].n,it.ig,it.star,'잠재 '+(potGradeOf(it)<0?'없음':GNAME[potGradeOf(it)]))+
     side('가방의 장비',g,0,'잠재 없음');
-  const wear=$('dropWear'), move=$('dropMove'), melt=$('dropMelt');
+  const wear=$('dropWear'), move=$('dropMove'), melt=$('dropMelt'), tr=$('dropTr');
+  const trKeep=Math.max(0,it.star-TR.loss), trHave=(S.inv.tr|0);
+  const trLines=carryLines(it,g);
   wear.textContent='그대로 착용 (0★)';
   move.textContent='스타포스 이전 — '+fmt(cost)+' 메소 ('+keep+'★)';
   move.disabled=S.meso<cost||it.star<7;
   melt.textContent='분해 (+'+fmt(meltValue(g))+')';
+  tr.textContent='전수 — 주문서 '+trHave+'장 ('+trKeep+'★'+(trLines.length?' · 잠재 '+trLines.length+'줄':'')+')';
+  tr.disabled=trHave<1||(it.star<=TR.loss&&!trLines.length);
   const drophere=function(){ if(bagIdx>=0&&S.bag) S.bag.splice(bagIdx,1); };
-  const take=function(star){
-    it.ig=g; it.star=star; it.lines=[]; it.broken=false; it.p4=false;   // 갈아끼운 장비는 각인도 다시 해야 한다
+  const take=function(star,lines){
+    it.ig=g; it.star=star; it.lines=lines||[]; it.broken=false; it.p4=false;   // 갈아끼운 장비는 각인도 다시 해야 한다
     it.name=drop?drop.name:pickName(slot);
     S.st.max=Math.max(S.st.max,star);
     drophere();
     box.hidden=true; SND.up(); burst(120,'#5CE68A',{sp:1.3});
-    flash(IGNAME[g]+' '+SLOTS[slot].n,star?('스타포스 이전 — '+star+'★'):'0★부터 다시','#5CE68A');
-    log('<b>'+IGNAME[g]+' '+SLOTS[slot].n+'</b>으로 갈아탔다 — '+star+'★, 잠재 초기화','up');
+    const ln=(lines&&lines.length)?(' · 잠재 '+lines.length+'줄'):'';
+    flash(IGNAME[g]+' '+SLOTS[slot].n,star||ln?(star+'★'+ln):'0★부터 다시','#5CE68A');
+    log('<b>'+IGNAME[g]+' '+SLOTS[slot].n+'</b>으로 갈아탔다 — '+star+'★'+(ln||', 잠재 초기화'),'up');
     S.sel=slot; renderAll(); save();
   };
   wear.onclick=function(){ take(0); };
   move.onclick=function(){ if(S.meso<cost) return; S.meso-=cost; S.st.spent+=cost; take(keep); };
+  tr.onclick=function(){ if((S.inv.tr|0)<1) return; S.inv.tr--; take(trKeep,trLines); };
   melt.onclick=function(){ const m=meltValue(g); S.meso+=m; drophere(); box.hidden=true;
     log(IGNAME[g]+' '+SLOTS[slot].n+'을(를) 분해했다 — <b>+'+fmt(m)+'</b> 메소','');
     renderAll(); save(); };
+  $('dropNote').innerHTML='<b>전수</b>는 별 '+TR.loss+'개를 내주고 <b>잠재까지</b> 옮긴다 — 주문서는 상점에서 산다.<br>'+
+    '<b>스타포스 이전</b>은 메소만 내고 별만 옮긴다 (6성 손실 · 잠재는 사라진다).'+
+    (trLines.length<((it.lines&&it.lines.length)||0)
+      ? '<br><b style="color:var(--bad)">지금 잠재 '+it.lines.length+'줄 중 '+trLines.length+'줄만 따라간다</b> — 새 장비는 아직 각인이 없다.'
+      : '');
   box.hidden=false;
+}
+
+// 전수로 따라갈 잠재 줄을 고른다.
+// 새 장비가 담을 수 있는 만큼만, 등급도 새 장비 상한을 넘지 못한다.
+function carryLines(it,ig){
+  if(!it.lines||!it.lines.length) return [];
+  const cap=GCAP[ig], n=POTN({ig:ig,p4:false});
+  return it.lines.slice(0,n).map(function(l){
+    const g2=Math.min(l.g,cap), d=OPT[l.k];
+    return {k:l.k, v:(g2<l.g&&d)?Math.min(l.v,d.v[g2]):l.v, g:g2};
+  });
 }
 
 // 시간제 버프. 값은 지금 수입에 맞춰 오른다 — 초반에 싸고 후반에 비싸야
@@ -2312,6 +2338,11 @@ const SHOP=[
    buy:function(){ S.buf.drp=BUFFS.drp.dur; SND.up();
      flash('드롭 부스터','10분 동안 드롭률 +60%','#7CFFB0');
      log('<b>드롭 부스터</b> — 10분 동안 아이템 드롭률 +60%','up'); }},
+  {k:'tr', n:'전수 주문서',
+   d:function(){ return '새 장비로 갈아탈 때 <b>별과 잠재를 함께</b> 옮긴다 · 별 '+TR.loss+'개 손실 · 지금 '+(S.inv.tr|0)+'장'; },
+   price:function(){ return TR.cost; }, can:function(){ return true; },
+   buy:function(){ S.inv.tr=(S.inv.tr|0)+1; SND.up();
+     log('<b>전수 주문서</b>를 샀다 — 장비를 갈아탈 때 쓴다','up'); }},
   {k:'eng', n:'금빛 각인',
    d:function(){ const it=cur();
      return '레전더리 장비의 <b>잠재 네 번째 줄</b>을 연다 · 성공 '+ENG.p+'% · 지금 '+(S.inv.eng|0)+'장'+
@@ -2940,7 +2971,8 @@ const BAG=[
   {k:'choice', n:'초이스 큐브', ic:'◈', c:'#B15CFF', d:'고른 한 줄만 재설정 · 나머지는 그대로'},
   {k:'sh',     n:'쉴드 교환권', ic:'◇', c:'#4FA8FF', d:'다음 강화 1회 쉴드 비용 면제'},
   {k:'sure',   n:'확정 성공권', ic:'★', c:'#5CE68A', d:'강화 1회 무조건 성공'},
-  {k:'eng',    n:'금빛 각인',   ic:'❖', c:'#FFD23F', d:'레전더리 장비의 잠재 네 번째 줄을 연다 · 성공 '+ENG.p+'%'}
+  {k:'eng',    n:'금빛 각인',   ic:'❖', c:'#FFD23F', d:'레전더리 장비의 잠재 네 번째 줄을 연다 · 성공 '+ENG.p+'%'},
+  {k:'tr',     n:'전수 주문서', ic:'⇄', c:'#7CFFB0', d:'새 장비로 갈아탈 때 별과 잠재를 함께 옮긴다'}
 ];
 const BAGTOK={n:'토벌 증표', ic:'◈', c:'#7CFFB0', d:'상점의 토벌 교환소에서 쓴다'};
 const bagVal=k=>{ const c=CUBES.find(function(x){return x.k===k;}); return c?c.cost:0; };
@@ -3850,7 +3882,7 @@ initOnline();
 
 // 균형 점검용 노출 (게임 동작에는 영향 없음)
 try{ window.__CFG={SF,MAXSTAR,starCost,SHIELD,SLOTS,OPT,POOL,GCAP,UPRATE,UPGRADE,CUBES,
-  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,lineHTML,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,renderAll,CRCOL,engrave,ENG,renderShop,renderCubes,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
+  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,lineHTML,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,renderAll,CRCOL,TR,carryLines,showDrop,engrave,ENG,renderShop,renderCubes,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
   get state(){return S;}, cur, power, income, mesoMult, dropMult, starMult, potMultOf, odds, potGrade, topGrade, totalStars, sfBonus}; }catch(e){}
 })();
 </script>
