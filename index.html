@@ -2298,6 +2298,28 @@ function rollDrop(i,bs){
   if(g>=3){ burst(160,'#5CE68A',{sp:1.5}); flash('레전더리 '+SLOTS[slot].n,'금빛 각인으로 잠재를 네 줄까지 연다','#5CE68A'); }
   else if(up) flash(IGNAME[g]+' '+SLOTS[slot].n,'가방에 넣어뒀다','#5CE68A');
 }
+// 가방 한 칸이 장비 하나를 통째로 담는다. 예전 항목은 별도 잠재도 없던 것이니 0 으로 읽는다.
+const bagStar=b=>(b&&b.star)|0;
+const bagLines=b=>(b&&Array.isArray(b.lines))?b.lines:[];
+const bagP4=b=>!!(b&&b.p4);
+// 쓰던 걸 가방에 넣는다. 자리가 없으면 분해해서 메소로 돌려준다.
+function stash(it,slot,why){
+  if(!Array.isArray(S.bag)) S.bag=[];
+  if(it.broken) return;                                  // 부서진 건 남길 게 없다
+  if(!it.star && !it.lines.length && !it.ig) return;     // 0성 레어 맨몸은 굳이 자리를 안 먹는다
+  const rec={slot:slot, ig:it.ig, name:it.name, star:it.star|0,
+             lines:it.lines.map(function(l){ return Object.assign({},l); }), p4:!!it.p4,
+             from:'', ts:Date.now()};
+  if(S.bag.length>=BAG_MAX){
+    const m=meltValue(it.ig); S.meso+=m;
+    log('<b>가방이 꽉 차서</b> 쓰던 '+IGNAME[it.ig]+' '+SLOTS[slot].n+'을(를) 분해했다 (+'+fmt(m)+')','fail');
+    return;
+  }
+  S.bag.push(rec);
+  log('쓰던 <b>'+IGNAME[it.ig]+' '+SLOTS[slot].n+'</b>('+it.star+'★'+
+      (it.lines.length?' · 잠재 '+it.lines.length+'줄':'')+')을(를) 가방에 넣어뒀다',(why||''));
+}
+
 function showDrop(slot,g,fromName,bagIdx){
   const box=$('drop'), it=S.items[slot];
 
@@ -2307,36 +2329,40 @@ function showDrop(slot,g,fromName,bagIdx){
       '<div style="font-size:11px;color:var(--dimmer)">'+sub+'</div></div>';
   };
   const drop=(bagIdx>=0&&S.bag&&S.bag[bagIdx])?S.bag[bagIdx]:null;
+  const nStar=bagStar(drop), nLines=bagLines(drop), nP4=bagP4(drop);
+  const nPot=nLines.length?GNAME[nLines[0].g]:'없음';
   $('dropTitle').textContent=(fromName?fromName+'이(가) 떨군 ':'')+IGNAME[g]+' '+SLOTS[slot].n;
   $('dropBody').innerHTML=side('지금 '+SLOTS[slot].n,it.ig,it.star,'잠재 '+(potGradeOf(it)<0?'없음':GNAME[potGradeOf(it)]))+
-    side('가방의 장비',g,0,'잠재 없음');
+    side('가방의 장비',g,nStar,'잠재 '+nPot);
   const wear=$('dropWear'), melt=$('dropMelt'), tr=$('dropTr');
-  const trKeep=trStar(it.star), trHave=(S.inv.tr|0);
+  const trKeep=Math.max(nStar,trStar(it.star)), trHave=(S.inv.tr|0);
   const trMp=Math.round(mpFor(it.star,trKeep)*igCost(it));   // 비싸게 박은 별일수록 많이 돌려준다
   const trLines=carryLines(it,g);
-  wear.textContent='그대로 착용 (0★)';
+  wear.textContent='그대로 착용 ('+nStar+'★'+(nLines.length?' · 잠재 '+nLines.length+'줄':'')+')';
   melt.textContent='분해 (+'+fmt(meltValue(g))+')';
   tr.textContent='전수 — 주문서 '+trHave+'장 ('+trKeep+'★'+
     (trLines.length?' · 잠재 '+trLines.length+'줄':'')+(trMp?' · 마스터리 +'+trMp:'')+')';
   tr.disabled=trHave<1||(it.star<1&&!trLines.length);
   const drophere=function(){ if(bagIdx>=0&&S.bag) S.bag.splice(bagIdx,1); };
-  const take=function(star,lines){
-    it.ig=g; it.star=star; it.lines=lines||[]; it.broken=false; it.p4=false;   // 갈아끼운 장비는 각인도 다시 해야 한다
+  // keep=true 면 쓰던 장비를 가방에 남긴다. 전수는 쓰던 걸 태워 넣는 거라 남기지 않는다.
+  const take=function(star,lines,p4,keep){
+    drophere();                                  // 먼저 자리를 비우고
+    if(keep) stash(it,slot,'up');                // 쓰던 걸 그 자리에 넣는다
+    it.ig=g; it.star=star; it.lines=lines||[]; it.broken=false; it.p4=!!p4;
     it.name=drop?drop.name:pickName(slot);
     S.st.max=Math.max(S.st.max,star);
-    drophere();
     box.hidden=true; SND.up(); burst(120,'#5CE68A',{sp:1.3});
     const ln=(lines&&lines.length)?(' · 잠재 '+lines.length+'줄'):'';
     flash(IGNAME[g]+' '+SLOTS[slot].n,star||ln?(star+'★'+ln):'0★부터 다시','#5CE68A');
     log('<b>'+IGNAME[g]+' '+SLOTS[slot].n+'</b>으로 갈아탔다 — '+star+'★'+(ln||', 잠재 초기화'),'up');
     S.sel=slot; renderAll(); save();
   };
-  wear.onclick=function(){ take(0); };
+  wear.onclick=function(){ take(nStar,nLines,nP4,true); };
   tr.onclick=function(){
     if((S.inv.tr|0)<1) return;
     S.inv.tr--;
     if(trMp){ mastOf(slot).p+=trMp; }
-    take(trKeep,trLines);
+    take(trKeep,trLines.length?trLines:nLines,false,false);
     if(trMp) flash('마스터리 +'+trMp,SLOTS[slot].n+'에 쌓였다 — 강화대에서 찍는다','#7CFFB0');
   };
   melt.onclick=function(){ const m=meltValue(g); S.meso+=m; drophere(); box.hidden=true;
@@ -3173,14 +3199,21 @@ function renderBag(){
   if(!Array.isArray(S.bag)) S.bag=[];
   let junk=0;
   S.bag.forEach(function(b,idx){
-    const up=b.ig>S.items[b.slot].ig; if(!up) junk++;
+    // 등급만 보면 25성 유니크가 0성 레전더리보다 낮다고 나온다. 실제 기여로 잰다.
+    const cur0=S.items[b.slot], nowV=SLOTS[b.slot].base*starMult(cur0.star)*potMultOf(cur0.lines);
+    const newV=SLOTS[b.slot].base*starMult(bagStar(b))*potMultOf(bagLines(b));
+    const up=newV>nowV||(b.ig>cur0.ig&&newV>=nowV); if(!up) junk++;
     const el=document.createElement('div');
     el.className='bagrow drop'+(up?' up':'');
     el.innerHTML='<svg class="bgi" viewBox="0 0 64 64" aria-hidden="true">'+
         (b.slot===0?(WEAPON_ART[jobKey()]||WEAPON_ART.war):SLOT_ART[b.slot])+'</svg>'+
       '<span><span class="bn">'+SLOTS[b.slot].n+' <span class="gradetag '+GKEY[b.ig]+'">'+IGNAME[b.ig]+'</span>'+
         (up?'<span class="upmark">지금보다 높다</span>':'')+'</span>'+
-      '<span class="bd">'+esc(b.name)+(b.from?' · '+esc(b.from)+' 드롭':'')+'</span></span>'+
+      '<span class="bd">'+esc(b.name)+
+        (bagStar(b)?' · <b>'+bagStar(b)+'★</b>':'')+
+        (bagLines(b).length?' · 잠재 '+bagLines(b).map(function(l){
+          return '<b style="color:'+GCOL[l.g]+'">'+OPT[l.k].n+' +'+l.v+OPT[l.k].u+'</b>';}).join(' · ')
+         :(b.from?' · '+esc(b.from)+' 드롭':''))+'</span></span>'+
       '<span class="bbtns"><button class="mini wear">착용</button>'+
       '<button class="mini melt">분해 +'+fmt(meltValue(b.ig))+'</button></span>';
     el.querySelector('.wear').addEventListener('click',function(){ ac(); showDrop(b.slot,b.ig,b.from,idx); });
@@ -4048,7 +4081,7 @@ initOnline();
 
 // 균형 점검용 노출 (게임 동작에는 영향 없음)
 try{ window.__CFG={SF,MAXSTAR,starCost,SHIELD,SLOTS,OPT,POOL,GCAP,UPRATE,UPGRADE,CUBES,
-  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,lineHTML,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,SLOT_ART,WEAPON_ART,dropSlot,BTYPE,renderAll,CRCOL,passTime,offerOffline,OFF_CAP,OFF_RATE,TR,carryLines,showDrop,cost,protUse,safeUse,IGCOST,igCost,MAST,MPS,mpFor,mastOf,mastFree,mastMult,mastSum,trStar,renderMast,starMult,expMult,engrave,ENG,renderShop,renderCubes,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
+  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,lineHTML,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,SLOT_ART,WEAPON_ART,stash,bagStar,bagLines,bagP4,dropSlot,BTYPE,renderAll,CRCOL,passTime,offerOffline,OFF_CAP,OFF_RATE,TR,carryLines,showDrop,cost,protUse,safeUse,IGCOST,igCost,MAST,MPS,mpFor,mastOf,mastFree,mastMult,mastSum,trStar,renderMast,starMult,expMult,engrave,ENG,renderShop,renderCubes,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
   get state(){return S;}, cur, power, income, mesoMult, dropMult, starMult, potMultOf, odds, potGrade, topGrade, totalStars, sfBonus}; }catch(e){}
 })();
 </script>
