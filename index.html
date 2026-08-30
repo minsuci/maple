@@ -473,14 +473,22 @@ td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
 .bphead h2{margin:0;text-align:left;font-size:20px;font-weight:900;letter-spacing:-.01em;line-height:1.15;}
 .bpsub{margin:4px 0 0;font-size:11.5px;color:var(--dim);line-height:1.6;}
 .bpdiffs{display:flex;flex-direction:column;gap:6px;}
-.bpd{display:grid;grid-template-columns:62px 1fr auto;gap:11px;align-items:center;text-align:left;
+.bpd{display:grid;grid-template-columns:66px 1fr auto;gap:11px;align-items:center;text-align:left;
   background:#15122C;border:1px solid var(--edge);border-radius:10px;padding:10px 12px;}
 .bpd:hover:not(:disabled){border-color:var(--edge2);}
 .bpd[aria-current="true"]{border-color:var(--gold);background:#241C05;}
 .bpd:disabled{opacity:.4;}
 .bpd .dn{font-weight:900;font-size:12.5px;}
 .bpd[aria-current="true"] .dn{color:var(--gold);}
-.bpd .dd{display:block;font-size:11px;color:var(--dim);margin-top:2px;}
+.bpd .dq{display:block;font-size:10px;font-weight:700;color:var(--dimmer);margin-top:3px;}
+.bpcr{display:flex;align-items:center;gap:9px;min-width:0;}
+.bpcr .pct{font-family:'Bebas Neue',sans-serif;font-size:22px;line-height:1;letter-spacing:.02em;
+  min-width:46px;text-align:right;}
+.bpcr .trk{flex:1;min-width:34px;height:6px;border-radius:99px;background:#241F45;overflow:hidden;}
+.bpcr .fil{display:block;height:100%;border-radius:99px;transition:width .18s;}
+/* 타일 아래쪽 실선 — 지금 갈 수 있는 최고 난이도의 승산 */
+.btrate{position:absolute;left:0;right:0;bottom:0;height:3px;background:#241F45;}
+.btrate i{display:block;height:100%;}
 .bpd .dr{font-family:'Bebas Neue',sans-serif;font-size:17px;color:var(--meso);white-space:nowrap;}
 .bpd .ok{font-size:9px;font-weight:900;letter-spacing:.06em;color:#2A1A00;background:var(--ok);
   border-radius:99px;padding:2px 6px;margin-left:5px;}
@@ -490,9 +498,10 @@ td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
 @media(max-width:400px){
   .bphead{grid-template-columns:76px 1fr;gap:11px;}
   .bpart{width:76px;height:76px;}
-  .bpd{grid-template-columns:50px 1fr auto;gap:8px;padding:9px 10px;}
+  .bpd{grid-template-columns:56px 1fr auto;gap:8px;padding:9px 10px;}
   .bpd .dn{font-size:11.5px;}
-  .bpd .dd{font-size:10.5px;}
+  .bpcr{gap:6px;}
+  .bpcr .pct{font-size:19px;min-width:40px;}
   .bpd .dr{font-size:15px;}
 }
 /* ---------- 스킬 ---------- */
@@ -1226,6 +1235,10 @@ const BOSSES=[
 ];
 const DNAME=['일반','하드','카오스'];
 const DCOL=['#8B84B8','#FF8A96','#B15CFF'];
+// 확률은 숫자보다 색이 먼저 읽힌다 — 초록이면 가고, 빨강이면 준비를 더 한다.
+const CRCOL=r=>r>=0.9?'#5CE68A':r>=0.6?'#FFD23F':r>=0.3?'#FF9F45':r>0?'#FF5E6C':'#4A4370';
+// 막대는 바닥을 둔다 — 1% 짜리가 아예 안 보이면 잠긴 것과 구분이 안 된다
+const crBar=r=>r<=0?0:Math.max(4,Math.round(r*100));
 const dIdx=()=>Math.max(0,Math.min(2,S.diff|0));
 const bossHas=(i,d)=>[BOSSES[i].req,BOSSES[i].hreq,BOSSES[i].creq][d]>0;
 const bossReqAt=(i,d)=>[BOSSES[i].req,BOSSES[i].hreq,BOSSES[i].creq][d]||0;
@@ -3146,7 +3159,8 @@ function buildHunt(){
     b.style.setProperty('--c',bossHue(i));
     b.innerHTML='<span class="bar"></span>'+
       '<svg class="btart" viewBox="0 0 64 64" aria-hidden="true">'+bossArt(i)+'</svg>'+
-      '<span class="btnm">'+bs.n+'</span><span class="btcd" hidden></span>';
+      '<span class="btnm">'+bs.n+'</span><span class="btcd" hidden></span>'+
+      '<span class="btrate"><i></i></span>';
     b.addEventListener('click',function(){ ac(); openBoss(i); });
     bl.appendChild(b);
   });
@@ -3188,6 +3202,9 @@ function updateHunt(){
     const bd=el.querySelector('.btcd');
     bd.hidden=!(cd>0||fighting===i);
     bd.textContent=fighting===i?'교전':fmtCd(cd);
+    const rate=top<0?0:clearRate2(i,top,p), fil=el.querySelector('.btrate i');
+    fil.style.width=crBar(rate)+'%';
+    fil.style.background=CRCOL(rate);
   });
   const m=MAPS[S.map||0];
   $('animTog').setAttribute('aria-checked',String(S.anim!==false));
@@ -3224,28 +3241,22 @@ function renderBossPick(){
   const L=$('bpDiffs'); L.innerHTML='';
   [0,1,2].forEach(function(d){
     if(!bossHas(i,d)) return;
-    const req=bossReqAt(i,d), cr=Math.round(clearRate(i,p)*100*0+ (function(){
-      const r=p/req; if(r<=0.5) return 0; if(r>=1.45) return 1;
-      const x=(r-0.5)/0.05, k=Math.floor(x);
-      return CRT[k]+(CRT[Math.min(CRT.length-1,k+1)]-CRT[k])*(x-k);
-    })()*100);
+    const req=bossReqAt(i,d), rate=clearRate2(i,d,p), cr=Math.round(rate*100), col=CRCOL(rate);
     const el=document.createElement('button');
     el.className='bpd'; el.dataset.d=d;
     el.setAttribute('aria-current',String(dIdx()===d));
-    el.disabled=cr<=0;
+    el.disabled=rate<=0;
     const kills=killsOf(i,d);
-    el.innerHTML='<span class="dn" style="color:'+DCOL[d]+'">'+DNAME[d]+
+    el.innerHTML='<span><span class="dn" style="color:'+DCOL[d]+'">'+DNAME[d]+
         (kills?'<span class="ok">'+kills+'회</span>':'')+'</span>'+
-      '<span><span class="dd">요구 전투력 <b>'+req+'</b> · 클리어 <b>'+cr+'%</b></span></span>'+
+        '<span class="dq">요구 '+req+'</span></span>'+
+      '<span class="bpcr"><span class="pct" style="color:'+col+'">'+cr+'%</span>'+
+        '<span class="trk"><i class="fil" style="width:'+crBar(rate)+'%;background:'+col+'"></i></span></span>'+
       '<span class="dr">'+fmt(Math.round(bossRewAt(i,d)*mesoMult()))+'</span>';
-    el.addEventListener('click',function(){ if(cr<=0) return; ac(); S.diff=d; renderBossPick(); save(); });
+    el.addEventListener('click',function(){ if(rate<=0) return; ac(); S.diff=d; renderBossPick(); save(); });
     L.appendChild(el);
   });
-  const d=dIdx(), req=bossReqAt(i,d);
-  const rr=p/req;
-  const cr=rr<=0.5?0:rr>=1.45?1:(function(){const x=(rr-0.5)/0.05,k=Math.floor(x);
-    return CRT[k]+(CRT[Math.min(CRT.length-1,k+1)]-CRT[k])*(x-k);})();
-  const first=killsOf(i,d)===0;
+  const d=dIdx(), cr=clearRate2(i,d,p), first=killsOf(i,d)===0;
   // 난이도를 고르면 그게 뭘 주는지 여기에 펼친다
   const base=Math.round(bossRewAt(i,d)*mesoMult());
   const lc=legChance(b,d);
@@ -3254,7 +3265,7 @@ function renderBossPick(){
     '<div class="rl">'+
       (first?'<span>첫 클리어 <b>+'+fmt(firstBonus(i))+'</b></span>':'')+
       '<span>토벌 증표 <b>'+tokFor(i,d)+'</b>개</span>'+
-      '<span>이길 확률 <b>'+Math.round(cr*100)+'%</b></span>'+
+      '<span>이길 확률 <b style="color:'+CRCOL(cr)+'">'+Math.round(cr*100)+'%</b></span>'+
       '<span>떨구는 것 <b>'+b.t+'</b></span>'+
       (lc>0?'<span>레전더리 장비 <b>'+(lc*100).toFixed(1)+'%</b></span>':'')+
     '</div>';
@@ -3839,7 +3850,7 @@ initOnline();
 
 // 균형 점검용 노출 (게임 동작에는 영향 없음)
 try{ window.__CFG={SF,MAXSTAR,starCost,SHIELD,SLOTS,OPT,POOL,GCAP,UPRATE,UPGRADE,CUBES,
-  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,lineHTML,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,renderAll,engrave,ENG,renderShop,renderCubes,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
+  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,lineHTML,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,renderAll,CRCOL,engrave,ENG,renderShop,renderCubes,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
   get state(){return S;}, cur, power, income, mesoMult, dropMult, starMult, potMultOf, odds, potGrade, topGrade, totalStars, sfBonus}; }catch(e){}
 })();
 </script>
