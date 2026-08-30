@@ -1224,25 +1224,25 @@ const ZONES=[
   {n:'아케인리버 · 그란디스', s:12}
 ];
 const MAPS=[
-  {n:'개미굴',          lv:1,   req:0,    rate:3600,  xp:10},
-  {n:'슬리피우드',       lv:10,  req:110,  rate:4500,  xp:25},
-  {n:'커닝시티 지하',    lv:20,  req:140,  rate:5600,  xp:32},
-  {n:'페리온 협곡',      lv:30,  req:175,  rate:7000,  xp:40},
+  {n:'개미굴',          lv:1,   req:0,    rate:140,  xp:10},
+  {n:'슬리피우드',       lv:10,  req:110,  rate:180,  xp:25},
+  {n:'커닝시티 지하',    lv:20,  req:140,  rate:220,  xp:32},
+  {n:'페리온 협곡',      lv:30,  req:175,  rate:280,  xp:40},
 
-  {n:'얼음 협곡',        lv:40,  req:215,  rate:8700,  xp:50},
-  {n:'오르비스 탑',      lv:55,  req:270,  rate:10800, xp:62},
-  {n:'해저 폐선',        lv:70,  req:335,  rate:13500, xp:75},
-  {n:'드래곤의 둥지',    lv:85,  req:420,  rate:16900, xp:88},
+  {n:'얼음 협곡',        lv:40,  req:215,  rate:350,  xp:50},
+  {n:'오르비스 탑',      lv:55,  req:270,  rate:430, xp:62},
+  {n:'해저 폐선',        lv:70,  req:335,  rate:540, xp:75},
+  {n:'드래곤의 둥지',    lv:85,  req:420,  rate:680, xp:88},
 
-  {n:'장난감 성',        lv:100, req:525,  rate:21000, xp:100},
-  {n:'시간의 신전',      lv:120, req:655,  rate:26200, xp:112},
-  {n:'미나르 숲',        lv:140, req:820,  rate:32800, xp:120},
-  {n:'마계 폐허',        lv:160, req:1025, rate:40800, xp:126},
+  {n:'장난감 성',        lv:100, req:525,  rate:840, xp:100},
+  {n:'시간의 신전',      lv:120, req:655,  rate:1040, xp:112},
+  {n:'미나르 숲',        lv:140, req:820,  rate:1320, xp:120},
+  {n:'마계 폐허',        lv:160, req:1025, rate:1640, xp:126},
 
-  {n:'츄츄 아일랜드',    lv:185, req:1280, rate:50800, xp:122},
-  {n:'레헬른',          lv:210, req:1600, rate:63400, xp:130},
-  {n:'아르카나',        lv:240, req:2000, rate:79000, xp:138},
-  {n:'검은 마법사의 성', lv:270, req:2500, rate:98000, xp:145}
+  {n:'츄츄 아일랜드',    lv:185, req:1280, rate:2040, xp:122},
+  {n:'레헬른',          lv:210, req:1600, rate:2540, xp:130},
+  {n:'아르카나',        lv:240, req:2000, rate:3160, xp:138},
+  {n:'검은 마법사의 성', lv:270, req:2500, rate:3920, xp:145}
 ];
 const zoneOf=i=>{ for(let z=ZONES.length-1;z>=0;z--) if(i>=ZONES[z].s) return z; return 0; };
 const zoneEnd=z=>(z+1<ZONES.length?ZONES[z+1].s:MAPS.length);
@@ -1259,28 +1259,28 @@ const mapOpen=i=>!!MAPS[i]&&(S.lv||1)>=MAPS[i].lv;
 //      안 그러면 상위 보스 보상이 전부 같아져 카링이 검마보다 싸진다.
 // 하드/카오스 배수는 드롭 성향에 따라 다르다. 큐브·성공권으로 받는 놈은 메소가 짜다.
 const BOSSES=[
-  {n:'발록',        cyc:'일간', cd: 3600, req:  40, hreq:  75, creq:   0, rew:   864000, hrew:  1900000, crew:        0, t:'메소'},
-  {n:'자쿰',        cyc:'일간', cd: 3600, req:  90, hreq: 165, creq:   0, rew:  1040000, hrew:  3900000, crew:        0, t:'메소'},
-  {n:'혼테일',      cyc:'일간', cd: 3600, req: 160, hreq: 295, creq:   0, rew:  1680000, hrew:  5180000, crew:        0, t:'장비'},
-  {n:'파풀라투스',  cyc:'일간', cd: 3600, req: 250, hreq: 460, creq:   0, rew:  2600000, hrew:  6050000, crew:        0, t:'큐브'},
-  {n:'핑크빈',      cyc:'일간', cd: 3600, req: 360, hreq: 665, creq:   0, rew:  4060000, hrew: 16400000, crew:        0, t:'메소'},
-  {n:'반 레온',     cyc:'일간', cd: 3600, req: 490, hreq: 905, creq:   0, rew:  5070000, hrew: 15700000, crew:        0, t:'쉴드'},
-  {n:'힐라',        cyc:'일간', cd: 3600, req: 560, hreq:1030, creq:   0, rew:  6290000, hrew: 25000000, crew:        0, t:'메소'},
-  {n:'매그너스',    cyc:'주간', cd:10800, req: 640, hreq:1185, creq:1500, rew: 20700000, hrew: 58500000, crew:118000000, t:'장비'},
-  {n:'아카이럼',    cyc:'주간', cd:10800, req: 810, hreq:1500, creq:1900, rew: 26400000, hrew: 55300000, crew:113000000, t:'큐브'},
-  {n:'아칸',        cyc:'주간', cd:10800, req: 840, hreq:1950, creq:   0, rew: 28400000, hrew: 98900000, crew:        0, t:'장비'},
-  {n:'스우',        cyc:'주간', cd:10800, req: 870, hreq:1470, creq:   0, rew: 29400000, hrew: 73000000, crew:        0, t:'쉴드'},
-  {n:'데미안',      cyc:'주간', cd:10800, req: 920, hreq:1530, creq:   0, rew: 29400000, hrew: 76700000, crew:        0, t:'장비'},
-  {n:'루시드',      cyc:'주간', cd:10800, req:1000, hreq:1820, creq:2480, rew: 32100000, hrew: 91000000, crew:215000000, t:'장비'},
-  {n:'더스크',      cyc:'주간', cd:10800, req:1130, hreq:1870, creq:   0, rew: 36600000, hrew: 68300000, crew:        0, t:'큐브'},
-  {n:'윌',          cyc:'주간', cd:10800, req:1210, hreq:2130, creq:2560, rew: 37600000, hrew: 86600000, crew:166000000, t:'성공권'},
-  {n:'진 힐라',     cyc:'주간', cd:10800, req:1450, hreq:2450, creq:   0, rew: 45600000, hrew: 99600000, crew:        0, t:'큐브'},
-  {n:'아자젤',      cyc:'주간', cd:10800, req:1480, hreq:2590, creq:   0, rew: 45600000, hrew:140000000, crew:        0, t:'쉴드'},
-  {n:'듄켈',        cyc:'주간', cd:10800, req:1590, hreq:2620, creq:   0, rew: 51800000, hrew:142000000, crew:        0, t:'장비'},
-  {n:'선택받은 세렌',cyc:'주간', cd:10800, req:1690, hreq:2710, creq:   0, rew: 56900000, hrew:110000000, crew:        0, t:'큐브'},
-  {n:'검은 마법사', cyc:'월간', cd:43200, req:1720, hreq:2750, creq:   0, rew:228000000, hrew:671000000, crew:        0, t:'전부'},
-  {n:'감시자 칼로스',cyc:'주간', cd:10800, req:1740, hreq:2950, creq:   0, rew: 56900000, hrew:120000000, crew:        0, t:'성공권'},
-  {n:'카링',        cyc:'월간', cd:43200, req:3150, hreq:3600, creq:   0, rew:427000000, hrew:878000000, crew:        0, t:'전부'}
+  {n:'발록',        cyc:'일간', cd: 3600, req:  40, hreq:  75, creq:   0, rew:   140000, hrew:  300000, crew:        0, t:'메소'},
+  {n:'자쿰',        cyc:'일간', cd: 3600, req:  90, hreq: 165, creq:   0, rew:  170000, hrew:  640000, crew:        0, t:'메소'},
+  {n:'혼테일',      cyc:'일간', cd: 3600, req: 160, hreq: 295, creq:   0, rew:  270000, hrew:  840000, crew:        0, t:'장비'},
+  {n:'파풀라투스',  cyc:'일간', cd: 3600, req: 250, hreq: 460, creq:   0, rew:  400000, hrew:  960000, crew:        0, t:'큐브'},
+  {n:'핑크빈',      cyc:'일간', cd: 3600, req: 360, hreq: 665, creq:   0, rew:  640000, hrew: 2600000, crew:        0, t:'메소'},
+  {n:'반 레온',     cyc:'일간', cd: 3600, req: 490, hreq: 905, creq:   0, rew:  800000, hrew: 2500000, crew:        0, t:'쉴드'},
+  {n:'힐라',        cyc:'일간', cd: 3600, req: 560, hreq:1030, creq:   0, rew:  1000000, hrew: 4000000, crew:        0, t:'메소'},
+  {n:'매그너스',    cyc:'주간', cd:10800, req: 640, hreq:1185, creq:1500, rew: 3300000, hrew: 9200000, crew:19000000, t:'장비'},
+  {n:'아카이럼',    cyc:'주간', cd:10800, req: 810, hreq:1500, creq:1900, rew: 4400000, hrew: 8800000, crew:18000000, t:'큐브'},
+  {n:'아칸',        cyc:'주간', cd:10800, req: 840, hreq:1950, creq:   0, rew: 4400000, hrew: 16000000, crew:        0, t:'장비'},
+  {n:'스우',        cyc:'주간', cd:10800, req: 870, hreq:1470, creq:   0, rew: 4800000, hrew: 12000000, crew:        0, t:'쉴드'},
+  {n:'데미안',      cyc:'주간', cd:10800, req: 920, hreq:1530, creq:   0, rew: 4800000, hrew: 12000000, crew:        0, t:'장비'},
+  {n:'루시드',      cyc:'주간', cd:10800, req:1000, hreq:1820, creq:2480, rew: 5200000, hrew: 14000000, crew:34000000, t:'장비'},
+  {n:'더스크',      cyc:'주간', cd:10800, req:1130, hreq:1870, creq:   0, rew: 6000000, hrew: 11000000, crew:        0, t:'큐브'},
+  {n:'윌',          cyc:'주간', cd:10800, req:1210, hreq:2130, creq:2560, rew: 6000000, hrew: 14000000, crew:26000000, t:'성공권'},
+  {n:'진 힐라',     cyc:'주간', cd:10800, req:1450, hreq:2450, creq:   0, rew: 7200000, hrew: 16000000, crew:        0, t:'큐브'},
+  {n:'아자젤',      cyc:'주간', cd:10800, req:1480, hreq:2590, creq:   0, rew: 7200000, hrew:22000000, crew:        0, t:'쉴드'},
+  {n:'듄켈',        cyc:'주간', cd:10800, req:1590, hreq:2620, creq:   0, rew: 8400000, hrew:23000000, crew:        0, t:'장비'},
+  {n:'선택받은 세렌',cyc:'주간', cd:10800, req:1690, hreq:2710, creq:   0, rew: 9200000, hrew:18000000, crew:        0, t:'큐브'},
+  {n:'검은 마법사', cyc:'월간', cd:43200, req:1720, hreq:2750, creq:   0, rew:36000000, hrew:107000000, crew:        0, t:'전부'},
+  {n:'감시자 칼로스',cyc:'주간', cd:10800, req:1740, hreq:2950, creq:   0, rew: 9200000, hrew:19000000, crew:        0, t:'성공권'},
+  {n:'카링',        cyc:'월간', cd:43200, req:3150, hreq:3600, creq:   0, rew:68000000, hrew:140000000, crew:        0, t:'전부'}
 ];
 const DNAME=['일반','하드','카오스'];
 const DCOL=['#8B84B8','#FF8A96','#B15CFF'];
@@ -1568,7 +1568,7 @@ function clearRate(i,p){
 }
 const bossReward=i=>Math.round(bossRewAt(i,dIdx())*mesoMult());
 const firstBonus=i=>{ const b=BOSSES[i]; return b?Math.round(b.rew*3*mesoMult()):0; };
-const income=()=>Math.max(300,mapIncome(S.map||0,power()));
+const income=()=>Math.max(30,mapIncome(S.map||0,power()));
 const fmt=n=>{
   n=Math.floor(n);
   if(n>=1e8) return (n/1e8).toFixed(n>=1e9?0:2)+'억';
@@ -3874,7 +3874,7 @@ function catchUp(sec){
   if(el<3) return;
   // 버프를 켜두고 나갔다 오는 걸로 이득을 보면 안 된다. 먼저 태우고 수입을 잰다.
   if(S.buf) for(const k in S.buf) if(S.buf[k]>0) S.buf[k]=Math.max(0,S.buf[k]-el);
-  const m=income()*el, xp=xpRate()*el;
+  const m=income()*el*OFF_RATE, xp=xpRate()*el*OFF_RATE;   // 창을 열어둔 채 묻어둔 것도 절반이다
   S.meso+=m; gainXp(xp);
   if(Array.isArray(S.bcd)) for(let i=0;i<S.bcd.length;i++) if(S.bcd[i]>0) S.bcd[i]=Math.max(0,S.bcd[i]-el);
   if(Array.isArray(S.skcd)) for(let k=0;k<S.skcd.length;k++) if(S.skcd[k]>0) S.skcd[k]=Math.max(0,S.skcd[k]-el);
