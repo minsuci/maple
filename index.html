@@ -1099,7 +1099,9 @@ const SLOTS=[
   {n:'모자',   base:15, cost:0.5, ic:'\u{1F452}'},
   {n:'신발',   base:12, cost:0.4, ic:'\u{1F462}'},
   {n:'장갑',   base:13, cost:0.4, ic:'\u{1F9E4}'},
-  {n:'벨트',   base:14, cost:0.45, ic:'\u{1F9F5}'}
+  {n:'벨트',   base:14, cost:0.45, ic:'\u{1F9F5}'},
+  {n:'어깨',   base:12, cost:0.4,  ic:'\u{1F6E1}'},
+  {n:'망토',   base:16, cost:0.5,  ic:'\u{1F9E5}'}
 ];
 
 /* ---------- 잠재 옵션 (200레벨) ----------
@@ -1150,7 +1152,12 @@ const POOL=[
   // 순수 보스공격력은 일부러 뺐다. 짝 옵션이 전투력을 0.2% 밖에 안 깎으면서
   // 경험치·메소를 40% 넘게 올려주니, 순수 줄은 아무도 안 고르는 함정이 된다.
   // 그래서 벨트는 '두 몫을 하느냐'가 아니라 '어느 쪽을 겸하느냐'만 고르면 된다.
-  [['bex',26.0],['bme',24.0],['bdr',22.0],['emd',16.0],['edr',12.0]]
+  [['bex',26.0],['bme',24.0],['bdr',22.0],['emd',16.0],['edr',12.0]],
+  // 어깨 — 무기 말고 주력 대미지가 나오는 두 번째 자리. 무기 하나만 붙들던 걸 푼다.
+  [['pdm',18.0],['mdm',18.0],['crr',16.0],['acc',14.0],['hp',13.0],['mp',11.0],['hpr',10.0]],
+  // 망토 — 보스공격력과 사냥옵이 한 자리에서 겨룬다.
+  // 벨트가 둘을 '겸하는' 자리라면 망토는 둘 중 하나를 '고르는' 자리다.
+  [['bat',20.0],['exp',18.0],['drp',16.0],['evd',14.0],['hp',13.0],['mpr',10.0],['mes',9.0]]
 ];
 const PSUM=POOL.map(p=>p.reduce((a,x)=>a+x[1],0));
 const GNAME=['레어','에픽','유니크','레전더리'];
@@ -1342,7 +1349,7 @@ function dropSlot(leg){
   return (Math.random()*SLOTS.length)|0;
 }
 // 총 스타포스 누적 보너스 — 다섯 부위 성수치를 합친 만큼 전투력이 통째로 오른다
-const SFTIERS=[[30,3],[60,7],[90,12],[120,18],[150,25],[180,35],[210,42]];
+const SFTIERS=[[30,3],[60,7],[90,12],[120,18],[150,25],[180,35],[210,42],[240,49],[270,56],[288,62]];
 // 레전더리는 승급으로 못 만드는 물건이라 분해값도 따로 논다
 const meltValue=g=>[11000,22000,33000,140000][g]||11000;
 const BAG_MAX=30;          // 보관함 칸 수 — 넘치면 새로 떨어진 건 그 자리에서 분해된다
@@ -1375,7 +1382,9 @@ const NAMES=[['여명의 장검','심연의 대검','폭풍의 창','재의 언�
              ['여명의 투구','심연의 관','폭풍의 두건','별무리 모자'],
              ['질풍의 장화','심연의 부츠','서리꽃 신','별무리 구두'],
              ['여명의 건틀릿','심연의 손아귀','폭풍의 장갑','재의 완갑'],
-             ['여명의 허리띠','심연의 벨트','폭풍의 요대','재의 허리띠']];
+             ['여명의 허리띠','심연의 벨트','폭풍의 요대','재의 허리띠'],
+             ['여명의 견갑','심연의 어깨','폭풍의 견장','재의 숄더'],
+             ['별빛 망토','심연의 겉옷','서리꽃 망토','재의 망토']];
 // 무기 이름은 직업을 따라간다
 const WNAMES={
   war:['여명의 장검','심연의 대검','폭풍의 창','재의 언월도'],
@@ -1421,7 +1430,8 @@ const ACH=[
  ['f2','총 스타포스 60','',                        s=>totalStars()>=60,   800000,  0,.2],
  ['f3','총 스타포스 100','',                       s=>totalStars()>=100,  3000000, 0,.3],
  ['f4','총 스타포스 150','',                       s=>totalStars()>=150,  12000000,0,.5],
- ['f5','총 스타포스 180','여섯 부위를 고루 올린다',  s=>totalStars()>=180,  40000000,0,.8],
+ ['f5','총 스타포스 180','여덟 부위를 고루 올린다',  s=>totalStars()>=180,  40000000,0,.8],
+ ['f6','총 스타포스 240','여덟 부위 평균 30성',      s=>totalStars()>=240,  120000000,0,1.0],
  ['g1','에픽 잠재','',                             s=>topGrade()>=1,      100000,  0,0],
  ['g2','유니크 잠재','',                           s=>topGrade()>=2,      400000,  .3,0],
  ['g3','레전더리 잠재','',                         s=>topGrade()>=3,      3000000, .5,0],
@@ -1431,9 +1441,9 @@ const ACH=[
  ['c4','큐브 8000회','',                           s=>s.st.cube>=8000,    15000000,.5,0],
  ['i1','에픽 장비','',                             s=>s.items.some(x=>x.ig>=1), 80000, 0,0],
  ['i2','유니크 장비','',                           s=>s.items.some(x=>x.ig>=2), 500000,0,0],
- ['i3','풀 유니크','여섯 부위 전부 유니크 장비',    s=>s.items.every(x=>x.ig>=2),2500000,0,.4],
+ ['i3','풀 유니크','여덟 부위 전부 유니크 장비',    s=>s.items.every(x=>x.ig>=2),2500000,0,.4],
  ['i4','레전더리 장비','보스만 떨군다 — 승급으로는 못 만든다', s=>s.items.some(x=>x.ig>=3), 15000000,.4,0],
- ['i5','풀 레전더리','여섯 부위 전부 레전더리 장비', s=>s.items.every(x=>x.ig>=3), 90000000,0,.8],
+ ['i5','풀 레전더리','여덟 부위 전부 레전더리 장비', s=>s.items.every(x=>x.ig>=3), 90000000,0,.8],
  ['b1','첫 격파','',                               s=>(s.bk||[]).some(x=>x>0), 100000, 0,0],
  ['b2','매그너스 격파','',                         s=>(s.bk||[])[7]>0,    600000,  0,.2],
  ['b3','윌 격파','',                               s=>(s.bk||[])[14]>0,    2500000, 0,.3],
@@ -1742,7 +1752,23 @@ const SLOT_ART=[
   '<rect x="26" y="21" width="16" height="22" rx="3.5" fill="#C98A2E" stroke="#5E3C0C" stroke-width="1.6"/>'+
   '<rect x="30" y="25" width="8" height="14" rx="2" fill="#241C05" stroke="#5E3C0C" stroke-width="1.2"/>'+
   '<path d="M34 25 v14" stroke="#C98A2E" stroke-width="2.4"/>'+
-  '<path d="M30 20 l4 -5 l4 5 z" fill="#FFC94A" stroke="#5E3C0C" stroke-width="1.2"/>'
+  '<path d="M30 20 l4 -5 l4 5 z" fill="#FFC94A" stroke="#5E3C0C" stroke-width="1.2"/>',
+  // 어깨 — 견갑
+  ART_DEF+
+  '<path d="M46 10 L57 22 L52 30 L36 20 Z" fill="#9FB4E0" stroke="#2A2450" stroke-width="1.4"/>'+
+  '<path d="M8 30 Q10 14 30 12 Q48 13 52 28 L48 34 Q28 40 10 36 Z" fill="url(#bl)" stroke="#2A2450" stroke-width="1.6"/>'+
+  '<path d="M9 38 Q28 44 49 37 L46 45 Q27 51 11 45 Z" fill="url(#bl)" stroke="#2A2450" stroke-width="1.5"/>'+
+  '<path d="M11 47 Q26 53 45 48 L43 55 Q26 60 13 54 Z" fill="#6E7BB4" stroke="#2A2450" stroke-width="1.4"/>'+
+  '<circle cx="27" cy="25" r="3.8" fill="#FFC94A" stroke="#5E3C0C" stroke-width="1.3"/>'+
+  '<path d="M17 22 Q28 18 42 23" fill="none" stroke="#8FA6DA" stroke-width="1.2" opacity=".6"/>',
+  // 망토 — 여밈쇠와 늘어진 천
+  ART_DEF+
+  '<path d="M19 14 Q32 9 45 14 L53 53 Q42 59 32 55 Q22 59 11 53 Z" fill="url(#bl)" stroke="#2A2450" stroke-width="1.6"/>'+
+  '<path d="M32 15 L32 55" stroke="#2A2450" stroke-width="1.2" opacity=".4"/>'+
+  '<path d="M23 18 L18 51 M41 18 L46 51" fill="none" stroke="#2A2450" stroke-width="1" opacity=".32"/>'+
+  '<path d="M11 53 q10 4 21 2 q11 2 21 -2" fill="none" stroke="#8FA6DA" stroke-width="1.2" opacity=".55"/>'+
+  '<rect x="17" y="9" width="30" height="7" rx="3.5" fill="#C98A2E" stroke="#5E3C0C" stroke-width="1.4"/>'+
+  '<circle cx="32" cy="12.5" r="3.4" fill="#FFC94A" stroke="#5E3C0C" stroke-width="1.3"/>'
 ];
 
 /* ---------- 그리기 ---------- */
@@ -4022,7 +4048,7 @@ initOnline();
 
 // 균형 점검용 노출 (게임 동작에는 영향 없음)
 try{ window.__CFG={SF,MAXSTAR,starCost,SHIELD,SLOTS,OPT,POOL,GCAP,UPRATE,UPGRADE,CUBES,
-  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,lineHTML,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,dropSlot,BTYPE,renderAll,CRCOL,passTime,offerOffline,OFF_CAP,OFF_RATE,TR,carryLines,showDrop,cost,protUse,safeUse,IGCOST,igCost,MAST,MPS,mpFor,mastOf,mastFree,mastMult,mastSum,trStar,renderMast,starMult,expMult,engrave,ENG,renderShop,renderCubes,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
+  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,lineHTML,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,SLOT_ART,WEAPON_ART,dropSlot,BTYPE,renderAll,CRCOL,passTime,offerOffline,OFF_CAP,OFF_RATE,TR,carryLines,showDrop,cost,protUse,safeUse,IGCOST,igCost,MAST,MPS,mpFor,mastOf,mastFree,mastMult,mastSum,trStar,renderMast,starMult,expMult,engrave,ENG,renderShop,renderCubes,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
   get state(){return S;}, cur, power, income, mesoMult, dropMult, starMult, potMultOf, odds, potGrade, topGrade, totalStars, sfBonus}; }catch(e){}
 })();
 </script>
