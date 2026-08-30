@@ -1173,10 +1173,10 @@ const MPS=[0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,
 const mpFor=(from,to)=>{ let t=0; for(let k=(to|0)+1;k<=(from|0);k++) t+=MPS[k]||0; return t; };
 // 찍을 수 있는 갈래. 직업을 안 타는 둘과, 사냥 쪽 둘.
 const MAST=[
-  {k:'dmg', n:'주력 대미지',   u:'%', v:0.5,  cp:1.00, cap:40},
-  {k:'bat', n:'보스 공격력',   u:'%', v:0.55, cp:0.90, cap:40},
-  {k:'exp', n:'경험치 획득량', u:'%', v:0.9,  cp:0,    cap:40},
-  {k:'mes', n:'메소 획득량',   u:'%', v:0.9,  cp:0,    cap:40}
+  {k:'dmg', n:'주력 대미지',   u:'%', v:0.5,  cp:1.00, cap:80},
+  {k:'bat', n:'보스 공격력',   u:'%', v:0.55, cp:0.90, cap:80},
+  {k:'exp', n:'경험치 획득량', u:'%', v:0.9,  cp:0,    cap:80},
+  {k:'mes', n:'메소 획득량',   u:'%', v:0.9,  cp:0,    cap:80}
 ];
 const MASTK={}; MAST.forEach(function(x){ MASTK[x.k]=x; });
 const POTMAX=4;
