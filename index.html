@@ -2896,19 +2896,34 @@ function renderAch(){
       '<span class="ar">'+fmt(a[4])+'</span></div>';
   }).join('');
 }
+/* 시간만 지나면 되는 것들 — 보스 쿨, 스킬 쿨, 버프, 럭키데이.
+   수입은 8시간까지만 쌓이지만 쿨은 실제로 흐른 만큼 흐른다. 상세창에도
+   "자리를 비운 동안에도 쿨은 흐른다"고 적어놨으니 그래야 맞다. */
+function passTime(sec){
+  const el=Math.max(0,Math.floor(sec));
+  if(el<1) return;
+  if(S.buf) for(const k in S.buf) if(S.buf[k]>0) S.buf[k]=Math.max(0,S.buf[k]-el);
+  if(Array.isArray(S.bcd)) for(let i=0;i<S.bcd.length;i++) if(S.bcd[i]>0) S.bcd[i]=Math.max(0,S.bcd[i]-el);
+  if(Array.isArray(S.skcd)) for(let k=0;k<S.skcd.length;k++) if(S.skcd[k]>0) S.skcd[k]=Math.max(0,S.skcd[k]-el);
+  if(S.evT>0){ S.evT=0; S.evCd=180; }        // 자리 비운 사이 럭키데이는 지나갔다
+  else S.evCd=Math.max(5,S.evCd-(el%180));
+}
+
 /* 오프라인 수입 */
 let offPend=0;
 function offerOffline(sec){
+  passTime(sec);                                  // 쿨은 상한 없이 먼저 흘려보낸다
   const el=Math.min(OFF_CAP,Math.floor(sec));
-  if(el<60) return;
+  if(el<60){ renderAll(); return; }
   offPend=el;
   const meso=Math.round(income()*el*OFF_RATE), xp=Math.round(xpRate()*el*OFF_RATE);
-  const h=Math.floor(el/3600), m=Math.floor(el%3600/60);
+  const real=Math.floor(sec), h=Math.floor(real/3600), m=Math.floor(real%3600/60);
   $('offTime').textContent=(h?h+'시간 ':'')+m+'분';
   $('offBody').innerHTML=
     '<div class="offrow"><span>사냥 수입</span><b>'+fmt(meso)+' 메소</b></div>'+
     '<div class="offrow"><span>경험치</span><b>'+xp.toLocaleString('ko-KR')+'</b></div>'+
-    '<div class="offnote">자리를 비운 동안엔 절반만 번다 · 최대 8시간까지 쌓인다</div>';
+    '<div class="offnote">자리를 비운 동안엔 절반만 번다 · 수입은 최대 8시간까지 쌓인다'+
+      (sec>OFF_CAP?'<br><b>보스 쿨타임은 상한 없이 '+(h?h+'시간 ':'')+m+'분 전부 흘렀다</b>':'')+'</div>';
   $('offTake').onclick=function(){
     S.meso+=meso; gainXp(xp); offPend=0;
     $('offline').hidden=true; SND.coin(); burst(60,'#FFD66B',{sp:.8});
@@ -3870,16 +3885,12 @@ function enter(raw,serverSave){
 // 계산해서 그만큼 채워준다. 창을 닫은 게 아니라 돌고 있어야 했을 시간이라
 // 오프라인(절반)과 달리 전액을 준다. 상한은 오프라인과 같은 8시간.
 function catchUp(sec){
-  const el=Math.min(OFF_CAP,sec);
-  if(el<3) return;
   // 버프를 켜두고 나갔다 오는 걸로 이득을 보면 안 된다. 먼저 태우고 수입을 잰다.
-  if(S.buf) for(const k in S.buf) if(S.buf[k]>0) S.buf[k]=Math.max(0,S.buf[k]-el);
+  passTime(sec);                                  // 쿨은 상한 없이
+  const el=Math.min(OFF_CAP,sec);                 // 수입만 8시간까지
+  if(el<3){ renderAll(); return; }
   const m=income()*el*OFF_RATE, xp=xpRate()*el*OFF_RATE;   // 창을 열어둔 채 묻어둔 것도 절반이다
   S.meso+=m; gainXp(xp);
-  if(Array.isArray(S.bcd)) for(let i=0;i<S.bcd.length;i++) if(S.bcd[i]>0) S.bcd[i]=Math.max(0,S.bcd[i]-el);
-  if(Array.isArray(S.skcd)) for(let k=0;k<S.skcd.length;k++) if(S.skcd[k]>0) S.skcd[k]=Math.max(0,S.skcd[k]-el);
-  if(S.evT>0){ S.evT=0; S.evCd=180; }        // 자리 비운 사이 럭키데이는 지나갔다
-  else S.evCd=Math.max(5,S.evCd-(el%180));
   const h=Math.floor(el/3600), mi=Math.floor(el%3600/60), s=Math.floor(el%60);
   const dur=h?(h+'시간 '+mi+'분'):(mi?(mi+'분'):(s+'초'));
   log('자리를 비운 <b>'+dur+'</b> 동안 <b>+'+fmt(Math.round(m))+'</b> 메소를 벌어뒀다','ok');
@@ -3989,7 +4000,7 @@ initOnline();
 
 // 균형 점검용 노출 (게임 동작에는 영향 없음)
 try{ window.__CFG={SF,MAXSTAR,starCost,SHIELD,SLOTS,OPT,POOL,GCAP,UPRATE,UPGRADE,CUBES,
-  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,lineHTML,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,renderAll,CRCOL,TR,carryLines,showDrop,cost,protUse,safeUse,IGCOST,igCost,MAST,MPS,mpFor,mastOf,mastFree,mastMult,mastSum,trStar,renderMast,starMult,expMult,engrave,ENG,renderShop,renderCubes,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
+  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,lineHTML,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,renderAll,CRCOL,passTime,offerOffline,OFF_CAP,OFF_RATE,TR,carryLines,showDrop,cost,protUse,safeUse,IGCOST,igCost,MAST,MPS,mpFor,mastOf,mastFree,mastMult,mastSum,trStar,renderMast,starMult,expMult,engrave,ENG,renderShop,renderCubes,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
   get state(){return S;}, cur, power, income, mesoMult, dropMult, starMult, potMultOf, odds, potGrade, topGrade, totalStars, sfBonus}; }catch(e){}
 })();
 </script>
