@@ -1164,9 +1164,9 @@ const ENG={cost:100000000, p:40};   // 값 1억 · 성공 40% · 실패해도 �
 // 마스터리 포인트로 돌아온다 — 갓챠가 아니라 내가 골라 찍는 확정 수치다.
 const TR={cost:20000000};
 const trStar=s=>Math.floor((s|0)/2);
-// 별 하나의 한계 기대비용을 로그로 눌러 담은 값(열 배 비싸지면 2점, 2만 메소가 1점 문턴).
-// 쉐드를 항상 켜는 실제 플레이 기준이다 — 하락이 생기는 5성부터 프로텍트,
-// 파괴가 생기는 15성부터 안전까지. 그랬면 하락도 파괴도 없어서
+// 별 하나의 한계 기대비용을 로그로 눌러 담은 값(열 배 비싸지면 2점, 2만 메소가 1점 문턱).
+// 쉴드를 항상 켜는 실제 플레이 기준이다 — 하락이 생기는 5성부터 프로텍트,
+// 파괴가 생기는 15성부터 안전까지. 그러면 하락도 파괴도 없어서
 // 별 하나가 딱 starCost x 배수 / 성공률 만큼 든다.
 const MPS=[0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,
            3,3,4,4,4,5,5,5,5,5,6,6,6,6,7,7,7,7,8,8,8];
@@ -1463,7 +1463,7 @@ const dayIdx=()=>Math.floor((Date.now()-new Date().getTimezoneOffset()*60000)/86
 const newItem=i=>({star:0, ig:0, lines:[], broken:false, p4:false, name:(i===0?WNAMES.war:NAMES[i])[0]});
 const DEF=()=>({
   meso:300000, sel:0, items:SLOTS.map(function(_,i){return newItem(i);}),
-  job:'war', diff:0, skcd:[0,0,0,0,0], tok:0, buf:{mes:0,drp:0}, useProt:false, useSafe:false, map:0, zone:0, mv:0, anim:true, hard:false, view:'up', lv:1, xp:0, ach:{},
+  job:'war', diff:0, skcd:[0,0,0,0,0], tok:0, buf:{mes:0,drp:0}, useProt:true, useSafe:true, map:0, zone:0, mv:0, anim:true, hard:false, view:'up', lv:1, xp:0, ach:{},
   att:{last:0, day:0, total:0},
   bcd:BOSSES.map(function(){return 0;}), bk:BOSSES.map(function(){return 0;}),
   inv:defInv(), bag:[], evT:0, evCd:180,
@@ -1830,12 +1830,16 @@ function renderEvent(){
   }
 }
 const EV=()=>S.evT>0;
-const shTicket=()=>(S.inv&&S.inv.sh>0)&&(S.useProt||S.useSafe);   // 쉴드권이 배수를 면제한다
+const shTicket=()=>(S.inv&&S.inv.sh>0)&&(protUse()||safeUse());   // 쉴드권이 배수를 면제한다
+// 쉴드는 막을 게 있을 때만 값을 받는다. 하락도 파괴도 없는 구간에서
+// 배수를 물리면 켜두는 것만으로 초반이 여덟 배가 된다 — 켜고 시작하니 더 그렇다.
+const protUse=()=>S.useProt&&(SF[cur().star]||[])[2]>0;
+const safeUse=()=>S.useSafe&&(SF[cur().star]||[])[3]>0;
 function cost(){
   let c=starCost(cur().star)*SLOTS[S.sel||0].cost;
   if(!shTicket()){
-    if(S.useProt) c*=SHIELD.prot;
-    if(S.useSafe) c*=SHIELD.safe;
+    if(protUse()) c*=SHIELD.prot;
+    if(safeUse()) c*=SHIELD.safe;
   }
   if(EV()) c*=.7;
   return Math.round(c/10)*10;
@@ -1877,8 +1881,13 @@ function renderStarPane(){
   $('swProt').setAttribute('aria-checked',String(S.useProt));
   $('swSafe').setAttribute('aria-checked',String(S.useSafe));
   const tk=shTicket();
-  $('protDesc').textContent='하락을 막는다 · 비용 '+(tk?'면제 (교환권)':SHIELD.prot+'배')+(it.star<6?' · 6★부터 하락':'');
-  $('safeDesc').textContent='파괴를 막는다 · 비용 '+(tk?'면제 (교환권)':SHIELD.safe+'배')+(it.star<15?' · 16★부터 파괴':'');
+  const pOn=(SF[it.star]||[])[2]>0, sOn=(SF[it.star]||[])[3]>0;
+  $('protDesc').textContent=pOn
+    ? ('하락을 막는다 · 비용 '+(tk?'면제 (교환권)':SHIELD.prot+'배'))
+    : '지금은 하락이 없다 · 6★부터 · 값도 안 받는다';
+  $('safeDesc').textContent=sOn
+    ? ('파괴를 막는다 · 비용 '+(tk?'면제 (교환권)':SHIELD.safe+'배'))
+    : '지금은 파괴가 없다 · 16★부터 · 값도 안 받는다';
 }
 function showResult(kind,txt){
   const el=$('resultBar');
@@ -3827,6 +3836,9 @@ function enter(raw,serverSave){
   if((S.mv|0)<2){                              // 사냥터가 6곳 → 16곳이 되면서 번호가 어긋난다
     S.mv=2; S.map=bestMap(power()); S.zone=zoneOf(S.map);
   }
+  if((S.mv|0)<3){                              // 쉴드 기본값이 켜짐으로 바뀌었다 — 꺼둔 채로 25성을 가면 사백 배를 낸다
+    S.mv=3; S.useProt=true; S.useSafe=true;
+  }
   if(!mapOpen(S.map||0)) S.map=bestMap(power());
   S.zone=Math.max(0,Math.min(ZONES.length-1,S.zone|0));
   repairShown=false;
@@ -3968,7 +3980,7 @@ initOnline();
 
 // 균형 점검용 노출 (게임 동작에는 영향 없음)
 try{ window.__CFG={SF,MAXSTAR,starCost,SHIELD,SLOTS,OPT,POOL,GCAP,UPRATE,UPGRADE,CUBES,
-  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,lineHTML,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,renderAll,CRCOL,TR,carryLines,showDrop,MAST,MPS,mpFor,mastOf,mastFree,mastMult,mastSum,trStar,renderMast,starMult,expMult,engrave,ENG,renderShop,renderCubes,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
+  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,lineHTML,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,renderAll,CRCOL,TR,carryLines,showDrop,cost,protUse,safeUse,MAST,MPS,mpFor,mastOf,mastFree,mastMult,mastSum,trStar,renderMast,starMult,expMult,engrave,ENG,renderShop,renderCubes,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
   get state(){return S;}, cur, power, income, mesoMult, dropMult, starMult, potMultOf, odds, potGrade, topGrade, totalStars, sfBonus}; }catch(e){}
 })();
 </script>
