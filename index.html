@@ -439,6 +439,22 @@ td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
 .bufchip b{font-family:'Bebas Neue',sans-serif;font-size:14px;}
 .bufchip i{font-style:normal;color:var(--dimmer);margin-left:3px;}
 
+/* ---------- 마스터리 ---------- */
+.mhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;
+  font-size:11px;font-weight:900;letter-spacing:.14em;color:var(--dimmer);}
+.mhead b{font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:.02em;color:#7CFFB0;}
+.mlist{display:flex;flex-direction:column;gap:6px;}
+.mrow{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;
+  background:#15122C;border:1px solid var(--edge);border-radius:10px;padding:10px 12px;}
+.mrow .mn{font-weight:900;font-size:12.5px;}
+.mrow .md{display:block;font-size:10.5px;color:var(--dimmer);margin-top:3px;font-weight:700;}
+.mrow .mv{font-family:'Bebas Neue',sans-serif;font-size:19px;color:var(--gold);white-space:nowrap;}
+.mrow .mb{display:flex;gap:5px;}
+.mstep{width:30px;height:30px;border-radius:8px;font-size:15px;font-weight:900;
+  background:#1B1638;border:1px solid var(--edge2);color:var(--txt);line-height:1;}
+.mstep:disabled{opacity:.3;}
+.mstep.up{color:#7CFFB0;}
+
 /* ---------- 보스 타일 ---------- */
 /* 한 줄에 둘. 그림으로 알아보고, 숫자는 눌러서 본다. */
 .bgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
@@ -774,6 +790,7 @@ td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
       <div class="tabs" role="tablist">
         <button class="tab" role="tab" id="tabStar" aria-selected="true" aria-controls="paneStar">스타포스</button>
         <button class="tab" role="tab" id="tabCube" aria-selected="false" aria-controls="paneCube">잠재능력 큐브</button>
+        <button class="tab" role="tab" id="tabMast" aria-selected="false" aria-controls="paneMast">마스터리</button>
         <button class="tab" role="tab" id="tabShop" aria-selected="false" aria-controls="paneShop">상점</button>
       </div>
 
@@ -804,6 +821,13 @@ td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
       <div class="pane" id="paneCube" role="tabpanel" aria-labelledby="tabCube" hidden>
         <div class="cubes" id="cubeList"></div>
         <p class="pity" id="pityV"></p>
+      </div>
+
+      <div class="pane" id="paneMast" role="tabpanel" aria-labelledby="tabMast" hidden>
+        <div class="mhead"><span>남은 포인트</span><b id="mpFree">0</b></div>
+        <div class="mlist" id="mastList"></div>
+        <div class="btnrow"><button class="btn" id="mastReset">전부 되돌리기</button></div>
+        <p class="pity" id="mastNote"></p>
       </div>
 
       <div class="pane" id="paneShop" role="tabpanel" aria-labelledby="tabShop" hidden>
@@ -914,7 +938,6 @@ td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
     <div class="cmpbody" id="dropBody"></div>
     <div class="cmpbtns" style="flex-wrap:wrap">
       <button class="btn gold" id="dropTr">전수</button>
-      <button class="btn" id="dropMove">스타포스 이전</button>
       <button class="btn" id="dropWear">그대로 착용</button>
       <button class="btn" id="dropMelt" style="flex:0 0 auto">분해</button>
     </div>
@@ -1137,7 +1160,23 @@ const POTN=it=>(it&&it.ig>=3&&it.p4)?4:3;
 const ENG={cost:100000000, p:40};   // 값 1억 · 성공 40% · 실패해도 각인은 소모된다
 // 전수 — 어렵게 올린 걸 새 장비로 옮긴다. 별은 넷 깎이고 잠재는 그대로 따라간다.
 // 각인(네 번째 줄)은 안 따라간다. 그건 장비에 새긴 것이지 옮기는 게 아니다.
-const TR={cost:20000000, loss:4};
+// 전수하면 별이 절반으로 떨어진다. 대신 버린 별에 들어갔던 돈이
+// 마스터리 포인트로 돌아온다 — 갓챠가 아니라 내가 골라 찍는 확정 수치다.
+const TR={cost:20000000};
+const trStar=s=>Math.floor((s|0)/2);
+// 별 하나의 한계 기대비용을 로그로 눌러 담은 값(열 배 비싸지면 2점).
+// 15성까지는 한계비용이 10만 메소가 안 돼서 0점이다 — 다시 올리는 데 값이 안 든다.
+const MPS=[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+           1,2,3,3,4,5,6,7,8,8,9,10,11,12,12,13,14,15,16,16,17];
+const mpFor=(from,to)=>{ let t=0; for(let k=(to|0)+1;k<=(from|0);k++) t+=MPS[k]||0; return t; };
+// 찍을 수 있는 갈래. 직업을 안 타는 둘과, 사냥 쪽 둘.
+const MAST=[
+  {k:'dmg', n:'주력 대미지',   u:'%', v:0.5,  cp:1.00, cap:40},
+  {k:'bat', n:'보스 공격력',   u:'%', v:0.55, cp:0.90, cap:40},
+  {k:'exp', n:'경험치 획득량', u:'%', v:0.9,  cp:0,    cap:40},
+  {k:'mes', n:'메소 획득량',   u:'%', v:0.9,  cp:0,    cap:40}
+];
+const MASTK={}; MAST.forEach(function(x){ MASTK[x.k]=x; });
 const POTMAX=4;
 // 큐브 등급 상승 확률. 등급이 올라갈수록 문이 좁아진다 (한 칸마다 대략 1/4).
 // 공식 페이지는 큐브 종류가 기능만 다르고 확률은 같다고 하지만, 여기서는
@@ -1438,6 +1477,18 @@ function save(){ if(USER){ S.ts=Date.now(); lsSet(LK.save(USER),S); netDirty=tru
 
 /* ---------- 수치 ---------- */
 const cur=()=>S.items[S.sel||0];
+// 마스터리는 장비가 아니라 부위에 쌓인다 — 갈아타도 남는다
+function mastOf(i){
+  if(!Array.isArray(S.mast)||S.mast.length!==SLOTS.length)
+    S.mast=SLOTS.map(function(_,k){ const o=(S.mast&&S.mast[k])||{}; return {p:o.p|0,u:o.u||{}}; });
+  const m=S.mast[i]||(S.mast[i]={p:0,u:{}});
+  if(!m.u) m.u={};
+  return m;
+}
+const mastUsed=i=>MAST.reduce((a,x)=>a+(mastOf(i).u[x.k]|0),0);
+const mastFree=i=>Math.max(0,(mastOf(i).p|0)-mastUsed(i));
+const mastMult=i=>1+MAST.reduce((a,x)=>a+(mastOf(i).u[x.k]|0)*x.v*x.cp,0)/100;
+const mastSum=k=>S.items.reduce((a,_,i)=>a+(mastOf(i).u[k]|0)*MASTK[k].v,0);
 function starMult(star){
   let m=0;
   for(let i=1;i<=star;i++) m += i<=15?4 : i<=25?7 : 11;
@@ -1462,11 +1513,11 @@ const earns=l=>{ const d=OPT[l.k]; if(!d) return false;
 const deadOpt=l=>cpOf(l)<3&&!earns(l);
 const potMultOf=lines=>1+lines.reduce((a,l)=>a+cpOf(l),0)/100;
 const slotPow=i=>{ const it=S.items[i]; if(!it||it.broken) return 0;
-  return SLOTS[i].base*starMult(it.star)*potMultOf(it.lines); };
+  return SLOTS[i].base*starMult(it.star)*potMultOf(it.lines)*mastMult(i); };
 const totalStars=()=>S.items.reduce((a,it)=>a+(it.broken?0:it.star),0);
 function sfBonus(){ const t=totalStars(); let b=0; for(const x of SFTIERS) if(t>=x[0]) b=x[1]; return b; }
 function sfNext(){ const t=totalStars(); for(const x of SFTIERS) if(t<x[0]) return x; return null; }
-const expMult=()=>1+sumOpt('exp')/100;
+const expMult=()=>1+(sumOpt('exp')+mastSum('exp'))/100;
 // 뒤로 갈수록 한 레벨이 무거워지니 보상도 같이 커진다
 // 1~100 +2 · 101~200 +4 · 201~250 +8 · 251~300 +16  (250렙 998, 300렙 1798)
 function lvBonus(){
@@ -1482,7 +1533,7 @@ const potGradeOf=it=>it&&it.lines.length?it.lines[0].g:-1;
 const potGrade=()=>potGradeOf(cur());
 const topGrade=()=>S.items.reduce((a,it)=>Math.max(a,potGradeOf(it)),-1);
 const sumOpt=key=>S.items.reduce((a,it)=>a+(it.broken?0:it.lines.reduce((b,l)=>b+partOf(l,key),0)),0);
-const mesoMult=()=>(1+sumOpt('mes')/100)*(1+bufOn('mes'));
+const mesoMult=()=>(1+(sumOpt('mes')+mastSum('mes'))/100)*(1+bufOn('mes'));
 const dropMult=()=>(1+sumOpt('drp')/100)*(1+bufOn('drp'));
 function mapEff(i,p){ const m=MAPS[i]; if(!m||!mapOpen(i)) return 0; if(!m.req) return 1;
   const r=Math.min(1,(p||0)/m.req); return r*r; }
@@ -2182,7 +2233,7 @@ function rollDrop(i,bs){
 }
 function showDrop(slot,g,fromName,bagIdx){
   const box=$('drop'), it=S.items[slot];
-  const cost=Math.round(starCost(it.star)*3*SLOTS[slot].cost/10)*10, keep=Math.max(0,it.star-6);
+
   const side=function(t,gr,star,sub){
     return '<div class="cside"><h3>'+t+'</h3><span class="gradetag '+GKEY[gr]+'">'+IGNAME[gr]+' 장비</span>'+
       '<div class="cpow" style="font-size:26px">'+star+'★</div>'+
@@ -2192,15 +2243,14 @@ function showDrop(slot,g,fromName,bagIdx){
   $('dropTitle').textContent=(fromName?fromName+'이(가) 떨군 ':'')+IGNAME[g]+' '+SLOTS[slot].n;
   $('dropBody').innerHTML=side('지금 '+SLOTS[slot].n,it.ig,it.star,'잠재 '+(potGradeOf(it)<0?'없음':GNAME[potGradeOf(it)]))+
     side('가방의 장비',g,0,'잠재 없음');
-  const wear=$('dropWear'), move=$('dropMove'), melt=$('dropMelt'), tr=$('dropTr');
-  const trKeep=Math.max(0,it.star-TR.loss), trHave=(S.inv.tr|0);
+  const wear=$('dropWear'), melt=$('dropMelt'), tr=$('dropTr');
+  const trKeep=trStar(it.star), trHave=(S.inv.tr|0), trMp=mpFor(it.star,trKeep);
   const trLines=carryLines(it,g);
   wear.textContent='그대로 착용 (0★)';
-  move.textContent='스타포스 이전 — '+fmt(cost)+' 메소 ('+keep+'★)';
-  move.disabled=S.meso<cost||it.star<7;
   melt.textContent='분해 (+'+fmt(meltValue(g))+')';
-  tr.textContent='전수 — 주문서 '+trHave+'장 ('+trKeep+'★'+(trLines.length?' · 잠재 '+trLines.length+'줄':'')+')';
-  tr.disabled=trHave<1||(it.star<=TR.loss&&!trLines.length);
+  tr.textContent='전수 — 주문서 '+trHave+'장 ('+trKeep+'★'+
+    (trLines.length?' · 잠재 '+trLines.length+'줄':'')+(trMp?' · 마스터리 +'+trMp:'')+')';
+  tr.disabled=trHave<1||(it.star<1&&!trLines.length);
   const drophere=function(){ if(bagIdx>=0&&S.bag) S.bag.splice(bagIdx,1); };
   const take=function(star,lines){
     it.ig=g; it.star=star; it.lines=lines||[]; it.broken=false; it.p4=false;   // 갈아끼운 장비는 각인도 다시 해야 한다
@@ -2214,13 +2264,19 @@ function showDrop(slot,g,fromName,bagIdx){
     S.sel=slot; renderAll(); save();
   };
   wear.onclick=function(){ take(0); };
-  move.onclick=function(){ if(S.meso<cost) return; S.meso-=cost; S.st.spent+=cost; take(keep); };
-  tr.onclick=function(){ if((S.inv.tr|0)<1) return; S.inv.tr--; take(trKeep,trLines); };
+  tr.onclick=function(){
+    if((S.inv.tr|0)<1) return;
+    S.inv.tr--;
+    if(trMp){ mastOf(slot).p+=trMp; }
+    take(trKeep,trLines);
+    if(trMp) flash('마스터리 +'+trMp,SLOTS[slot].n+'에 쌓였다 — 강화대에서 찍는다','#7CFFB0');
+  };
   melt.onclick=function(){ const m=meltValue(g); S.meso+=m; drophere(); box.hidden=true;
     log(IGNAME[g]+' '+SLOTS[slot].n+'을(를) 분해했다 — <b>+'+fmt(m)+'</b> 메소','');
     renderAll(); save(); };
-  $('dropNote').innerHTML='<b>전수</b>는 별 '+TR.loss+'개를 내주고 <b>잠재까지</b> 옮긴다 — 주문서는 상점에서 산다.<br>'+
-    '<b>스타포스 이전</b>은 메소만 내고 별만 옮긴다 (6성 손실 · 잠재는 사라진다).'+
+  $('dropNote').innerHTML='<b>전수</b>는 별을 <b>절반</b>으로 내주고 <b>잠재</b>를 옮긴다. '+
+    '버린 별에 들어갔던 돈은 <b>마스터리 포인트</b>로 돌아온다 — 부위에 남아 갈아타도 사라지지 않는다.<br>'+
+    '주문서는 상점에서 '+fmt(TR.cost)+'.'+
     (trLines.length<((it.lines&&it.lines.length)||0)
       ? '<br><b style="color:var(--bad)">지금 잠재 '+it.lines.length+'줄 중 '+trLines.length+'줄만 따라간다</b> — 새 장비는 아직 각인이 없다.'
       : '');
@@ -2339,7 +2395,7 @@ const SHOP=[
      flash('드롭 부스터','10분 동안 드롭률 +60%','#7CFFB0');
      log('<b>드롭 부스터</b> — 10분 동안 아이템 드롭률 +60%','up'); }},
   {k:'tr', n:'전수 주문서',
-   d:function(){ return '새 장비로 갈아탈 때 <b>별과 잠재를 함께</b> 옮긴다 · 별 '+TR.loss+'개 손실 · 지금 '+(S.inv.tr|0)+'장'; },
+   d:function(){ return '갈아탈 때 <b>잠재를 옮기고</b> 버린 별을 <b>마스터리 포인트</b>로 바꾼다 · 별은 절반 · 지금 '+(S.inv.tr|0)+'장'; },
    price:function(){ return TR.cost; }, can:function(){ return true; },
    buy:function(){ S.inv.tr=(S.inv.tr|0)+1; SND.up();
      log('<b>전수 주문서</b>를 샀다 — 장비를 갈아탈 때 쓴다','up'); }},
@@ -2357,6 +2413,32 @@ const SHOP=[
      flash('럭키데이','60초 동안 성공 확률이 두 배','#FFC94A');
      log('<b>럭키데이를 불렀다</b> — 60초','up'); }}
 ];
+function renderMast(){
+  const i=S.sel||0, m=mastOf(i), free=mastFree(i);
+  $('mpFree').textContent=free;
+  const L=$('mastList'); L.innerHTML='';
+  MAST.forEach(function(x){
+    const n=m.u[x.k]|0;
+    const el=document.createElement('div');
+    el.className='mrow';
+    el.innerHTML='<span><span class="mn">'+x.n+'</span>'+
+        '<span class="md">1점당 +'+x.v+x.u+' · '+n+' / '+x.cap+'점</span></span>'+
+      '<span class="mv">+'+(+(n*x.v).toFixed(1))+x.u+'</span>'+
+      '<span class="mb"><button class="mstep" data-k="'+x.k+'" data-d="-1">−</button>'+
+        '<button class="mstep up" data-k="'+x.k+'" data-d="1">+</button></span>';
+    const bs=el.querySelectorAll('.mstep');
+    bs[0].disabled=n<1;
+    bs[1].disabled=free<1||n>=x.cap;
+    bs[0].addEventListener('click',function(){ ac(); m.u[x.k]=Math.max(0,n-1); renderAll(); save(); });
+    bs[1].addEventListener('click',function(){ if(mastFree(i)<1||n>=x.cap) return; ac(); m.u[x.k]=n+1; renderAll(); save(); });
+    L.appendChild(el);
+  });
+  $('mastReset').disabled=mastUsed(i)<1;
+  $('mastNote').innerHTML='<b>'+SLOTS[i].n+'</b>의 마스터리다 — 부위마다 따로 쌓이고, 장비를 갈아타도 남는다.<br>'+
+    '포인트는 <b>전수</b>로만 들어온다. 버린 별이 비쌀수록 많이 준다 (16성부터 붙고, 그 아래는 0).<br>'+
+    '갓챠가 아니라 <b>확정</b>이다 — 언제든 되돌려서 다시 찍을 수 있다. 지금 이 부위 배수 <b>x'+
+    mastMult(i).toFixed(3)+'</b>';
+}
 function renderShop(){
   const L=$('shopList'); L.innerHTML='';
   SHOP.forEach(function(x){
@@ -2972,7 +3054,7 @@ const BAG=[
   {k:'sh',     n:'쉴드 교환권', ic:'◇', c:'#4FA8FF', d:'다음 강화 1회 쉴드 비용 면제'},
   {k:'sure',   n:'확정 성공권', ic:'★', c:'#5CE68A', d:'강화 1회 무조건 성공'},
   {k:'eng',    n:'금빛 각인',   ic:'❖', c:'#FFD23F', d:'레전더리 장비의 잠재 네 번째 줄을 연다 · 성공 '+ENG.p+'%'},
-  {k:'tr',     n:'전수 주문서', ic:'⇄', c:'#7CFFB0', d:'새 장비로 갈아탈 때 별과 잠재를 함께 옮긴다'}
+  {k:'tr',     n:'전수 주문서', ic:'⇄', c:'#7CFFB0', d:'갈아탈 때 잠재를 옮기고 버린 별을 마스터리로 바꾼다'}
 ];
 const BAGTOK={n:'토벌 증표', ic:'◈', c:'#7CFFB0', d:'상점의 토벌 교환소에서 쓴다'};
 const bagVal=k=>{ const c=CUBES.find(function(x){return x.k===k;}); return c?c.cost:0; };
@@ -3201,7 +3283,7 @@ function buildHunt(){
 }
 function updateHunt(){
   if(!huntBuilt) return;
-  renderSkills();
+  renderSkills(); renderMast();
   const p=power(), best=bestMap(p);
   if(S.zone==null) S.zone=zoneOf(S.map||0);
   $('zoneTabs').querySelectorAll('.ztab').forEach(function(el,z){
@@ -3828,7 +3910,9 @@ addEventListener('keydown',e=>{
 $('swSafe').addEventListener('click',()=>{ S.useSafe=!S.useSafe; renderStarPane(); save(); });
 [0,1,2,3].forEach(i=>$('p'+i).addEventListener('click',()=>pickLine(i)));
 $('swProt').addEventListener('click',()=>{ S.useProt=!S.useProt; renderStarPane(); save(); });
-const TABS=[['tabStar','paneStar'],['tabCube','paneCube'],['tabShop','paneShop']];
+$('mastReset').addEventListener('click',function(){ const m=mastOf(S.sel||0); if(!mastUsed(S.sel||0)) return;
+  ac(); m.u={}; log('마스터리를 전부 되돌렸다 — 포인트는 그대로다',''); renderAll(); save(); });
+const TABS=[['tabStar','paneStar'],['tabCube','paneCube'],['tabMast','paneMast'],['tabShop','paneShop']];
 TABS.forEach(function(pair,i){
   $(pair[0]).addEventListener('click',function(){
     TABS.forEach(function(q,j){
@@ -3882,7 +3966,7 @@ initOnline();
 
 // 균형 점검용 노출 (게임 동작에는 영향 없음)
 try{ window.__CFG={SF,MAXSTAR,starCost,SHIELD,SLOTS,OPT,POOL,GCAP,UPRATE,UPGRADE,CUBES,
-  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,lineHTML,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,renderAll,CRCOL,TR,carryLines,showDrop,engrave,ENG,renderShop,renderCubes,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
+  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,lineHTML,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,renderAll,CRCOL,TR,carryLines,showDrop,MAST,MPS,mpFor,mastOf,mastFree,mastMult,mastSum,trStar,renderMast,starMult,expMult,engrave,ENG,renderShop,renderCubes,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
   get state(){return S;}, cur, power, income, mesoMult, dropMult, starMult, potMultOf, odds, potGrade, topGrade, totalStars, sfBonus}; }catch(e){}
 })();
 </script>
