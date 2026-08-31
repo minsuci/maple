@@ -4005,10 +4005,12 @@ async function submitLogin(){
   if(SRV){                                   // 서버가 비밀번호를 검증한다
     const {status,j}=await apiPost({action:'enter',id:id,pw:pw,mode:newMode?'new':'login'});
     $('enterBtn').disabled=false;
-    if(status===401) return err('비밀번호가 다르다');
+    if(status===401) return err('비밀번호가 다르다'+((j&&j.left!==undefined)?' — '+j.left+'번 더 틀리면 15분 잠긴다':''));
     if(status===404) return err('없는 아이디다 — 아래 <새 캐릭터 만들기>로 만들자');
     if(status===409) return err('이미 쓰는 아이디다 — 로그인으로 들어가자');
-    if(status===429) return err('요청이 너무 잦다. 잠시 뒤에 다시');
+    if(status===429) return err(j&&j.error==='locked'
+      ? ('여러 번 틀려서 잠겼다 — '+Math.ceil((j.wait||900)/60)+'분 뒤에 다시')
+      : '요청이 너무 잦다. 잠시 뒤에 다시');
     if(status!==200||!j||!j.ok) return err('서버에 연결하지 못했다');
     TOKEN=j.token; lsSet(LK.tok(id),TOKEN);
     absorb(j); setAdmin(j.admin); err(''); enter(id, j.save);   // 마스터 여부는 서버만 정한다

@@ -16,10 +16,14 @@ const RATE_MAX = 150;           // IP당 분당 요청
 const FB_MAX = 500;             // 피드백 한 편 최대 글자
 const FB_KEEP = 400;            // 서버에 남겨두는 편수
 const FB_COOL = 60 * 1000;      // 한 사람이 다시 보내기까지
+// 비밀번호 틀린 횟수를 계정마다 센다. IP 제한(분당 150)만으로는
+// 네 자리 비밀번호가 한 시간이면 다 털린다. 창을 두고 시도를 조인다.
+const FAIL_MAX = 8;             // 이 횟수를 넘기면
+const FAIL_WIN = 900;           // 15분 동안 그 아이디로는 못 들어온다
 
 // 마스터 계정. 아이디는 비밀이 아니다 — 비밀번호를 모르면 아무것도 못 한다.
 // 아이디가 다르면 Vercel 환경변수 ADMIN_IDS 에 쉼표로 넣으면 된다.
-const ADMINS = String(process.env.ADMIN_IDS || '민수')
+const ADMINS = String(process.env.ADMIN_IDS || '맹수학')
   .split(',').map(s => s.trim()).filter(Boolean);
 const isAdmin = id => ADMINS.indexOf(id) >= 0;
 
@@ -144,6 +148,13 @@ module.exports = async (req, res) => {
       const pw = String(body.pw || '');
       if (pw.length < 4 || pw.length > 64) return res.status(400).json({ error: 'bad_pw_len' });
 
+      const fkey = 'byeol:fail:' + id;
+      const fails = Number(await redis(['GET', fkey])) || 0;
+      if (fails >= FAIL_MAX) {
+        const ttl = Number(await redis(['TTL', fkey])) || FAIL_WIN;
+        return res.status(429).json({ error: 'locked', wait: Math.max(1, ttl) });
+      }
+
       // 로그인과 새 계정을 갈라 받는다. 예전엔 모르는 아이디면 조용히 만들어버려서,
       // 오타 한 번에 빈 계정이 생기고 기록이 사라진 것처럼 보였다.
       // mode 를 안 보내는 옛 클라이언트는 예전처럼 자동으로 만든다.
@@ -157,7 +168,12 @@ module.exports = async (req, res) => {
         await writeUser(id, u);
         return res.status(200).json({ ok: true, created: true, admin: isAdmin(id), token: u.token, rec: null, save: null, board: await board() });
       }
-      if (!same(hash(pw, u.salt), u.hash)) return res.status(401).json({ error: 'wrong_pw' });
+      if (!same(hash(pw, u.salt), u.hash)) {
+        const n = await redis(['INCR', fkey]);
+        if (n === 1) await redis(['EXPIRE', fkey, FAIL_WIN]);
+        return res.status(401).json({ error: 'wrong_pw', left: Math.max(0, FAIL_MAX - n) });
+      }
+      await redis(['DEL', fkey]);                 // 맞았으면 센 걸 지운다
 
       // 토큰을 매번 갈아치우면 다른 탭/기기의 세션이 즉시 죽고, 그쪽 자동 저장이
       // 조용히 401로 실패해 진행 상황이 유실된다. 이미 있으면 그대로 쓴다.
