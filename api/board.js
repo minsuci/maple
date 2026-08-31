@@ -103,6 +103,7 @@ async function board() {
   return Object.keys(all)
     .map(id => publicRow(id, all[id]))
     .filter(r => r.ts && (r.star > 0 || r.tries > 0 || r.boss > 0))   // 아직 아무것도 안 한 계정은 랭킹에 안 띄운다
+    .filter(r => !isAdmin(r.id))                                     // 마스터는 뭐든 만들 수 있으니 순위에서 뺀다
     .sort((a, b) =>
       (b.hall - a.hall) || (b.star - a.star) || (b.grade - a.grade) ||
       (b.power - a.power) || (a.ts - b.ts))
