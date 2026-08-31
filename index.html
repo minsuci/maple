@@ -439,6 +439,33 @@ td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
 .bufchip b{font-family:'Bebas Neue',sans-serif;font-size:14px;}
 .bufchip i{font-style:normal;color:var(--dimmer);margin-left:3px;}
 
+/* ---------- 피드백 · 마스터 ---------- */
+.fbwrap{margin-top:14px;}
+.fbwrap textarea{width:100%;min-height:86px;resize:vertical;background:#15122C;color:var(--txt);
+  border:1px solid var(--edge);border-radius:10px;padding:10px 12px;font:inherit;font-size:13px;line-height:1.6;}
+.fbwrap textarea:focus{outline:none;border-color:var(--edge2);}
+.fbrow{display:flex;align-items:center;gap:10px;margin-top:8px;}
+.fbrow .cnt{font-size:11px;color:var(--dimmer);margin-left:auto;font-family:'Bebas Neue',sans-serif;font-size:14px;}
+.fbmsg{font-size:11.5px;color:var(--dim);margin-top:8px;line-height:1.6;}
+.fbmsg.ok{color:var(--ok);}
+.fbmsg.bad{color:var(--bad);}
+.adm{display:flex;flex-direction:column;gap:6px;}
+.admrow{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:start;text-align:left;
+  background:#15122C;border:1px solid var(--edge);border-radius:10px;padding:10px 12px;}
+.admrow.done{opacity:.45;}
+.admrow .who{font-size:11px;font-weight:900;color:var(--gold);}
+.admrow .who small{color:var(--dimmer);font-weight:700;margin-left:8px;padding-left:8px;border-left:1px solid var(--edge2);}
+.admrow .txt{font-size:12.5px;line-height:1.65;margin-top:4px;white-space:pre-wrap;word-break:break-word;}
+.admrow.done .txt{text-decoration:line-through;}
+.admtabs{display:flex;gap:5px;margin-bottom:10px;}
+.admtab{flex:1;padding:8px;border-radius:9px;font-weight:900;font-size:11.5px;color:var(--dim);
+  background:#1B1638;border:1px solid var(--edge);}
+.admtab[aria-selected="true"]{color:var(--gold);border-color:var(--gold);background:#2A2208;}
+.ptab{width:100%;border-collapse:collapse;font-size:11.5px;}
+.ptab th{text-align:left;color:var(--dimmer);font-size:10px;letter-spacing:.1em;padding:6px 8px;border-bottom:1px solid var(--edge);}
+.ptab td{padding:7px 8px;border-bottom:1px solid var(--edge);font-variant-numeric:tabular-nums;}
+.ptab td.nm{font-weight:900;}
+
 /* ---------- 마스터리 ---------- */
 .mhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;
   font-size:11px;font-weight:900;letter-spacing:.14em;color:var(--dimmer);}
@@ -921,8 +948,30 @@ td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
       <small>스타포스 확률표와 잠재능력 옵션표는 <b>메이플스토리M 공식 확률 공개 페이지</b>의 수치를 그대로 옮겼다 (잠재는 무기 200레벨 기준). 6★부터 하락, 16★부터 파괴, 20★부터는 성공 6%로 고정된다.<br>쉴드 비용 배수 · 장비 승급 확률 · 럭키데이 주기는 공식 수치가 없어 내가 정했다.<br><b>목표는 전투력 300 + 레전드리 잠재 = 명예의 전당.</b> 잠재 등급 상한은 장비 등급이 정한다 — 레전더리 잠재는 유니크 장비에서만 나온다. 계정 진행 상황은 서버에 저장되어 다른 기기에서도 이어진다.</small>
       <button class="reset" id="resetBtn">기록 전부 초기화</button>
     </div>
+      <div class="fbwrap" id="fbBox" hidden>
+        <h3>한마디 남기기</h3>
+        <textarea id="fbText" maxlength="500" placeholder="버그, 밸런스, 하고 싶은 것 — 뭐든 적어줘. 만든 사람이 읽는다."></textarea>
+        <div class="fbrow">
+          <button class="btn gold" id="fbSend">보내기</button>
+          <span class="cnt" id="fbCnt">0 / 500</span>
+        </div>
+        <p class="fbmsg" id="fbMsg">지금 레벨과 전투력이 같이 붙어서 간다 — 어떤 상황에서 나온 말인지 알아야 고칠 수 있으니까.</p>
+      </div>
   </section>
 </div>
+
+<div class="view" id="viewAdm" hidden>
+  <section class="card">
+    <h2>마스터</h2>
+    <div class="admtabs">
+      <button class="admtab" id="admFb" aria-selected="true">피드백</button>
+      <button class="admtab" id="admPl" aria-selected="false">플레이어</button>
+    </div>
+    <div class="adm" id="admBody"></div>
+    <p class="pity" id="admNote"></p>
+  </section>
+</div>
+
 
 <div class="compare" id="offline" hidden>
   <div class="cmpcard">
@@ -2010,6 +2059,7 @@ function renderAll(){
   if(cur().broken) repairUI(); else renderCubes();
   renderShop(); renderTShop(); renderLevel(); renderDaily(); checkAch(); renderAch();
   if(!$('bossPick').hidden) renderBossPick();
+  const fb=$('fbBox'); if(fb) fb.hidden=!(SRV&&TOKEN&&USER);
   const jv=$('jobV'); jv.hidden=!USER; jv.textContent=curJob().n;
   $('mJobSub').textContent=curJob().n+' · '+curJob().w;
   if(S.view==='inv') renderBag();   // 가방에서 분해·착용하면 목록이 바로 줄어야 한다
@@ -3058,7 +3108,7 @@ function claimDaily(){
 /* ---------- 화면 전환 ---------- */
 // 세 번째 칸은 스와이프할 때 어디로 가는지 띄워주는 이름이다
 const VIEWS=[['up','viewUp','강화'],['inv','viewInv','가방'],['hunt','viewHunt','사냥'],['ach','viewAch','업적'],
-             ['rank','viewRank','랭킹'],['rec','viewRec','기록']];
+             ['rank','viewRank','랭킹'],['rec','viewRec','기록'],['adm','viewAdm','마스터']];
 const viewIdx=k=>Math.max(0,VIEWS.findIndex(function(v){ return v[0]===(k||S.view||'up'); }));
 function showView(k){
   const from=viewIdx(), to=viewIdx(k);
@@ -3071,6 +3121,7 @@ function showView(k){
   if(k==='inv') renderBag();
   if(k==='rank') renderRank();
   if(k==='ach') renderAch();
+  if(k==='adm') renderAdm(true);
   if(to!==from){                              // 들어오는 쪽만 밀어 넣는다 — 화면마다 높이가 달라서
     const el=$(VIEWS[to][1]);                 // 두 장을 나란히 끌면 아래가 출렁인다
     el.classList.remove('vnext','vprev');
@@ -3087,6 +3138,7 @@ function buildNav(){
     const b=document.createElement('button');
     b.className='ntab'; b.dataset.v=v[0]; b.type='button';
     b.textContent=v[2];
+    if(v[0]==='adm') b.hidden=!ADMIN;             // 마스터가 아니면 칸 자체가 없다
     b.addEventListener('click',function(){ if(S.view!==v[0]){ ac(); showView(v[0]); } });
     n.appendChild(b);
   });
@@ -3513,6 +3565,84 @@ function fightPicked(){
   fightBoss(i);
 }
 
+/* ---------- 피드백 ---------- */
+async function sendFeedback(){
+  const t=$('fbText'), b=$('fbSend'), m=$('fbMsg');
+  const text=(t.value||'').trim();
+  if(text.length<4){ m.className='fbmsg bad'; m.textContent='너무 짧다 — 네 글자는 넘겨줘.'; return; }
+  if(!SRV||!TOKEN||!USER){ m.className='fbmsg bad'; m.textContent='서버에 연결돼 있어야 보낼 수 있다.'; return; }
+  b.disabled=true; m.className='fbmsg'; m.textContent='보내는 중…';
+  const {status,j}=await apiPost({action:'feedback',id:USER,token:TOKEN,text:text});
+  b.disabled=false;
+  if(status===200&&j&&j.ok){
+    t.value=''; fbCount();
+    m.className='fbmsg ok'; m.textContent='전해졌다. 고맙다 — 읽고 반영할게.';
+    SND.up();
+  } else if(status===429&&j&&j.wait){
+    m.className='fbmsg bad'; m.textContent='조금 전에 보냈다 — '+j.wait+'초 뒤에 다시.';
+  } else if(status===400){
+    m.className='fbmsg bad'; m.textContent='너무 짧다.';
+  } else {
+    m.className='fbmsg bad'; m.textContent='보내지 못했다 (서버 응답 '+status+').';
+  }
+}
+function fbCount(){ const t=$('fbText'); if(t) $('fbCnt').textContent=(t.value||'').length+' / 500'; }
+
+/* ---------- 마스터 ---------- */
+let ADMIN=false, admWhat='feedback', admData={feedback:null,players:null};
+function setAdmin(v){
+  ADMIN=!!v;
+  const t=document.querySelector('#nav .ntab[data-v="adm"]');
+  if(t) t.hidden=!ADMIN;
+  if(!ADMIN&&S.view==='adm') showView('up');
+}
+async function admLoad(what,extra){
+  if(!ADMIN||!SRV||!TOKEN||!USER) return null;
+  const {status,j}=await apiPost(Object.assign({action:'admin',id:USER,token:TOKEN,what:what},extra||{}));
+  if(status===403){ setAdmin(false); note('마스터 권한이 없다.'); return null; }
+  return (status===200&&j&&j.ok)?j:null;
+}
+async function renderAdm(force){
+  if(!ADMIN) return;
+  const B=$('admBody');
+  $('admFb').setAttribute('aria-selected',String(admWhat==='feedback'));
+  $('admPl').setAttribute('aria-selected',String(admWhat==='players'));
+  if(force||!admData[admWhat]){
+    B.innerHTML='<p class="fbmsg">불러오는 중…</p>';
+    const j=await admLoad(admWhat);
+    if(!j){ B.innerHTML='<p class="fbmsg bad">불러오지 못했다.</p>'; return; }
+    admData[admWhat]=j[admWhat]||[];
+  }
+  const rows=admData[admWhat]||[];
+  if(admWhat==='feedback'){
+    if(!rows.length){ B.innerHTML='<p class="fbmsg">아직 온 게 없다.</p>'; }
+    else B.innerHTML=rows.map(function(f){
+      return '<div class="admrow'+(f.done?' done':'')+'" data-i="'+f.i+'">'+
+        '<span><span class="who">'+esc(f.id)+
+          '<small>lv'+(f.lv|0)+' · 전투력 '+(f.power|0).toLocaleString('ko-KR')+' · '+ago(f.ts)+'</small></span>'+
+        '<span class="txt">'+esc(f.text)+'</span></span>'+
+        '<button class="mini fbdone">'+(f.done?'되돌리기':'처리')+'</button></div>';
+    }).join('');
+    B.querySelectorAll('.fbdone').forEach(function(btn){
+      btn.addEventListener('click',async function(){
+        ac(); const i=+btn.closest('.admrow').dataset.i;
+        const j=await admLoad('done',{i:i});
+        if(j){ const f=admData.feedback.find(function(x){return x.i===i;}); if(f) f.done=j.done; renderAdm(false); }
+      });
+    });
+    $('admNote').innerHTML='보낸 사람의 <b>레벨·전투력</b>이 같이 붙는다. 처리 표시는 지우지 않고 흐리게만 남긴다 — 나중에 다시 볼 수 있게.';
+  } else {
+    B.innerHTML='<div style="overflow-x:auto"><table class="ptab"><thead><tr>'+
+      ['아이디','lv','전투력','최고★','잠재','보스','업적','시도','파괴','마지막'].map(function(h){return '<th>'+h+'</th>';}).join('')+
+      '</tr></thead><tbody>'+rows.map(function(p){
+        return '<tr><td class="nm">'+esc(p.id)+'</td><td>'+(p.lv|0)+'</td><td>'+(p.power|0).toLocaleString('ko-KR')+
+          '</td><td>'+(p.star|0)+'</td><td>'+(GNAME[p.grade]||'—')+'</td><td>'+(p.boss|0)+'</td><td>'+(p.ach|0)+
+          '</td><td>'+(p.tries|0).toLocaleString('ko-KR')+'</td><td>'+(p.des|0)+'</td><td>'+ago(p.seen)+'</td></tr>';
+      }).join('')+'</tbody></table></div>';
+    $('admNote').innerHTML='<b>'+rows.length+'</b>명. 최근 접속 순이다. 세이브 내용과 비밀번호는 서버에서도 안 내보낸다 — 여기서 남의 기록을 고칠 수는 없다.';
+  }
+}
+
 let fighting=-1;
 function fightBoss(i){
   const bs=BOSSES[i];
@@ -3793,7 +3923,7 @@ async function autoResume(){
   if(!id||!tk||!okId(id)) { if(!USER) showLogin(); return; }
   const {status,j}=await apiPost({action:'resume',id:id,token:tk});
   if(status===200&&j&&j.ok){
-    TOKEN=tk; absorb(j);
+    TOKEN=tk; absorb(j); setAdmin(j.admin);   // 마스터 여부는 서버만 정한다
     enter(id, j.save);
     $('login').hidden=true;
   } else if(!USER){ showLogin(); }
@@ -3881,7 +4011,7 @@ async function submitLogin(){
     if(status===429) return err('요청이 너무 잦다. 잠시 뒤에 다시');
     if(status!==200||!j||!j.ok) return err('서버에 연결하지 못했다');
     TOKEN=j.token; lsSet(LK.tok(id),TOKEN);
-    absorb(j); err(''); enter(id, j.save);
+    absorb(j); setAdmin(j.admin); err(''); enter(id, j.save);   // 마스터 여부는 서버만 정한다
     if(j.created) log('<b>'+esc(id)+'</b> 계정을 만들었다','ok');
     return;
   }
@@ -4025,6 +4155,10 @@ addEventListener('keydown',e=>{
 $('swSafe').addEventListener('click',()=>{ S.useSafe=!S.useSafe; renderStarPane(); save(); });
 [0,1,2,3].forEach(i=>$('p'+i).addEventListener('click',()=>pickLine(i)));
 $('swProt').addEventListener('click',()=>{ S.useProt=!S.useProt; renderStarPane(); save(); });
+$('fbSend').addEventListener('click',function(){ ac(); sendFeedback(); });
+$('fbText').addEventListener('input',fbCount);
+$('admFb').addEventListener('click',function(){ ac(); admWhat='feedback'; renderAdm(false); });
+$('admPl').addEventListener('click',function(){ ac(); admWhat='players'; renderAdm(false); });
 $('mastReset').addEventListener('click',function(){ const m=mastOf(S.sel||0); if(!mastUsed(S.sel||0)) return;
   ac(); m.u={}; log('마스터리를 전부 되돌렸다 — 포인트는 그대로다',''); renderAll(); save(); });
 const TABS=[['tabStar','paneStar'],['tabCube','paneCube'],['tabMast','paneMast'],['tabShop','paneShop']];
@@ -4081,7 +4215,7 @@ initOnline();
 
 // 균형 점검용 노출 (게임 동작에는 영향 없음)
 try{ window.__CFG={SF,MAXSTAR,starCost,SHIELD,SLOTS,OPT,POOL,GCAP,UPRATE,UPGRADE,CUBES,
-  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,lineHTML,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,SLOT_ART,WEAPON_ART,stash,bagStar,bagLines,bagP4,dropSlot,BTYPE,renderAll,CRCOL,passTime,offerOffline,OFF_CAP,OFF_RATE,TR,carryLines,showDrop,cost,protUse,safeUse,IGCOST,igCost,MAST,MPS,mpFor,mastOf,mastFree,mastMult,mastSum,trStar,renderMast,starMult,expMult,engrave,ENG,renderShop,renderCubes,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
+  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,lineHTML,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,ACH,achStat,MAXLV,lvBonus,SLOT_ART,WEAPON_ART,stash,bagStar,bagLines,bagP4,dropSlot,BTYPE,renderAll,CRCOL,passTime,offerOffline,OFF_CAP,OFF_RATE,TR,carryLines,showDrop,cost,protUse,safeUse,IGCOST,igCost,MAST,MPS,mpFor,mastOf,mastFree,mastMult,mastSum,trStar,renderMast,starMult,expMult,engrave,ENG,renderShop,renderCubes,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
   get state(){return S;}, cur, power, income, mesoMult, dropMult, starMult, potMultOf, odds, potGrade, topGrade, totalStars, sfBonus}; }catch(e){}
 })();
 </script>

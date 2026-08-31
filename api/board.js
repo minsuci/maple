@@ -9,9 +9,19 @@ const TOKEN_ENV = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_RES
 const CONFIGURED = !!(URL_ENV && TOKEN_ENV);
 
 const HKEY = 'byeol:users';
+const FKEY = 'byeol:feedback';  // 피드백 리스트 (최신이 앞)
 const ID_RE = /^[가-힣A-Za-z0-9_]{2,10}$/;
 const MAX_SAVE = 6000;          // 세이브 JSON 최대 길이
 const RATE_MAX = 150;           // IP당 분당 요청
+const FB_MAX = 500;             // 피드백 한 편 최대 글자
+const FB_KEEP = 400;            // 서버에 남겨두는 편수
+const FB_COOL = 60 * 1000;      // 한 사람이 다시 보내기까지
+
+// 마스터 계정. 아이디는 비밀이 아니다 — 비밀번호를 모르면 아무것도 못 한다.
+// 아이디가 다르면 Vercel 환경변수 ADMIN_IDS 에 쉼표로 넣으면 된다.
+const ADMINS = String(process.env.ADMIN_IDS || '민수')
+  .split(',').map(s => s.trim()).filter(Boolean);
+const isAdmin = id => ADMINS.indexOf(id) >= 0;
 
 async function redis(cmd) {
   const r = await fetch(URL_ENV, {
@@ -59,6 +69,11 @@ const better = (a, b) =>
 
 // seen 은 마지막 활동 시각. hash/salt/token/save 는 절대 나가지 않는다.
 const publicRow = (id, u) => Object.assign({ id }, u.rec || {}, { seen: u.seen || (u.rec && u.rec.ts) || 0 });
+
+// 토큰 대조 — 여러 곳에서 같은 방식으로 쓴다
+function authed(u, token) {
+  return !!(u && u.token && same(String(token || ''), u.token));
+}
 
 async function readAll() {
   const flat = await redis(['HGETALL', HKEY]);
@@ -140,7 +155,7 @@ module.exports = async (req, res) => {
         const salt = crypto.randomBytes(16).toString('hex');
         u = { salt, hash: hash(pw, salt), token: newToken(), rec: null, save: null, at: Date.now(), seen: Date.now() };
         await writeUser(id, u);
-        return res.status(200).json({ ok: true, created: true, token: u.token, rec: null, save: null, board: await board() });
+        return res.status(200).json({ ok: true, created: true, admin: isAdmin(id), token: u.token, rec: null, save: null, board: await board() });
       }
       if (!same(hash(pw, u.salt), u.hash)) return res.status(401).json({ error: 'wrong_pw' });
 
@@ -149,7 +164,7 @@ module.exports = async (req, res) => {
       u.token = u.token || newToken();
       u.seen = Date.now();
       await writeUser(id, u);
-      return res.status(200).json({ ok: true, created: false, token: u.token, rec: u.rec, save: u.save, board: await board() });
+      return res.status(200).json({ ok: true, created: false, admin: isAdmin(id), token: u.token, rec: u.rec, save: u.save, board: await board() });
     }
 
     // ---- 저장된 토큰으로 이어하기 (비밀번호를 다시 묻지 않는다) ----
@@ -157,7 +172,7 @@ module.exports = async (req, res) => {
       const u = await readUser(id);
       if (!u) return res.status(404).json({ error: 'no_user' });
       if (!u.token || !same(String(body.token || ''), u.token)) return res.status(401).json({ error: 'bad_token' });
-      return res.status(200).json({ ok: true, rec: u.rec, save: u.save, board: await board() });
+      return res.status(200).json({ ok: true, admin: isAdmin(id), rec: u.rec, save: u.save, board: await board() });
     }
 
     // ---- 기록/세이브 저장 (토큰으로만 인증) ----
@@ -182,6 +197,74 @@ module.exports = async (req, res) => {
       u.seen = Date.now();
       await writeUser(id, u);
       return res.status(200).json({ ok: true, rec: u.rec, board: await board() });
+    }
+
+    // ---- 피드백 보내기 ----
+    if (body.action === 'feedback') {
+      const u = await readUser(id);
+      if (!u) return res.status(404).json({ error: 'no_user' });
+      if (!authed(u, body.token)) return res.status(401).json({ error: 'bad_token' });
+
+      const text = String(body.text || '').trim().slice(0, FB_MAX);
+      if (text.length < 4) return res.status(400).json({ error: 'too_short' });
+
+      const now = Date.now();
+      if (u.fbAt && now - u.fbAt < FB_COOL) {
+        return res.status(429).json({ error: 'too_soon', wait: Math.ceil((FB_COOL - (now - u.fbAt)) / 1000) });
+      }
+      u.fbAt = now;
+      await writeUser(id, u);
+
+      // 맥락을 같이 남긴다 — 어떤 스펙에서 나온 말인지 알아야 고칠 수 있다
+      const r = u.rec || {};
+      await redis(['LPUSH', FKEY, JSON.stringify({
+        id, text, ts: now, done: 0,
+        lv: r.lv | 0, power: r.power | 0, star: r.star | 0, boss: r.boss | 0
+      })]);
+      await redis(['LTRIM', FKEY, 0, FB_KEEP - 1]);
+      return res.status(200).json({ ok: true });
+    }
+
+    // ---- 마스터: 피드백 읽기 ----
+    if (body.action === 'admin') {
+      const u = await readUser(id);
+      if (!u) return res.status(404).json({ error: 'no_user' });
+      if (!authed(u, body.token)) return res.status(401).json({ error: 'bad_token' });
+      if (!isAdmin(id)) return res.status(403).json({ error: 'not_admin' });
+
+      const what = String(body.what || 'feedback');
+
+      if (what === 'feedback') {
+        const raw = await redis(['LRANGE', FKEY, 0, FB_KEEP - 1]);
+        const list = (Array.isArray(raw) ? raw : []).map(function (s, i) {
+          try { const o = JSON.parse(s); o.i = i; return o; } catch (e) { return null; }
+        }).filter(Boolean);
+        return res.status(200).json({ ok: true, admin: true, feedback: list });
+      }
+
+      if (what === 'done') {                 // 처리 표시 — 지우지 않고 표시만 남긴다
+        const i = Math.max(0, Math.min(FB_KEEP - 1, Math.floor(Number(body.i) || 0)));
+        const raw = await redis(['LINDEX', FKEY, i]);
+        if (!raw) return res.status(404).json({ error: 'no_item' });
+        let o = null; try { o = JSON.parse(raw); } catch (e) {}
+        if (!o) return res.status(400).json({ error: 'bad_item' });
+        o.done = o.done ? 0 : 1;
+        await redis(['LSET', FKEY, i, JSON.stringify(o)]);
+        return res.status(200).json({ ok: true, admin: true, i, done: o.done });
+      }
+
+      if (what === 'players') {              // 랭킹 50줄보다 넓게 본다. 여전히 hash/salt/token/save 는 안 나간다.
+        const all = await readAll();
+        const rows = Object.keys(all).map(function (k) {
+          const x = all[k], r = x.rec || {};
+          return { id: k, lv: r.lv | 0, power: r.power | 0, star: r.star | 0, grade: r.grade | 0,
+                   boss: r.boss | 0, ach: r.ach | 0, tries: r.tries | 0, des: r.des | 0,
+                   at: x.at || 0, seen: x.seen || 0, has: x.save ? 1 : 0 };
+        }).sort((a, b) => b.seen - a.seen);
+        return res.status(200).json({ ok: true, admin: true, players: rows });
+      }
+
+      return res.status(400).json({ error: 'bad_what' });
     }
 
     return res.status(400).json({ error: 'bad_action' });
