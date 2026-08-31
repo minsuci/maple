@@ -482,6 +482,21 @@ td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
 .mkfld{display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--dim);}
 .mkfld input{width:100%;}
 .mkfld span{white-space:nowrap;font-weight:700;}
+.stepper{display:flex;align-items:center;gap:8px;}
+.stepper b{font-family:'Bebas Neue',sans-serif;font-size:24px;color:var(--gold);min-width:66px;text-align:center;}
+.stepper .chip{min-width:44px;text-align:center;}
+.chip.on{color:var(--gold);border-color:var(--gold);background:#2A2208;}
+.chip:disabled{opacity:.3;}
+.chip.add b{color:var(--gold);font-weight:900;}
+.potnow{display:flex;flex-direction:column;gap:5px;margin-top:9px;}
+.potnow .empty{font-size:11.5px;color:var(--dimmer);padding:8px 2px;}
+.potpick{display:grid;grid-template-columns:auto 1fr auto;gap:9px;align-items:center;text-align:left;
+  background:#1B1638;border:1px solid var(--edge2);border-radius:9px;padding:8px 11px;font-size:12.5px;font-weight:700;}
+.potpick:hover{border-color:var(--bad);}
+.potpick .dot{width:7px;height:7px;border-radius:50%;}
+.potpick .x{color:var(--dimmer);font-size:15px;font-weight:900;}
+.potpick:hover .x{color:var(--bad);}
+
 .godsw{display:flex;align-items:center;gap:10px;background:#241C05;border:1px solid var(--gold);
   border-radius:10px;padding:10px 12px;}
 .godsw b{color:var(--gold);font-size:12.5px;}
@@ -1892,7 +1907,7 @@ function renderItem(){
   $('starV').textContent=it.star;
   const art=$('itemArt'), si=String(S.sel||0)+'/'+jobKey();   // 직업을 바꾸면 무기도 다시 그린다
   if(art.dataset.slot!==si){
-    const sc=[1,1.1,1.05,1.05,1.2,1.15][S.sel||0];   // 검 기준으로 다른 부위 크기를 맞춘다
+    const sc=[1,1.1,1.05,1.05,1.2,1.15,1.1,1.05][S.sel||0]||1;   // 검 기준으로 다른 부위 크기를 맞춘다
     const g=(S.sel||0)===0?(WEAPON_ART[jobKey()]||WEAPON_ART.war):SLOT_ART[S.sel||0];
     art.innerHTML='<g transform="translate(32,32) scale('+sc+') translate(-32,-32)">'+g+'</g>';
     art.dataset.slot=si;
@@ -3671,112 +3686,136 @@ async function renderAdm(force){
 // 서버가 인정한 마스터일 때만 켤 수 있다. 랭킹에서는 마스터를 빼기 때문에
 // 여기서 뭘 만들든 길드원들의 순위는 흔들리지 않는다.
 const god=()=>ADMIN&&!!S.god;
+let mkG=3, mkAll=false;      // 만들기에서 담을 잠재 등급 / 전체 옵션 보기
 const upCost=up=>god()?0:(up?up.cost:0);
 const tokCost=x=>god()?0:x.t;
 
+const mkDone=()=>{ renderAll(); renderMake(); save(); };
+const bestLine=si=>{ let b=null,bv=-1;
+  POOL[si].forEach(p=>{ const l={k:p[0],v:OPT[p[0]].v[3],g:3}; const c=cpOf(l); if(c>bv){bv=c;b=l;} });
+  return b; };
 function renderMake(){
   const B=$('admBody'), i=S.sel||0, it=cur();
-  const optKeys=Object.keys(OPT);
-  const line=function(n){
-    const l=it.lines[n];
-    return '<div class="mkline">'+
-      '<select data-l="'+n+'" data-f="k">'+
-        '<option value="">— 비움 —</option>'+
-        optKeys.map(function(k){ return '<option value="'+k+'"'+((l&&l.k===k)?' selected':'')+'>'+OPT[k].n+'</option>'; }).join('')+
-      '</select>'+
-      '<select data-l="'+n+'" data-f="g">'+
-        GNAME.map(function(g,gi){ return '<option value="'+gi+'"'+((l&&l.g===gi)?' selected':'')+'>'+g+'</option>'; }).join('')+
-      '</select>'+
-      '<input type="number" step="0.1" data-l="'+n+'" data-f="v" value="'+(l?l.v:0)+'">'+
-    '</div>';
-  };
+  if(mkG===undefined) mkG=3;
+  const chip=(txt,attr,on)=>'<button class="chip'+(on?' on':'')+'" '+attr+' aria-pressed="'+(!!on)+'">'+txt+'</button>';
+  const pool=mkAll?Object.keys(OPT):POOL[i].map(p=>p[0]);
+  const n=POTN(it);
+
   B.innerHTML='<div class="mk">'+
     '<div class="godsw"><span><b>무료 모드</b><small>강화·큐브·승급·상점·증표·버프·전직이 전부 0이 된다. 마스터는 랭킹에 안 오른다.</small></span>'+
       '<button class="sw" id="godSw" role="switch" aria-checked="'+(!!S.god)+'"></button></div>'+
 
     '<div class="mkrow"><h4>부위</h4><div class="chips" id="mkSlots">'+
-      SLOTS.map(function(s,k){ return '<button class="chip" data-s="'+k+'" aria-pressed="'+(k===i)+'">'+s.n+'</button>'; }).join('')+
+      SLOTS.map((s,k)=>chip(s.n,'data-s="'+k+'"',k===i)).join('')+
     '</div></div>'+
 
-    '<div class="mkrow"><h4>'+SLOTS[i].n+' — 장비</h4>'+
-      '<div class="chips" id="mkIg">'+IGNAME.map(function(n,k){
-        return '<button class="chip" data-g="'+k+'" aria-pressed="'+(it.ig===k)+'">'+n+'</button>'; }).join('')+'</div>'+
-      '<div class="mkgrid" style="margin-top:8px">'+
-        '<label class="mkfld"><span>성수치</span><input type="number" id="mkStar" min="0" max="36" value="'+it.star+'"></label>'+
-        '<label class="mkfld"><span>각인(4줄)</span><input type="checkbox" id="mkP4" '+(it.p4?'checked':'')+'></label>'+
-        '<label class="mkfld"><span>부서짐</span><input type="checkbox" id="mkBrk" '+(it.broken?'checked':'')+'></label>'+
-      '</div></div>'+
+    '<div class="mkrow"><h4>'+SLOTS[i].n+' — 등급</h4>'+
+      '<div class="chips" id="mkIg">'+IGNAME.map((nm,k)=>chip(nm,'data-g="'+k+'"',it.ig===k)).join('')+'</div>'+
+    '</div>'+
 
-    '<div class="mkrow"><h4>잠재능력 — 옵션 / 등급 / 값</h4>'+
-      [0,1,2,3].map(line).join('')+
+    '<div class="mkrow"><h4>성수치</h4>'+
+      '<div class="stepper"><button class="chip" data-star="-1">−</button>'+
+        '<b id="mkStarV">'+it.star+'★</b>'+
+        '<button class="chip" data-star="1">+</button></div>'+
+      '<div class="chips" id="mkStars" style="margin-top:8px">'+
+        [0,5,10,15,17,20,22,25,27,30,33,36].map(v=>chip(v+'','data-set="'+v+'"',it.star===v)).join('')+
+      '</div>'+
       '<div class="chips" style="margin-top:8px">'+
-        '<button class="chip" id="mkBest">이 부위 최고옵으로 채우기</button>'+
-        '<button class="chip" id="mkClear">잠재 비우기</button>'+
+        chip('각인 — 잠재 네 줄','data-tog="p4"',it.p4)+chip('부서짐','data-tog="brk"',it.broken)+
       '</div></div>'+
 
-    '<div class="mkrow"><h4>그 밖에</h4><div class="mkgrid">'+
-      '<label class="mkfld"><span>레벨</span><input type="number" id="mkLv" min="1" max="'+MAXLV+'" value="'+(S.lv||1)+'"></label>'+
-      '<label class="mkfld"><span>메소</span><input type="number" id="mkMeso" value="'+Math.floor(S.meso)+'"></label>'+
-      '<label class="mkfld"><span>토벌증표</span><input type="number" id="mkTok" value="'+(S.tok|0)+'"></label>'+
-      '<label class="mkfld"><span>마스터리</span><input type="number" id="mkMp" value="'+(mastOf(i).p|0)+'"></label>'+
-      ['red','black','choice','sh','sure','eng','tr'].map(function(k){
-        const nm={red:'레드',black:'블랙',choice:'초이스',sh:'쉴드권',sure:'성공권',eng:'각인',tr:'전수권'}[k];
-        return '<label class="mkfld"><span>'+nm+'</span><input type="number" data-inv="'+k+'" value="'+(S.inv[k]|0)+'"></label>';
-      }).join('')+
-    '</div></div>'+
+    '<div class="mkrow"><h4>잠재 — 담을 등급</h4>'+
+      '<div class="chips" id="mkGrade">'+GNAME.map((g,k)=>chip(g,'data-pg="'+k+'"',mkG===k)).join('')+'</div>'+
+      '<div class="potnow" id="mkNow">'+
+        (it.lines.length?it.lines.map(function(l,k){
+          return '<button class="potpick" data-del="'+k+'"><span class="dot" style="background:'+GCOL[l.g]+'"></span>'+
+            '<span>'+OPT[l.k].n+' <b style="color:'+GCOL[l.g]+'">+'+l.v+OPT[l.k].u+'</b></span><span class="x">×</span></button>';
+        }).join(''):'<span class="empty">아직 비어 있다 — 아래에서 골라 담자 (최대 '+n+'줄)</span>')+
+      '</div>'+
+      '<div class="chips" id="mkAdd" style="margin-top:9px">'+
+        pool.map(function(k){
+          const v=OPT[k].v[mkG];
+          return '<button class="chip add" data-add="'+k+'"'+(it.lines.length>=n?' disabled':'')+'>'+
+            OPT[k].n+' <b>+'+v+OPT[k].u+'</b></button>';
+        }).join('')+
+      '</div>'+
+      '<div class="chips" style="margin-top:8px">'+
+        chip(mkAll?'전체 옵션':'이 부위 옵션만','data-allopt="1"',mkAll)+
+        '<button class="chip" data-act="best">최고옵으로 채우기</button>'+
+        '<button class="chip" data-act="clear">비우기</button>'+
+      '</div></div>'+
 
-    '<div class="chips"><button class="btn gold" id="mkApply">적용</button>'+
-      '<button class="chip" id="mkAllLeg">여덟 부위 전부 레전더리 36★</button></div>'+
+    '<div class="mkrow"><h4>그 밖에</h4>'+
+      '<div class="stepper"><button class="chip" data-lv="-10">−10</button>'+
+        '<b id="mkLvV">lv'+(S.lv||1)+'</b>'+
+        '<button class="chip" data-lv="10">+10</button>'+
+        '<button class="chip" data-lv="max">최고</button></div>'+
+      '<div class="chips" style="margin-top:8px">'+
+        '<button class="chip" data-give="meso">메소 +10억</button>'+
+        '<button class="chip" data-give="tok">증표 +1000</button>'+
+        '<button class="chip" data-give="mast">이 부위 마스터리 +160</button>'+
+        '<button class="chip" data-give="inv">큐브·주문서 +99</button>'+
+        '<button class="chip" data-give="ach">업적 전부</button>'+
+      '</div>'+
+      '<p class="fbmsg" id="mkHave"></p></div>'+
+
+    '<div class="chips"><button class="btn gold" data-act="all">여덟 부위 전부 레전더리 36★ 최고옵</button></div>'+
   '</div>';
 
-  B.querySelectorAll('#mkSlots .chip').forEach(function(b){
-    b.addEventListener('click',function(){ ac(); S.sel=+b.dataset.s; renderMake(); });
-  });
-  B.querySelectorAll('#mkIg .chip').forEach(function(b){
-    b.addEventListener('click',function(){ ac(); cur().ig=+b.dataset.g; renderAll(); renderMake(); });
-  });
-  $('godSw').addEventListener('click',function(){ ac(); S.god=!S.god; renderAll(); renderMake(); save(); });
-  $('mkBest').addEventListener('click',function(){ ac();
-    let best=null,bv=-1;
-    POOL[i].forEach(function(p){ const l={k:p[0],v:OPT[p[0]].v[3],g:3}; const c=cpOf(l); if(c>bv){bv=c;best=l;} });
-    const n=POTN(it); it.lines=[]; for(let q=0;q<n;q++) it.lines.push(Object.assign({},best));
-    renderAll(); renderMake(); save(); });
-  $('mkClear').addEventListener('click',function(){ ac(); it.lines=[]; renderAll(); renderMake(); save(); });
-  $('mkAllLeg').addEventListener('click',function(){ ac();
-    S.items.forEach(function(x,k){
-      x.ig=3; x.star=36; x.broken=false; x.p4=true;
-      let best=null,bv=-1;
-      POOL[k].forEach(function(p){ const l={k:p[0],v:OPT[p[0]].v[3],g:3}; const c=cpOf(l); if(c>bv){bv=c;best=l;} });
-      x.lines=[0,1,2,3].map(function(){ return Object.assign({},best); });
-    });
-    S.st.max=36; renderAll(); renderMake(); save();
-    flash('전부 레전더리','여덟 부위 36★ · 잠재 네 줄','#FFC94A'); });
+  $('mkHave').innerHTML='메소 <b>'+fmt(S.meso)+'</b> · 증표 <b>'+(S.tok|0)+'</b> · 마스터리 <b>'+
+    (mastOf(i).p|0)+'</b> · 큐브 <b>'+((S.inv.red|0)+'/'+(S.inv.black|0)+'/'+(S.inv.choice|0))+
+    '</b> · 각인 <b>'+(S.inv.eng|0)+'</b> · 전수권 <b>'+(S.inv.tr|0)+'</b>';
 
-  $('mkApply').addEventListener('click',function(){
-    ac();
-    const t=cur();
-    t.star=Math.max(0,Math.min(MAXSTAR,+$('mkStar').value||0));
-    t.p4=$('mkP4').checked; t.broken=$('mkBrk').checked;
-    const ls=[];
-    B.querySelectorAll('.mkline').forEach(function(row,n){
-      const k=row.querySelector('[data-f="k"]').value;
-      if(!k) return;
-      ls.push({k:k, g:Math.max(0,Math.min(3,+row.querySelector('[data-f="g"]').value||0)),
-               v:Math.round((+row.querySelector('[data-f="v"]').value||0)*10)/10});
-    });
-    t.lines=ls.slice(0,POTN(t));
-    S.lv=Math.max(1,Math.min(MAXLV,+$('mkLv').value||1));
-    S.meso=Math.max(0,+$('mkMeso').value||0);
-    S.tok=Math.max(0,+$('mkTok').value||0);
-    mastOf(S.sel||0).p=Math.max(0,+$('mkMp').value||0);
-    B.querySelectorAll('[data-inv]').forEach(function(el){ S.inv[el.dataset.inv]=Math.max(0,+el.value||0); });
-    S.st.max=Math.max(S.st.max||0,t.star);
-    renderAll(); renderMake(); save();
-    flash('적용됐다',SLOTS[S.sel||0].n+' '+IGNAME[t.ig]+' '+t.star+'★','#5CE68A');
+  if(!B.dataset.bound){                    // 한 번만 단다. once 로 달면 빈 곳을 눌러도 핸들러가 죽는다.
+  B.dataset.bound='1';
+  B.addEventListener('click',function(e){
+    if(admWhat!=='make') return;
+    const t=e.target.closest('button'); if(!t) return;
+    const d=t.dataset, i=S.sel||0, it=cur();
+    if(!d.s&&!d.g&&d.star===undefined&&d.set===undefined&&!d.tog&&d.pg===undefined&&
+       !d.allopt&&d.del===undefined&&!d.add&&!d.lv&&!d.give&&!d.act&&t.id!=='godSw') return;
+    if(t.id==='godSw'){ ac(); S.god=!S.god; return mkDone(); }
+    if(d.s!==undefined){ ac(); S.sel=+d.s; return mkDone(); }
+    if(d.g!==undefined){ ac(); it.ig=+d.g; if(it.ig<3) it.p4=false;
+      it.lines=it.lines.slice(0,POTN(it)); return mkDone(); }
+    if(d.star!==undefined){ ac(); it.star=Math.max(0,Math.min(MAXSTAR,it.star+ +d.star));
+      S.st.max=Math.max(S.st.max||0,it.star); return mkDone(); }
+    if(d.set!==undefined){ ac(); it.star=+d.set; S.st.max=Math.max(S.st.max||0,it.star); return mkDone(); }
+    if(d.tog==='p4'){ ac(); it.p4=!it.p4; if(it.p4&&it.ig<3) it.ig=3;
+      it.lines=it.lines.slice(0,POTN(it)); return mkDone(); }
+    if(d.tog==='brk'){ ac(); it.broken=!it.broken; return mkDone(); }
+    if(d.pg!==undefined){ ac(); mkG=+d.pg; return renderMake(); }
+    if(d.allopt!==undefined){ ac(); mkAll=!mkAll; return renderMake(); }
+    if(d.del!==undefined){ ac(); it.lines.splice(+d.del,1); return mkDone(); }
+    if(d.add!==undefined){
+      if(it.lines.length>=POTN(it)) return;
+      ac(); it.lines.push({k:d.add, v:OPT[d.add].v[mkG], g:mkG}); return mkDone();
+    }
+    if(d.lv!==undefined){ ac();
+      S.lv = d.lv==='max' ? MAXLV : Math.max(1,Math.min(MAXLV,(S.lv||1)+ +d.lv));
+      return mkDone(); }
+    if(d.give!==undefined){ ac();
+      if(d.give==='meso') S.meso+=1e9;
+      if(d.give==='tok')  S.tok=(S.tok|0)+1000;
+      if(d.give==='mast') mastOf(S.sel||0).p=(mastOf(S.sel||0).p|0)+160;
+      if(d.give==='inv')  ['red','black','choice','sh','sure','eng','tr'].forEach(function(k){ S.inv[k]=(S.inv[k]|0)+99; });
+      if(d.give==='ach')  ACH.forEach(function(a){ S.ach[a[0]]=1; });
+      return mkDone(); }
+    if(d.act==='best'){ ac(); const b=bestLine(i); const m=POTN(it);
+      it.lines=[]; for(let q=0;q<m;q++) it.lines.push(Object.assign({},b)); return mkDone(); }
+    if(d.act==='clear'){ ac(); it.lines=[]; return mkDone(); }
+    if(d.act==='all'){ ac();
+      S.items.forEach(function(x,k){
+        x.ig=3; x.star=36; x.broken=false; x.p4=true;
+        const b=bestLine(k); x.lines=[0,1,2,3].map(function(){ return Object.assign({},b); });
+      });
+      S.st.max=36; mkDone();
+      flash('전부 레전더리','여덟 부위 36★ · 잠재 네 줄','#FFC94A'); return; }
   });
+  }
 
-  $('admNote').innerHTML='<b>마스터만 보이는 칸</b>이다. 서버가 권한을 확인하고, '+
-    '<b>마스터 계정은 랭킹에서 빠진다</b> — 여기서 뭘 만들든 길드원 순위는 그대로다.';
+  $('admNote').innerHTML='<b>마스터만 보이는 칸</b>이다. 누르면 바로 붙는다 — 따로 적용할 것 없다.<br>'+
+    '서버가 권한을 확인하고, <b>마스터 계정은 랭킹에서 빠진다</b> — 여기서 뭘 만들든 길드원 순위는 그대로다.';
 }
 
 let fighting=-1;
