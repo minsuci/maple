@@ -1253,7 +1253,7 @@ const IGNAME=['레어','에픽','유니크','레전더리'];
 // 레전더리 장비는 상한이 더 오르는 대신 잠재가 한 줄 더 붙는다.
 const GCAP=[1,2,3,3];
 // 잠재 줄 수 — 레전더리 장비라도 처음엔 세 줄이다. 금빛 각인으로 네 번째를 연다.
-const POTN=it=>(it&&it.ig>=3&&it.p4)?4:3;
+const POTN=it=>(it&&it.p4)?4:3;
 const ENG={cost:100000000, p:40};   // 값 1억 · 성공 40% · 실패해도 각인은 소모된다
 // 전수 — 어렵게 올린 걸 새 장비로 옮긴다. 별은 넷 깎이고 잠재는 그대로 따라간다.
 // 각인(네 번째 줄)은 안 따라간다. 그건 장비에 새긴 것이지 옮기는 게 아니다.
@@ -2047,7 +2047,7 @@ function renderCubes(){
     (up?IGNAME[it.ig]+' 장비 → '+IGNAME[up.to]+' 장비':it.ig>=3?'레전더리 장비 (최고)':'유니크 장비 — 승급으로는 여기까지')+'</span><span class="rt">'+
     (up?'성공 '+up.p+'% · <b>잠재 상한</b>이 '+GNAME[GCAP[up.to]]+'로 · <b>성수치 '+Math.round(UP_LOSS*100)+'% 감소 ('+
         it.star+'★ → '+Math.floor(it.star*(1-UP_LOSS))+'★)</b> · 실패하면 메소만 잃는다'
-       :it.ig>=3?'<b>장비</b> 등급은 여기가 끝 · <b>금빛 각인</b>으로 잠재를 네 줄까지 연다':'<b>레전더리 장비</b>는 승급으로 못 만든다 — 요구 '+LEG_MIN+' 위 보스가 아주 가끔 떨군다')+
+       :it.ig>=3?'<b>장비</b> 등급은 여기가 끝 · 잠재를 <b>레전더리</b>까지 올릴 수 있다':'<b>레전더리 장비</b>는 승급으로 못 만든다 — 요구 '+LEG_MIN+' 위 보스가 아주 가끔 떨군다')+
     '</span></span><span class="pr">'+(up?fmt(upCost(up)):'—')+'</span>';
   if(up) ub.addEventListener('click',upgradeItem);
   L.appendChild(ub);
@@ -2055,17 +2055,18 @@ function renderCubes(){
   // 이 칸 자체가 없어서, 사놓고도 쓸 데를 못 찾았다. 가진 게 있으면 칸을 띄우고
   // 왜 못 쓰는지, 어느 부위에 쓸 수 있는지 적어준다.
   const engHave=(S.inv.eng|0);
-  if(it.ig>=3||engHave>0){
+  if(potGradeOf(it)>=3||engHave>0){
     const legs=[];
-    S.items.forEach(function(x,k){ if(x.ig>=3&&!x.p4&&!x.broken) legs.push({i:k,n:SLOTS[k].n}); });
+    S.items.forEach(function(x,k){ if(potGradeOf(x)>=3&&!x.p4&&!x.broken) legs.push({i:k,n:SLOTS[k].n}); });
     const eb=document.createElement('button');
     eb.className='cube'; eb.style.setProperty('--c','#FFD23F');
-    const wrong=it.ig<3;
+    const wrong=potGradeOf(it)<3;
     eb.disabled=busy||it.broken||it.p4||engHave<1||wrong;
     const why =
-      wrong ? ('<b>레전더리 장비</b>에만 쓴다 — 지금 '+SLOTS[S.sel||0].n+josa(SLOTS[S.sel||0].n,'은','는')+' '+IGNAME[it.ig]+' 장비다'+
+      wrong ? ('<b>레전더리 잠재</b>에만 쓴다 — 지금 '+SLOTS[S.sel||0].n+josa(SLOTS[S.sel||0].n,'은','는')+
+               ' 잠재가 '+(potGradeOf(it)<0?'없다':GNAME[potGradeOf(it)]+'다')+
                (legs.length?' · <b>'+legs.map(function(x){return x.n;}).join(' · ')+'</b>에 쓸 수 있다'
-                           :' · 아직 레전더리 장비가 없다 (보스가 떨군다)'))
+                           :' · 큐브로 레전더리까지 올리면 열린다'))
       : it.p4 ? '이 장비는 이미 네 줄이다'
       : engHave<1 ? '가진 각인이 없다 — <b>상점</b>에서 산다'
       : '성공 <b>'+ENG.p+'%</b> · 실패하면 각인만 사라진다 · 열리면 그 자리에 한 줄이 바로 굴러간다';
@@ -2301,7 +2302,7 @@ function showCompare(before,after,g,gBefore){
 // 이미 잠재가 붙어 있으면 새 줄을 같은 등급으로 하나 굴려서 채운다.
 function engrave(){
   const it=cur();
-  if(busy||it.broken||it.ig<3||it.p4||(S.inv.eng|0)<1) return;
+  if(busy||it.broken||potGradeOf(it)<3||it.p4||(S.inv.eng|0)<1) return;   // 레전더리 잠재라야 연다
   S.inv.eng--;
   busy=true; renderCubes();
   setTimeout(function(){
@@ -2393,7 +2394,7 @@ function rollDrop(i,bs){
   const up=g>S.items[slot].ig;
   log(bossName(i)+' — <b>'+IGNAME[g]+' '+SLOTS[slot].n+'</b>을(를) 떨궜다 · 가방으로'+
       (up?' <b>(지금보다 높다)</b>':''), up?'up':'');
-  if(g>=3){ burst(160,'#5CE68A',{sp:1.5}); flash('레전더리 '+SLOTS[slot].n,'금빛 각인으로 잠재를 네 줄까지 연다','#5CE68A'); }
+  if(g>=3){ burst(160,'#5CE68A',{sp:1.5}); flash('레전더리 '+SLOTS[slot].n,'잠재를 레전더리까지 올릴 수 있는 장비다','#5CE68A'); }
   else if(up) flash(IGNAME[g]+' '+SLOTS[slot].n,'가방에 넣어뒀다','#5CE68A');
 }
 // 가방 한 칸이 장비 하나를 통째로 담는다. 예전 항목은 별도 잠재도 없던 것이니 0 으로 읽는다.
@@ -2593,9 +2594,9 @@ const SHOP=[
      log('<b>전수 주문서</b>를 샀다 — 장비를 갈아탈 때 쓴다','up'); }},
   {k:'eng', n:'금빛 각인',
    d:function(){ const it=cur();
-     return '레전더리 장비의 <b>잠재 네 번째 줄</b>을 연다 · 성공 '+ENG.p+'% · 지금 '+(S.inv.eng|0)+'장'+
+     return '<b>레전더리 잠재</b>의 네 번째 줄을 연다 · 성공 '+ENG.p+'% · 지금 '+(S.inv.eng|0)+'장'+
        '<br>사고 나서 <b>잠재능력 큐브</b> 탭으로 가면 쓰는 칸이 있다'+
-       (it.ig>=3?(it.p4?' · 이 장비는 이미 열려 있다':''):' · 레전더리 장비에만 쓴다'); },
+       (potGradeOf(it)>=3?(it.p4?' · 이 장비는 이미 열려 있다':''):' · 잠재가 레전더리라야 쓴다'); },
    price:function(){ return ENG.cost; }, can:function(){ return true; },
    buy:function(){ S.inv.eng=(S.inv.eng|0)+1; SND.up();
      log('<b>금빛 각인</b>을 샀다 — 강화대에서 레전더리 장비에 쓴다','up'); }},
@@ -3273,7 +3274,7 @@ const BAG=[
   {k:'choice', n:'초이스 큐브', ic:'◈', c:'#B15CFF', d:'고른 한 줄만 재설정 · 나머지는 그대로'},
   {k:'sh',     n:'쉴드 교환권', ic:'◇', c:'#4FA8FF', d:'다음 강화 1회 쉴드 비용 면제'},
   {k:'sure',   n:'확정 성공권', ic:'★', c:'#5CE68A', d:'강화 1회 무조건 성공'},
-  {k:'eng',    n:'금빛 각인',   ic:'❖', c:'#FFD23F', d:'레전더리 장비의 잠재 네 번째 줄을 연다 · 성공 '+ENG.p+'% · <b>강화대 → 잠재능력 큐브</b>에서 쓴다'},
+  {k:'eng',    n:'금빛 각인',   ic:'❖', c:'#FFD23F', d:'<b>레전더리 잠재</b>의 네 번째 줄을 연다 · 성공 '+ENG.p+'% · <b>강화대 → 잠재능력 큐브</b>에서 쓴다'},
   {k:'tr',     n:'전수 주문서', ic:'⇄', c:'#7CFFB0', d:'갈아탈 때 잠재를 옮기고 버린 별을 마스터리로 바꾼다'}
 ];
 const BAGTOK={n:'토벌 증표', ic:'◈', c:'#7CFFB0', d:'상점의 토벌 교환소에서 쓴다'};
