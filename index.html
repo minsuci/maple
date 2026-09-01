@@ -3162,6 +3162,10 @@ function showView(k){
 }
 
 // 화면 탭 — 이름을 그대로 적어둔다. 눌러서 바로 건너뛴다.
+// 창을 열어둔 채 다른 화면으로 가면 그 뒤로 스와이프가 전부 막힌다
+// (swipeBlocked 가 열린 모달에 양보하기 때문). 옮길 때 닫아준다.
+function goView(k){ document.querySelectorAll('.compare:not([hidden])')
+  .forEach(function(el){ el.hidden=true; }); showView(k); }
 function buildNav(){
   const n=$('nav'); n.innerHTML='';
   VIEWS.forEach(function(v){
@@ -3169,7 +3173,7 @@ function buildNav(){
     b.className='ntab'; b.dataset.v=v[0]; b.type='button';
     b.textContent=v[2];
     if(v[0]==='adm') b.hidden=!ADMIN;             // 마스터가 아니면 칸 자체가 없다
-    b.addEventListener('click',function(){ if(S.view!==v[0]){ ac(); showView(v[0]); } });
+    b.addEventListener('click',function(){ if(S.view!==v[0]){ ac(); goView(v[0]); } });
     n.appendChild(b);
   });
 }
@@ -3386,7 +3390,7 @@ function swipeEnd(){
   const far=swipeGo(dx)||(Math.abs(dx)>34&&ms<260);   // 짧고 빠르면 튕긴 걸로 본다
   if(!far) return;
   const tgt=swipeTarget(dx<0?1:-1);
-  if(tgt){ ac(); showView(tgt[0]); }
+  if(tgt){ ac(); goView(tgt[0]); }
 }
 addEventListener('touchstart',swipeStart,{passive:true});
 addEventListener('touchmove',swipeMove,{passive:false});
@@ -4406,7 +4410,7 @@ initOnline();
 
 // 균형 점검용 노출 (게임 동작에는 영향 없음)
 try{ window.__CFG={SF,MAXSTAR,starCost,SHIELD,SLOTS,OPT,POOL,GCAP,UPRATE,UPGRADE,CUBES,
-  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,lineHTML,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,topBoss,bossLabel,myRec,DNAME,ACH,achStat,MAXLV,lvBonus,SLOT_ART,WEAPON_ART,stash,bagStar,bagLines,bagP4,dropSlot,BTYPE,renderAll,CRCOL,passTime,offerOffline,OFF_CAP,OFF_RATE,TR,carryLines,showDrop,cost,protUse,safeUse,IGCOST,igCost,MAST,MPS,mpFor,mastOf,mastFree,mastMult,mastSum,trStar,renderMast,starMult,expMult,engrave,ENG,renderShop,renderCubes,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
+  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,lineHTML,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,navViews,viewIdx,swipeTarget,swipeBlocked,VIEWS,topBoss,bossLabel,myRec,DNAME,ACH,achStat,MAXLV,lvBonus,SLOT_ART,WEAPON_ART,stash,bagStar,bagLines,bagP4,dropSlot,BTYPE,renderAll,CRCOL,passTime,offerOffline,OFF_CAP,OFF_RATE,TR,carryLines,showDrop,cost,protUse,safeUse,IGCOST,igCost,MAST,MPS,mpFor,mastOf,mastFree,mastMult,mastSum,trStar,renderMast,starMult,expMult,engrave,ENG,renderShop,renderCubes,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
   get state(){return S;}, cur, power, income, mesoMult, dropMult, starMult, potMultOf, odds, potGrade, topGrade, totalStars, sfBonus}; }catch(e){}
 })();
 </script>
