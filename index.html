@@ -2033,6 +2033,10 @@ function showResult(kind,txt){
   el.className='result '+kind;
   el.innerHTML=txt;
 }
+// 받침이 있으면 앞엣것, 없으면 뒤엣것 (무기는 / 망토는 / 장갑은)
+function josa(w,a,b){ const c=String(w||'').slice(-1).charCodeAt(0);
+  if(c<0xAC00||c>0xD7A3) return b;
+  return ((c-0xAC00)%28)?a:b; }
 function renderCubes(){
   const it=cur(), L=$('cubeList'); L.innerHTML='';
   const up=UPGRADE[it.ig];
@@ -2047,18 +2051,31 @@ function renderCubes(){
     '</span></span><span class="pr">'+(up?fmt(upCost(up)):'—')+'</span>';
   if(up) ub.addEventListener('click',upgradeItem);
   L.appendChild(ub);
-  // 레전더리 장비에만 나오는 칸 — 네 번째 잠재 줄을 여는 자리
-  if(it.ig>=3){
-    const have=(S.inv.eng|0), eb=document.createElement('button');
+  // 각인은 레전더리 장비에만 쓴다. 예전엔 레전더리를 낀 부위를 고르기 전까지
+  // 이 칸 자체가 없어서, 사놓고도 쓸 데를 못 찾았다. 가진 게 있으면 칸을 띄우고
+  // 왜 못 쓰는지, 어느 부위에 쓸 수 있는지 적어준다.
+  const engHave=(S.inv.eng|0);
+  if(it.ig>=3||engHave>0){
+    const legs=[];
+    S.items.forEach(function(x,k){ if(x.ig>=3&&!x.p4&&!x.broken) legs.push({i:k,n:SLOTS[k].n}); });
+    const eb=document.createElement('button');
     eb.className='cube'; eb.style.setProperty('--c','#FFD23F');
-    eb.disabled=busy||it.broken||it.p4||have<1;
+    const wrong=it.ig<3;
+    eb.disabled=busy||it.broken||it.p4||engHave<1||wrong;
+    const why =
+      wrong ? ('<b>레전더리 장비</b>에만 쓴다 — 지금 '+SLOTS[S.sel||0].n+josa(SLOTS[S.sel||0].n,'은','는')+' '+IGNAME[it.ig]+' 장비다'+
+               (legs.length?' · <b>'+legs.map(function(x){return x.n;}).join(' · ')+'</b>에 쓸 수 있다'
+                           :' · 아직 레전더리 장비가 없다 (보스가 떨군다)'))
+      : it.p4 ? '이 장비는 이미 네 줄이다'
+      : engHave<1 ? '가진 각인이 없다 — <b>상점</b>에서 산다'
+      : '성공 <b>'+ENG.p+'%</b> · 실패하면 각인만 사라진다 · 열리면 그 자리에 한 줄이 바로 굴러간다';
     eb.innerHTML='<span class="ic">❖</span><span><span class="nm">금빛 각인 — 잠재 '+
-      (it.p4?'네 줄 (열림)':'네 번째 줄 해금')+'</span><span class="rt">'+
-      (it.p4?'이 장비는 이미 네 줄이다'
-           :have<1?'가진 각인이 없다 — <b>상점</b>에서 산다'
-           :'성공 <b>'+ENG.p+'%</b> · 실패하면 각인만 사라진다 · 열리면 그 자리에 한 줄이 바로 굴러간다')+
-      '</span></span><span class="pr">'+(it.p4?'—':'보유 '+have)+'</span>';
-    if(!eb.disabled) eb.addEventListener('click',engrave);
+      (it.p4?'네 줄 (열림)':'네 번째 줄 해금')+'</span><span class="rt">'+why+
+      '</span></span><span class="pr">'+(it.p4?'—':'보유 '+engHave)+'</span>';
+    // 쓸 수 있는 부위가 따로 있으면 눌러서 그리로 보낸다
+    if(wrong&&legs.length){ eb.disabled=false;
+      eb.addEventListener('click',function(){ ac(); S.sel=legs[0].i; renderAll(); save(); }); }
+    else if(!eb.disabled) eb.addEventListener('click',engrave);
     L.appendChild(eb);
   }
   CUBES.forEach(function(cb){
@@ -2577,7 +2594,8 @@ const SHOP=[
   {k:'eng', n:'금빛 각인',
    d:function(){ const it=cur();
      return '레전더리 장비의 <b>잠재 네 번째 줄</b>을 연다 · 성공 '+ENG.p+'% · 지금 '+(S.inv.eng|0)+'장'+
-       (it.ig>=3?(it.p4?' · 이 장비는 이미 열려 있다':' · 강화대에서 쓴다'):' · 레전더리 장비에만 쓴다'); },
+       '<br>사고 나서 <b>잠재능력 큐브</b> 탭으로 가면 쓰는 칸이 있다'+
+       (it.ig>=3?(it.p4?' · 이 장비는 이미 열려 있다':''):' · 레전더리 장비에만 쓴다'); },
    price:function(){ return ENG.cost; }, can:function(){ return true; },
    buy:function(){ S.inv.eng=(S.inv.eng|0)+1; SND.up();
      log('<b>금빛 각인</b>을 샀다 — 강화대에서 레전더리 장비에 쓴다','up'); }},
@@ -3255,7 +3273,7 @@ const BAG=[
   {k:'choice', n:'초이스 큐브', ic:'◈', c:'#B15CFF', d:'고른 한 줄만 재설정 · 나머지는 그대로'},
   {k:'sh',     n:'쉴드 교환권', ic:'◇', c:'#4FA8FF', d:'다음 강화 1회 쉴드 비용 면제'},
   {k:'sure',   n:'확정 성공권', ic:'★', c:'#5CE68A', d:'강화 1회 무조건 성공'},
-  {k:'eng',    n:'금빛 각인',   ic:'❖', c:'#FFD23F', d:'레전더리 장비의 잠재 네 번째 줄을 연다 · 성공 '+ENG.p+'%'},
+  {k:'eng',    n:'금빛 각인',   ic:'❖', c:'#FFD23F', d:'레전더리 장비의 잠재 네 번째 줄을 연다 · 성공 '+ENG.p+'% · <b>강화대 → 잠재능력 큐브</b>에서 쓴다'},
   {k:'tr',     n:'전수 주문서', ic:'⇄', c:'#7CFFB0', d:'갈아탈 때 잠재를 옮기고 버린 별을 마스터리로 바꾼다'}
 ];
 const BAGTOK={n:'토벌 증표', ic:'◈', c:'#7CFFB0', d:'상점의 토벌 교환소에서 쓴다'};
