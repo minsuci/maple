@@ -1353,27 +1353,27 @@ const mapOpen=i=>!!MAPS[i]&&(S.lv||1)>=MAPS[i].lv;
 // 하드/카오스 배수는 드롭 성향에 따라 다르다. 큐브·성공권으로 받는 놈은 메소가 짜다.
 const BOSSES=[
   {n:'발록',        cyc:'일간', cd: 3600, req:  40, hreq:  75, creq:   0, rew:   140000, hrew:  300000, crew:        0, t:'메소'},
-  {n:'자쿰',        cyc:'일간', cd: 3600, req:  90, hreq: 165, creq:   0, rew:  170000, hrew:  640000, crew:        0, t:'메소'},
-  {n:'혼테일',      cyc:'일간', cd: 3600, req: 160, hreq: 295, creq:   0, rew:  270000, hrew:  840000, crew:        0, t:'장비'},
-  {n:'파풀라투스',  cyc:'일간', cd: 3600, req: 250, hreq: 460, creq:   0, rew:  400000, hrew:  960000, crew:        0, t:'큐브'},
-  {n:'핑크빈',      cyc:'일간', cd: 3600, req: 360, hreq: 665, creq:   0, rew:  640000, hrew: 2600000, crew:        0, t:'메소'},
-  {n:'반 레온',     cyc:'일간', cd: 3600, req: 490, hreq: 905, creq:   0, rew:  800000, hrew: 2500000, crew:        0, t:'쉴드'},
-  {n:'힐라',        cyc:'일간', cd: 3600, req: 560, hreq:1030, creq:   0, rew:  1000000, hrew: 4000000, crew:        0, t:'메소'},
-  {n:'매그너스',    cyc:'주간', cd:10800, req: 640, hreq:1185, creq:1500, rew: 3300000, hrew: 9200000, crew:19000000, t:'장비'},
-  {n:'아카이럼',    cyc:'주간', cd:10800, req: 810, hreq:1500, creq:1900, rew: 4400000, hrew: 8800000, crew:18000000, t:'큐브'},
-  {n:'아칸',        cyc:'주간', cd:10800, req: 840, hreq:1950, creq:   0, rew: 4400000, hrew: 16000000, crew:        0, t:'장비'},
-  {n:'스우',        cyc:'주간', cd:10800, req: 870, hreq:1470, creq:   0, rew: 4800000, hrew: 12000000, crew:        0, t:'쉴드'},
-  {n:'데미안',      cyc:'주간', cd:10800, req: 920, hreq:1530, creq:   0, rew: 4800000, hrew: 12000000, crew:        0, t:'장비'},
-  {n:'루시드',      cyc:'주간', cd:10800, req:1000, hreq:1820, creq:2480, rew: 5200000, hrew: 14000000, crew:34000000, t:'장비'},
-  {n:'더스크',      cyc:'주간', cd:10800, req:1130, hreq:1870, creq:   0, rew: 6000000, hrew: 11000000, crew:        0, t:'큐브'},
-  {n:'윌',          cyc:'주간', cd:10800, req:1210, hreq:2130, creq:2560, rew: 6000000, hrew: 14000000, crew:26000000, t:'성공권'},
-  {n:'진 힐라',     cyc:'주간', cd:10800, req:1450, hreq:2450, creq:   0, rew: 7200000, hrew: 16000000, crew:        0, t:'큐브'},
-  {n:'아자젤',      cyc:'주간', cd:10800, req:1480, hreq:2590, creq:   0, rew: 7200000, hrew:22000000, crew:        0, t:'쉴드'},
-  {n:'듄켈',        cyc:'주간', cd:10800, req:1590, hreq:2620, creq:   0, rew: 8400000, hrew:23000000, crew:        0, t:'장비'},
-  {n:'선택받은 세렌',cyc:'주간', cd:10800, req:1690, hreq:2710, creq:   0, rew: 9200000, hrew:18000000, crew:        0, t:'큐브'},
-  {n:'검은 마법사', cyc:'월간', cd:43200, req:1720, hreq:2750, creq:   0, rew:36000000, hrew:107000000, crew:        0, t:'전부'},
-  {n:'감시자 칼로스',cyc:'주간', cd:10800, req:1740, hreq:2950, creq:   0, rew: 9200000, hrew:19000000, crew:        0, t:'성공권'},
-  {n:'카링',        cyc:'월간', cd:43200, req:3150, hreq:3600, creq:   0, rew:68000000, hrew:140000000, crew:        0, t:'전부'}
+  {n:'자쿰',        cyc:'일간', cd: 3600, req:  90, hreq: 160, creq:   0, rew:  170000, hrew:  640000, crew:        0, t:'메소'},
+  {n:'혼테일',      cyc:'일간', cd: 3600, req: 150, hreq: 250, creq:   0, rew:  270000, hrew:  840000, crew:        0, t:'장비'},
+  {n:'파풀라투스',  cyc:'일간', cd: 3600, req: 220, hreq: 360, creq:   0, rew:  400000, hrew:  960000, crew:        0, t:'큐브'},
+  {n:'핑크빈',      cyc:'일간', cd: 3600, req: 290, hreq: 510, creq:   0, rew:  640000, hrew: 2600000, crew:        0, t:'메소'},
+  {n:'반 레온',     cyc:'일간', cd: 3600, req: 380, hreq: 680, creq:   0, rew:  800000, hrew: 2500000, crew:        0, t:'쉴드'},
+  {n:'힐라',        cyc:'일간', cd: 3600, req: 430, hreq: 780, creq:   0, rew:  1000000, hrew: 4000000, crew:        0, t:'메소'},
+  {n:'매그너스',    cyc:'주간', cd:10800, req: 490, hreq: 920, creq:1160, rew: 3300000, hrew: 9200000, crew:19000000, t:'장비'},
+  {n:'아카이럼',    cyc:'주간', cd:10800, req: 610, hreq:1160, creq:1520, rew: 4400000, hrew: 8800000, crew:18000000, t:'큐브'},
+  {n:'아칸',        cyc:'주간', cd:10800, req: 640, hreq:1560, creq:   0, rew: 4400000, hrew: 16000000, crew:        0, t:'장비'},
+  {n:'스우',        cyc:'주간', cd:10800, req: 660, hreq:1140, creq:   0, rew: 4800000, hrew: 12000000, crew:        0, t:'쉴드'},
+  {n:'데미안',      cyc:'주간', cd:10800, req: 690, hreq:1180, creq:   0, rew: 4800000, hrew: 12000000, crew:        0, t:'장비'},
+  {n:'루시드',      cyc:'주간', cd:10800, req: 750, hreq:1440, creq:2220, rew: 5200000, hrew: 14000000, crew:34000000, t:'장비'},
+  {n:'더스크',      cyc:'주간', cd:10800, req: 870, hreq:1480, creq:   0, rew: 6000000, hrew: 11000000, crew:        0, t:'큐브'},
+  {n:'윌',          cyc:'주간', cd:10800, req: 940, hreq:1760, creq:2380, rew: 6000000, hrew: 14000000, crew:26000000, t:'성공권'},
+  {n:'진 힐라',     cyc:'주간', cd:10800, req:1120, hreq:2160, creq:   0, rew: 7200000, hrew: 16000000, crew:        0, t:'큐브'},
+  {n:'아자젤',      cyc:'주간', cd:10800, req:1140, hreq:2440, creq:   0, rew: 7200000, hrew:22000000, crew:        0, t:'쉴드'},
+  {n:'듄켈',        cyc:'주간', cd:10800, req:1240, hreq:2500, creq:   0, rew: 8400000, hrew:23000000, crew:        0, t:'장비'},
+  {n:'선택받은 세렌',cyc:'주간', cd:10800, req:1320, hreq:2680, creq:   0, rew: 9200000, hrew:18000000, crew:        0, t:'큐브'},
+  {n:'검은 마법사', cyc:'월간', cd:43200, req:1340, hreq:2740, creq:   0, rew:36000000, hrew:107000000, crew:        0, t:'전부'},
+  {n:'감시자 칼로스',cyc:'주간', cd:10800, req:1360, hreq:3180, creq:   0, rew: 9200000, hrew:19000000, crew:        0, t:'성공권'},
+  {n:'카링',        cyc:'월간', cd:43200, req:3620, hreq:4720, creq:   0, rew:68000000, hrew:140000000, crew:        0, t:'전부'}
 ];
 const DNAME=['일반','하드','카오스'];
 const DCOL=['#8B84B8','#FF8A96','#B15CFF'];
@@ -1643,7 +1643,12 @@ function lvBonus(){
   if(L>250) b+=Math.min(L-250,50)*16;
   return b;
 }
-const power=()=>Math.round((S.items.reduce((a,_,i)=>a+slotPow(i),0)+lvBonus())*(1+sfBonus()/100)*(1+achStat().cp/100));
+// 레벨은 장비에 곱해진다. 예전엔 더하기라 전투력의 70% 가 레벨에서 나왔고,
+// 별을 박든 잠재를 굴리든 티가 안 났다 (잠재를 통째로 빼도 3% 밖에 안 빠졌다).
+// 곱하기로 두면 레벨도 장비도 서로가 있어야 값을 한다.
+const LVK=500;
+const lvMult=()=>1+lvBonus()/LVK;
+const power=()=>Math.round(S.items.reduce((a,_,i)=>a+slotPow(i),0)*lvMult()*(1+sfBonus()/100)*(1+achStat().cp/100));
 const xpRate=()=>{ const m=MAPS[S.map||0]; return m?m.xp*mapEff(S.map||0,power())*expMult():0; };
 const potGradeOf=it=>it&&it.lines.length?it.lines[0].g:-1;
 const potGrade=()=>potGradeOf(cur());
@@ -2578,7 +2583,9 @@ const SHOP=[
      log('<b>금빛 각인</b>을 샀다 — 강화대에서 레전더리 장비에 쓴다','up'); }},
   {k:'ev', n:'럭키데이 소환',
    d:function(){ return EV()?'이미 진행 중이다':'성공 확률 2배 · 강화 비용 30% 할인을 60초 동안'; },
-   price:function(){ return 800000; }, can:function(){ return !EV(); },
+   // 60초 동안 성공 두 배다. 지금 굴리는 강화 스무 번 값을 받는다 —
+   // 진행에 맞춰 오르고, 사서 쓰면 그래도 남는 장사다.
+   price:function(){ return Math.max(50000, Math.round(cost()*20/1000)*1000); }, can:function(){ return !EV(); },
    buy:function(){ S.evT=60; S.evCd=180; SND.up();
      flash('럭키데이','60초 동안 성공 확률이 두 배','#FFC94A');
      log('<b>럭키데이를 불렀다</b> — 60초','up'); }}
@@ -3001,7 +3008,7 @@ function gainXp(v){
   if((S.lv||1)>=MAXLV) S.xp=0;
   if(up){
     SND.up(); burst(80,'#5CE68A',{sp:1.1});
-    flash('LV '+S.lv,'기본 전투력 +'+(lvBonus()-b0),'#5CE68A');
+    flash('LV '+S.lv,'전투력 배수 x'+lvMult().toFixed(2),'#5CE68A');
     log('<b>레벨 '+S.lv+' 달성</b> — 기본 전투력이 올랐다','up');
   }
 }
@@ -3009,7 +3016,7 @@ function renderLevel(){
   const max=(S.lv||1)>=MAXLV, need=xpNeed(S.lv||1), p=max?100:Math.min(100,((S.xp||0)/need)*100);
   $('lvV').textContent=(S.lv||1)>=MAXLV?'MAX':(S.lv||1);
   $('xpFill').style.width=p+'%';
-  $('xpText').innerHTML=max?'만렙 300 · 기본 전투력 +'+lvBonus():'EXP <b>'+Math.floor(S.xp||0).toLocaleString('ko-KR')+'</b> / '+need.toLocaleString('ko-KR')+
+  $('xpText').innerHTML=max?'만렙 300 · 전투력 배수 x'+lvMult().toFixed(2):'EXP <b>'+Math.floor(S.xp||0).toLocaleString('ko-KR')+'</b> / '+need.toLocaleString('ko-KR')+
     ' · 초당 <b>'+Math.round(xpRate())+'</b>'+(expMult()>1?' (경험치획득량 +'+Math.round((expMult()-1)*100)+'%)':'');
 }
 function checkAch(){
@@ -4268,6 +4275,9 @@ function enter(raw,serverSave){
   if((S.mv|0)<3){                              // 쉴드 기본값이 켜짐으로 바뀌었다 — 꺼둔 채로 25성을 가면 사백 배를 낸다
     S.mv=3; S.useProt=true; S.useSafe=true;
   }
+  if((S.mv|0)<4){                              // 레벨이 더하기에서 곱하기가 되면서 전투력 척도가 바뀌었다
+    S.mv=4; S.st.best=power();                 // 옛 척도의 최고 기록은 새 척도와 못 비교한다
+  }
   if(!mapOpen(S.map||0)) S.map=bestMap(power());
   S.zone=Math.max(0,Math.min(ZONES.length-1,S.zone|0));
   repairShown=false;
@@ -4410,7 +4420,7 @@ initOnline();
 
 // 균형 점검용 노출 (게임 동작에는 영향 없음)
 try{ window.__CFG={SF,MAXSTAR,starCost,SHIELD,SLOTS,OPT,POOL,GCAP,UPRATE,UPGRADE,CUBES,
-  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,lineHTML,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,navViews,viewIdx,swipeTarget,swipeBlocked,VIEWS,topBoss,bossLabel,myRec,DNAME,ACH,achStat,MAXLV,lvBonus,SLOT_ART,WEAPON_ART,stash,bagStar,bagLines,bagP4,dropSlot,BTYPE,renderAll,CRCOL,passTime,offerOffline,OFF_CAP,OFF_RATE,TR,carryLines,showDrop,cost,protUse,safeUse,IGCOST,igCost,MAST,MPS,mpFor,mastOf,mastFree,mastMult,mastSum,trStar,renderMast,starMult,expMult,engrave,ENG,renderShop,renderCubes,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
+  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,lineHTML,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,navViews,viewIdx,swipeTarget,swipeBlocked,VIEWS,topBoss,bossLabel,myRec,DNAME,ACH,achStat,MAXLV,lvBonus,lvMult,LVK,SLOT_ART,WEAPON_ART,stash,bagStar,bagLines,bagP4,dropSlot,BTYPE,renderAll,CRCOL,passTime,offerOffline,OFF_CAP,OFF_RATE,TR,carryLines,showDrop,cost,protUse,safeUse,IGCOST,igCost,MAST,MPS,mpFor,mastOf,mastFree,mastMult,mastSum,trStar,renderMast,starMult,expMult,engrave,ENG,renderShop,renderCubes,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
   get state(){return S;}, cur, power, income, mesoMult, dropMult, starMult, potMultOf, odds, potGrade, topGrade, totalStars, sfBonus}; }catch(e){}
 })();
 </script>
