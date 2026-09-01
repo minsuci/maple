@@ -67,6 +67,19 @@ body::before{
   display:flex;flex-direction:column;gap:16px;}
 
 /* ---------- 상단 바 ---------- */
+/* 스크롤을 내려도 메소는 위에 붙어 있는다. 나브 바로 아래에 얹고,
+   붙은 동안엔 이름표를 접어서 화면을 덜 먹는다. */
+/* 스크롤을 내려도 메소와 전투력은 늘 보인다. 붙었는지 감지하는 대신
+   나브와 한 덩어리로 묶어서 통째로 고정한다 — 이벤트에 기대지 않는다. */
+.navwrap{position:sticky;top:0;z-index:40;margin:0 0 10px;}
+.minibar{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;
+  margin-top:5px;padding:6px 12px;border-radius:9px;
+  background:rgba(21,18,44,.96);border:1px solid var(--edge);
+  -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);}
+.minibar b{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:.02em;}
+.minibar .mm{color:var(--meso);}
+.minibar .mp{color:var(--pow,#8FD9FF);}
+.minibar small{font-size:9.5px;letter-spacing:.14em;color:var(--dimmer);font-weight:700;margin-right:5px;}
 .topbar{
   display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;align-items:center;
   background:linear-gradient(180deg,var(--panel2),var(--panel));
@@ -350,8 +363,8 @@ button:disabled{cursor:not-allowed;opacity:.45;}
 /* ---------- 지금 어느 화면인지 ---------- */
 /* 스크롤을 내려도 붙어 있어야 한다 — 맨 위에만 있으면 정작 헤맬 때 안 보인다.
    모양은 난이도·구역 탭과 같은 언어로 맞췄다. */
-.nav{position:sticky;top:0;z-index:40;display:grid;grid-template-columns:repeat(auto-fit,minmax(0,1fr));
-  gap:5px;margin:0 0 10px;padding:6px;border-radius:var(--r);
+.nav{display:grid;grid-template-columns:repeat(auto-fit,minmax(0,1fr));
+  gap:5px;margin:0;padding:6px;border-radius:var(--r);
   background:rgba(21,18,44,.94);border:1px solid var(--edge);
   -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);}
 .ntab{position:relative;padding:9px 2px;border-radius:9px;font-weight:900;font-size:12.5px;
@@ -788,7 +801,13 @@ td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
     <button class="burger" id="burger" aria-label="메뉴"><span></span><span></span><span></span></button>
   </div>
 
-  <nav class="nav" id="nav" aria-label="화면"></nav>
+  <div class="navwrap">
+    <nav class="nav" id="nav" aria-label="화면"></nav>
+    <div class="minibar">
+      <span><small>메소</small><b class="mm" id="mbMeso">0</b></span>
+      <span><small>전투력</small><b class="mp" id="mbPow">0</b></span>
+    </div>
+  </div>
 
   <div class="topbar">
     <div class="cell">
@@ -1355,25 +1374,25 @@ const BOSSES=[
   {n:'발록',        cyc:'일간', cd: 3600, req:  40, hreq:  75, creq:   0, rew:   140000, hrew:  300000, crew:        0, t:'메소'},
   {n:'자쿰',        cyc:'일간', cd: 3600, req:  90, hreq: 160, creq:   0, rew:  170000, hrew:  640000, crew:        0, t:'메소'},
   {n:'혼테일',      cyc:'일간', cd: 3600, req: 150, hreq: 250, creq:   0, rew:  270000, hrew:  840000, crew:        0, t:'장비'},
-  {n:'파풀라투스',  cyc:'일간', cd: 3600, req: 220, hreq: 360, creq:   0, rew:  400000, hrew:  960000, crew:        0, t:'큐브'},
-  {n:'핑크빈',      cyc:'일간', cd: 3600, req: 290, hreq: 510, creq:   0, rew:  640000, hrew: 2600000, crew:        0, t:'메소'},
-  {n:'반 레온',     cyc:'일간', cd: 3600, req: 380, hreq: 680, creq:   0, rew:  800000, hrew: 2500000, crew:        0, t:'쉴드'},
-  {n:'힐라',        cyc:'일간', cd: 3600, req: 430, hreq: 780, creq:   0, rew:  1000000, hrew: 4000000, crew:        0, t:'메소'},
-  {n:'매그너스',    cyc:'주간', cd:10800, req: 490, hreq: 920, creq:1160, rew: 3300000, hrew: 9200000, crew:19000000, t:'장비'},
-  {n:'아카이럼',    cyc:'주간', cd:10800, req: 610, hreq:1160, creq:1520, rew: 4400000, hrew: 8800000, crew:18000000, t:'큐브'},
-  {n:'아칸',        cyc:'주간', cd:10800, req: 640, hreq:1560, creq:   0, rew: 4400000, hrew: 16000000, crew:        0, t:'장비'},
-  {n:'스우',        cyc:'주간', cd:10800, req: 660, hreq:1140, creq:   0, rew: 4800000, hrew: 12000000, crew:        0, t:'쉴드'},
-  {n:'데미안',      cyc:'주간', cd:10800, req: 690, hreq:1180, creq:   0, rew: 4800000, hrew: 12000000, crew:        0, t:'장비'},
-  {n:'루시드',      cyc:'주간', cd:10800, req: 750, hreq:1440, creq:2220, rew: 5200000, hrew: 14000000, crew:34000000, t:'장비'},
-  {n:'더스크',      cyc:'주간', cd:10800, req: 870, hreq:1480, creq:   0, rew: 6000000, hrew: 11000000, crew:        0, t:'큐브'},
-  {n:'윌',          cyc:'주간', cd:10800, req: 940, hreq:1760, creq:2380, rew: 6000000, hrew: 14000000, crew:26000000, t:'성공권'},
-  {n:'진 힐라',     cyc:'주간', cd:10800, req:1120, hreq:2160, creq:   0, rew: 7200000, hrew: 16000000, crew:        0, t:'큐브'},
-  {n:'아자젤',      cyc:'주간', cd:10800, req:1140, hreq:2440, creq:   0, rew: 7200000, hrew:22000000, crew:        0, t:'쉴드'},
-  {n:'듄켈',        cyc:'주간', cd:10800, req:1240, hreq:2500, creq:   0, rew: 8400000, hrew:23000000, crew:        0, t:'장비'},
-  {n:'선택받은 세렌',cyc:'주간', cd:10800, req:1320, hreq:2680, creq:   0, rew: 9200000, hrew:18000000, crew:        0, t:'큐브'},
-  {n:'검은 마법사', cyc:'월간', cd:43200, req:1340, hreq:2740, creq:   0, rew:36000000, hrew:107000000, crew:        0, t:'전부'},
-  {n:'감시자 칼로스',cyc:'주간', cd:10800, req:1360, hreq:3180, creq:   0, rew: 9200000, hrew:19000000, crew:        0, t:'성공권'},
-  {n:'카링',        cyc:'월간', cd:43200, req:3620, hreq:4720, creq:   0, rew:68000000, hrew:140000000, crew:        0, t:'전부'}
+  {n:'파풀라투스',  cyc:'일간', cd: 3600, req: 220, hreq: 370, creq:   0, rew:  400000, hrew:  960000, crew:        0, t:'큐브'},
+  {n:'핑크빈',      cyc:'일간', cd: 3600, req: 290, hreq: 540, creq:   0, rew:  640000, hrew: 2600000, crew:        0, t:'메소'},
+  {n:'반 레온',     cyc:'일간', cd: 3600, req: 400, hreq: 730, creq:   0, rew:  800000, hrew: 2500000, crew:        0, t:'쉴드'},
+  {n:'힐라',        cyc:'일간', cd: 3600, req: 450, hreq: 900, creq:   0, rew:  1000000, hrew: 4000000, crew:        0, t:'메소'},
+  {n:'매그너스',    cyc:'주간', cd:10800, req: 510, hreq:1060, creq:1340, rew: 3300000, hrew: 9200000, crew:19000000, t:'장비'},
+  {n:'아카이럼',    cyc:'주간', cd:10800, req: 640, hreq:1340, creq:1780, rew: 4400000, hrew: 8800000, crew:18000000, t:'큐브'},
+  {n:'아칸',        cyc:'주간', cd:10800, req: 680, hreq:1820, creq:   0, rew: 4400000, hrew: 16000000, crew:        0, t:'장비'},
+  {n:'스우',        cyc:'주간', cd:10800, req: 700, hreq:1320, creq:   0, rew: 4800000, hrew: 12000000, crew:        0, t:'쉴드'},
+  {n:'데미안',      cyc:'주간', cd:10800, req: 750, hreq:1360, creq:   0, rew: 4800000, hrew: 12000000, crew:        0, t:'장비'},
+  {n:'루시드',      cyc:'주간', cd:10800, req: 860, hreq:1680, creq:2800, rew: 5200000, hrew: 14000000, crew:34000000, t:'장비'},
+  {n:'더스크',      cyc:'주간', cd:10800, req:1000, hreq:1720, creq:   0, rew: 6000000, hrew: 11000000, crew:        0, t:'큐브'},
+  {n:'윌',          cyc:'주간', cd:10800, req:1080, hreq:2060, creq:3200, rew: 6000000, hrew: 14000000, crew:26000000, t:'성공권'},
+  {n:'진 힐라',     cyc:'주간', cd:10800, req:1300, hreq:2660, creq:   0, rew: 7200000, hrew: 16000000, crew:        0, t:'큐브'},
+  {n:'아자젤',      cyc:'주간', cd:10800, req:1320, hreq:3340, creq:   0, rew: 7200000, hrew:22000000, crew:        0, t:'쉴드'},
+  {n:'듄켈',        cyc:'주간', cd:10800, req:1440, hreq:3500, creq:   0, rew: 8400000, hrew:23000000, crew:        0, t:'장비'},
+  {n:'선택받은 세렌',cyc:'주간', cd:10800, req:1540, hreq:3940, creq:   0, rew: 9200000, hrew:18000000, crew:        0, t:'큐브'},
+  {n:'검은 마법사', cyc:'월간', cd:43200, req:1560, hreq:4080, creq:   0, rew:36000000, hrew:107000000, crew:        0, t:'전부'},
+  {n:'감시자 칼로스',cyc:'주간', cd:10800, req:1580, hreq:4880, creq:   0, rew: 9200000, hrew:19000000, crew:        0, t:'성공권'},
+  {n:'카링',        cyc:'월간', cd:43200, req:5600, hreq:7380, creq:   0, rew:68000000, hrew:140000000, crew:        0, t:'전부'}
 ];
 const DNAME=['일반','하드','카오스'];
 const DCOL=['#8B84B8','#FF8A96','#B15CFF'];
@@ -1605,10 +1624,13 @@ const mastUsed=i=>MAST.reduce((a,x)=>a+(mastOf(i).u[x.k]|0),0);
 const mastFree=i=>Math.max(0,(mastOf(i).p|0)-mastUsed(i));
 const mastMult=i=>1+MAST.reduce((a,x)=>a+(mastOf(i).u[x.k]|0)*x.v*x.cp,0)/100;
 const mastSum=k=>S.items.reduce((a,_,i)=>a+(mastOf(i).u[k]|0)*MASTK[k].v,0);
-function starMult(star){
+// 같은 별이라도 좋은 장비에 박은 별이 더 값진다. 레전더리는 강화비용이 두 배인데
+// 얻는 게 없어서, 별을 박을수록 오히려 손해였다.
+const IGSTAR=[1.00, 1.12, 1.30, 1.85];
+function starMult(star,ig){
   let m=0;
   for(let i=1;i<=star;i++) m += i<=15?4 : i<=25?7 : 11;
-  return 1+m/100;
+  return 1+m*(IGSTAR[(ig|0)]||1)/100;
 }
 // 짝 옵션은 part 에 적힌 몫이 각각 따로 붙는다
 const partOf=(l,k)=>{ const d=OPT[l.k]; if(!d) return 0;
@@ -1629,7 +1651,7 @@ const earns=l=>{ const d=OPT[l.k]; if(!d) return false;
 const deadOpt=l=>cpOf(l)<3&&!earns(l);
 const potMultOf=lines=>1+lines.reduce((a,l)=>a+cpOf(l),0)/100;
 const slotPow=i=>{ const it=S.items[i]; if(!it||it.broken) return 0;
-  return SLOTS[i].base*starMult(it.star)*potMultOf(it.lines)*mastMult(i); };
+  return SLOTS[i].base*starMult(it.star,it.ig)*potMultOf(it.lines)*mastMult(i); };
 const totalStars=()=>S.items.reduce((a,it)=>a+(it.broken?0:it.star),0);
 function sfBonus(){ const t=totalStars(); let b=0; for(const x of SFTIERS) if(t>=x[0]) b=x[1]; return b; }
 function sfNext(){ const t=totalStars(); for(const x of SFTIERS) if(t<x[0]) return x; return null; }
@@ -1939,6 +1961,8 @@ function renderTop(){
   $('mesoV').textContent=fmt(S.meso);
   $('incV').innerHTML=fmt(income())+'<small>/초</small>';
   $('powV').textContent=power().toLocaleString('ko-KR');
+  $('mbMeso').textContent=fmt(S.meso);
+  $('mbPow').textContent=power().toLocaleString('ko-KR');
   const rb=$('repBtn'); if(rb) rb.disabled=S.meso<restoreCost();
 }
 function renderEvent(){
@@ -2289,7 +2313,7 @@ function showCompare(before,after,g,gBefore){
   const side=function(t,ls,gr){
     return '<div class="cside"><h3>'+t+'</h3><span class="gradetag '+GKEY[gr]+'">'+GNAME[gr]+'</span>'+
       '<div class="clines">'+ls.map(function(l){ return '<div class="potline">'+lineHTML(l)+'</div>'; }).join('')+'</div>'+
-      '<div class="cpow">기여 전투력 '+Math.round(SLOTS[S.sel||0].base*starMult(cur().star)*potMultOf(ls)).toLocaleString('ko-KR')+'</div></div>';
+      '<div class="cpow">기여 전투력 '+Math.round(SLOTS[S.sel||0].base*starMult(cur().star,cur().ig)*potMultOf(ls)).toLocaleString('ko-KR')+'</div></div>';
   };
   $('cmpBody').innerHTML=side('이전',before,gBefore)+side('이후',after,g);
   box.hidden=false;
@@ -3192,6 +3216,7 @@ function showView(k){
 // (swipeBlocked 가 열린 모달에 양보하기 때문). 옮길 때 닫아준다.
 function goView(k){ document.querySelectorAll('.compare:not([hidden])')
   .forEach(function(el){ el.hidden=true; }); showView(k); }
+
 function buildNav(){
   const n=$('nav'); n.innerHTML='';
   VIEWS.forEach(function(v){
@@ -3312,8 +3337,8 @@ function renderBag(){
   let junk=0;
   S.bag.forEach(function(b,idx){
     // 등급만 보면 25성 유니크가 0성 레전더리보다 낮다고 나온다. 실제 기여로 잰다.
-    const cur0=S.items[b.slot], nowV=SLOTS[b.slot].base*starMult(cur0.star)*potMultOf(cur0.lines);
-    const newV=SLOTS[b.slot].base*starMult(bagStar(b))*potMultOf(bagLines(b));
+    const cur0=S.items[b.slot], nowV=SLOTS[b.slot].base*starMult(cur0.star,cur0.ig)*potMultOf(cur0.lines);
+    const newV=SLOTS[b.slot].base*starMult(bagStar(b),b.ig)*potMultOf(bagLines(b));
     const up=newV>nowV||(b.ig>cur0.ig&&newV>=nowV); if(!up) junk++;
     const el=document.createElement('div');
     el.className='bagrow drop'+(up?' up':'');
@@ -4439,7 +4464,7 @@ initOnline();
 
 // 균형 점검용 노출 (게임 동작에는 영향 없음)
 try{ window.__CFG={SF,MAXSTAR,starCost,SHIELD,SLOTS,OPT,POOL,GCAP,UPRATE,UPGRADE,CUBES,
-  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,lineHTML,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,navViews,viewIdx,swipeTarget,swipeBlocked,VIEWS,topBoss,bossLabel,myRec,DNAME,ACH,achStat,MAXLV,lvBonus,lvMult,LVK,SLOT_ART,WEAPON_ART,stash,bagStar,bagLines,bagP4,dropSlot,BTYPE,renderAll,CRCOL,passTime,offerOffline,OFF_CAP,OFF_RATE,TR,carryLines,showDrop,cost,protUse,safeUse,IGCOST,igCost,MAST,MPS,mpFor,mastOf,mastFree,mastMult,mastSum,trStar,renderMast,starMult,expMult,engrave,ENG,renderShop,renderCubes,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
+  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,lineHTML,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,navViews,viewIdx,swipeTarget,swipeBlocked,VIEWS,topBoss,bossLabel,myRec,DNAME,ACH,achStat,MAXLV,lvBonus,lvMult,LVK,SLOT_ART,WEAPON_ART,stash,bagStar,bagLines,bagP4,dropSlot,BTYPE,renderAll,CRCOL,passTime,offerOffline,OFF_CAP,OFF_RATE,TR,carryLines,showDrop,cost,protUse,safeUse,IGCOST,igCost,MAST,MPS,mpFor,mastOf,mastFree,mastMult,mastSum,trStar,renderMast,starMult,expMult,IGSTAR,engrave,ENG,renderShop,renderCubes,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
   get state(){return S;}, cur, power, income, mesoMult, dropMult, starMult, potMultOf, odds, potGrade, topGrade, totalStars, sfBonus}; }catch(e){}
 })();
 </script>
