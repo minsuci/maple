@@ -1679,7 +1679,9 @@ const LVK=500;
 const lvMult=()=>1+lvBonus()/LVK;
 const power=()=>Math.round(S.items.reduce((a,_,i)=>a+slotPow(i),0)*lvMult()*(1+sfBonus()/100)*(1+achStat().cp/100));
 const xpRate=()=>{ const m=MAPS[S.map||0]; return m?m.xp*mapEff(S.map||0,power())*expMult():0; };
-const potGradeOf=it=>it&&it.lines.length?it.lines[0].g:-1;
+// 첫 줄만 보면, 뒤에 더 높은 줄이 붙었을 때 태그가 낮게 거짓말을 한다.
+// (보스공격력만 레전더리인데 '유니크 잠재'라고 뜨던 것)
+const potGradeOf=it=>(it&&it.lines.length)?it.lines.reduce(function(a,l){return Math.max(a,l.g|0);},0):-1;
 const potGrade=()=>potGradeOf(cur());
 const topGrade=()=>S.items.reduce((a,it)=>Math.max(a,potGradeOf(it)),-1);
 const sumOpt=key=>S.items.reduce((a,it)=>a+(it.broken?0:it.lines.reduce((b,l)=>b+partOf(l,key),0)),0);
@@ -2272,7 +2274,9 @@ function spendCube(cb,only){
   S.st.cube++;
   busy=true; renderCubes(); renderStarPane();
   const before=it.lines.map(function(l){ return Object.assign({},l); });
-  const g=nextGrade(it,cb.k);
+  // 초이스는 등급을 못 올린다. nextGrade 를 태우면 채워 넣는 줄만 새 등급이 되어
+  // 한 장비 안에서 등급이 갈린다. 고른 줄만 지금 등급으로 다시 굴린다.
+  const g=(only>=0)?Math.max(0,potGradeOf(it)):nextGrade(it,cb.k);
   let after;
   const pn=POTN(it);
   if(only>=0){
@@ -2297,9 +2301,17 @@ function finishCube(cb,before,after,g){
   if(cb.k==='black'&&before.length){ showCompare(before,after,g,gBefore); return; }
   applyLines(after,g,gBefore,cb);
 }
+// 한 장비의 잠재 줄은 등급이 같아야 한다. 값은 그대로 두고 등급만 맞춘다 —
+// cpOf 는 값만 보니 전투력은 안 변하고, 색과 태그만 앞뒤가 맞는다.
+function evenGrade(lines){
+  if(!lines||!lines.length) return lines;
+  const g=lines.reduce(function(a,l){return Math.max(a,l.g|0);},0);
+  lines.forEach(function(l){ l.g=g; });
+  return lines;
+}
 function applyLines(lines,g,gBefore,cb){
   const it=cur();
-  it.lines=lines;
+  it.lines=evenGrade(lines);
   S.st.mg=Math.max(S.st.mg||0,topGrade());
   if(gBefore>=0&&g>gBefore){
     S.st.up++; SND.up();
@@ -2340,7 +2352,7 @@ function engrave(){
     if(Math.random()*100<ENG.p){
       it.p4=true;
       const g=potGradeOf(it);
-      if(g>=0) it.lines.push(rollLine(S.sel||0,g));
+      if(g>=0){ it.lines.push(rollLine(S.sel||0,g)); evenGrade(it.lines); }
       SND.up(); burst(150,'#FFD23F',{sp:1.4});
       flash('금빛 각인','잠재 네 번째 줄이 열렸다','#FFD23F');
       log('<b>금빛 각인 성공</b> — '+SLOTS[S.sel||0].n+'의 잠재가 <b>네 줄</b>이 됐다','up');
@@ -4329,6 +4341,11 @@ function enter(raw,serverSave){
   if((S.mv|0)<4){                              // 레벨이 더하기에서 곱하기가 되면서 전투력 척도가 바뀌었다
     S.mv=4; S.st.best=power();                 // 옛 척도의 최고 기록은 새 척도와 못 비교한다
   }
+  if((S.mv|0)<5){                              // 한 장비 안에서 잠재 등급이 갈려 있던 것을 맞춘다
+    S.mv=5;
+    S.items.forEach(function(it){ if(it&&Array.isArray(it.lines)) evenGrade(it.lines); });
+    if(Array.isArray(S.bag)) S.bag.forEach(function(b){ if(b&&Array.isArray(b.lines)) evenGrade(b.lines); });
+  }
   if(!mapOpen(S.map||0)) S.map=bestMap(power());
   S.zone=Math.max(0,Math.min(ZONES.length-1,S.zone|0));
   repairShown=false;
@@ -4471,7 +4488,7 @@ initOnline();
 
 // 균형 점검용 노출 (게임 동작에는 영향 없음)
 try{ window.__CFG={SF,MAXSTAR,starCost,SHIELD,SLOTS,OPT,POOL,GCAP,UPRATE,UPGRADE,CUBES,
-  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,lineHTML,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,navViews,viewIdx,swipeTarget,swipeBlocked,VIEWS,topBoss,bossLabel,myRec,DNAME,ACH,achStat,MAXLV,lvBonus,lvMult,LVK,SLOT_ART,WEAPON_ART,stash,bagStar,bagLines,bagP4,dropSlot,BTYPE,renderAll,CRCOL,passTime,offerOffline,OFF_CAP,OFF_RATE,TR,carryLines,showDrop,cost,protUse,safeUse,IGCOST,igCost,MAST,MPS,mpFor,mastOf,mastFree,mastMult,mastSum,trStar,renderMast,starMult,expMult,IGSTAR,engrave,ENG,renderShop,renderCubes,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
+  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,lineHTML,potGradeOf,evenGrade,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,navViews,viewIdx,swipeTarget,swipeBlocked,VIEWS,topBoss,bossLabel,myRec,DNAME,ACH,achStat,MAXLV,lvBonus,lvMult,LVK,SLOT_ART,WEAPON_ART,stash,bagStar,bagLines,bagP4,dropSlot,BTYPE,renderAll,CRCOL,passTime,offerOffline,OFF_CAP,OFF_RATE,TR,carryLines,showDrop,cost,protUse,safeUse,IGCOST,igCost,MAST,MPS,mpFor,mastOf,mastFree,mastMult,mastSum,trStar,renderMast,starMult,expMult,IGSTAR,engrave,ENG,renderShop,renderCubes,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
   get state(){return S;}, cur, power, income, mesoMult, dropMult, starMult, potMultOf, odds, potGrade, topGrade, totalStars, sfBonus}; }catch(e){}
 })();
 </script>
