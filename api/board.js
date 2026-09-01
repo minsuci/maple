@@ -58,7 +58,6 @@ function cleanRec(r) {
     job:   n(r.job, 2),
     ig:    n(r.ig, 2),
     power: n(r.power, 100000),
-    hall:  r.hall ? 1 : 0,
     des:   n(r.des, 1000000),
     tries: n(r.tries, 10000000),
     ts:    Date.now()
@@ -66,7 +65,6 @@ function cleanRec(r) {
 }
 const better = (a, b) =>
   !b ? true :
-  a.hall !== b.hall ? a.hall > b.hall :
   a.star !== b.star ? a.star > b.star :
   a.grade !== b.grade ? a.grade > b.grade :
   a.power > b.power;
@@ -105,7 +103,7 @@ async function board() {
     .filter(r => r.ts && (r.star > 0 || r.tries > 0 || r.boss > 0))   // 아직 아무것도 안 한 계정은 랭킹에 안 띄운다
     .filter(r => !isAdmin(r.id))                                     // 마스터는 뭐든 만들 수 있으니 순위에서 뺀다
     .sort((a, b) =>
-      (b.hall - a.hall) || (b.star - a.star) || (b.grade - a.grade) ||
+      (b.boss - a.boss) || (b.star - a.star) || (b.grade - a.grade) ||
       (b.power - a.power) || (a.ts - b.ts))
     .slice(0, 50);
 }
