@@ -3675,7 +3675,7 @@ async function renderAdm(force){
       ['아이디','lv','전투력','최고★','잠재','보스','업적','시도','파괴','마지막'].map(function(h){return '<th>'+h+'</th>';}).join('')+
       '</tr></thead><tbody>'+rows.map(function(p){
         return '<tr><td class="nm">'+esc(p.id)+'</td><td>'+(p.lv|0)+'</td><td>'+(p.power|0).toLocaleString('ko-KR')+
-          '</td><td>'+(p.star|0)+'</td><td>'+(GNAME[p.grade]||'—')+'</td><td>'+(p.boss|0)+'</td><td>'+(p.ach|0)+
+          '</td><td>'+(p.star|0)+'</td><td>'+(GNAME[p.grade]||'—')+'</td><td>'+esc(bossLabel(p.boss))+'</td><td>'+(p.ach|0)+
           '</td><td>'+(p.tries|0).toLocaleString('ko-KR')+'</td><td>'+(p.des|0)+'</td><td>'+ago(p.seen)+'</td></tr>';
       }).join('')+'</tbody></table></div>';
     $('admNote').innerHTML='<b>'+rows.length+'</b>명. 최근 접속 순이다. 세이브 내용과 비밀번호는 서버에서도 안 내보낸다 — 여기서 남의 기록을 고칠 수는 없다.';
@@ -3976,10 +3976,30 @@ async function pwHash(id,pw){
 const authOf=id=>lsGet(LK.auth(id),null);
 const lockOf=id=>{ const e=BOARD.find(x=>x.id===id); return (e&&e.h)||null; };
 
-const topBoss=function(){ let b=0;
-  if(S.bk) for(let i=0;i<S.bk.length;i++) if(S.bk[i]>0) b=i+1;
-  if(S.bkh) for(let i=0;i<S.bkh.length;i++) if(S.bkh[i]>0) b=Math.max(b,13+i);
-  return b; };
+// 최고 보스 — 예전엔 12마리 기준으로 '일반은 i+1, 하드는 13+i' 였다.
+// 스물두 마리에 카오스까지 생기면서 값이 겹치고 카오스는 아예 안 세졌다.
+// 이제 요구 전투력이 가장 높은 것을 고르고 100+i*3+d 로 담는다.
+// 100 을 더하는 건 옛 값(1~24)이 Math.max 에 살아남지 않게 하려는 것이다.
+const BOSS_BASE=100;
+const topBoss=function(){
+  let best=-1, bi=-1, bd=0;
+  [S.bk,S.bkh,S.bkc].forEach(function(arr,d){
+    if(!Array.isArray(arr)) return;
+    for(let i=0;i<arr.length&&i<BOSSES.length;i++){
+      if(!(arr[i]>0)) continue;
+      const req=bossReqAt(i,d);
+      if(req>best){ best=req; bi=i; bd=d; }
+    }
+  });
+  return bi<0?0:BOSS_BASE+bi*3+bd;
+};
+const bossLabel=function(b){
+  b=+b||0;
+  if(!b) return '—';
+  if(b<BOSS_BASE) return '기록 갱신 전';        // 옛 방식 값 — 다음 격파에 맞춰진다
+  const i=Math.floor((b-BOSS_BASE)/3), d=(b-BOSS_BASE)%3;
+  return BOSSES[i] ? (BOSSES[i].n+(d?' '+DNAME[d]:'')) : '—';
+};
 function myRec(){
   return {id:USER, star:S.st.max|0, grade:Math.max(S.st.mg||0,topGrade())|0, power:S.st.best|0,
           hall:S.st.hall?1:0, des:S.st.des|0, tries:S.st.try|0, boss:topBoss(),
@@ -3992,7 +4012,7 @@ function mergeBoard(){
     const id=String(e.id);
     const r={id:id, star:Math.min(36,+e.star||0), grade:Math.min(3,+e.grade||0),
              power:+e.power||0, hall:e.hall?1:0, des:+e.des||0, tries:+e.tries||0,
-             boss:Math.min(24,+e.boss||0), ach:Math.min(99,+e.ach||0), lv:Math.min(300,+e.lv||1), ts:+e.ts||0};
+             boss:Math.min(200,+e.boss||0), ach:Math.min(99,+e.ach||0), lv:Math.min(300,+e.lv||1), ts:+e.ts||0};
     // 잠금(h)은 가장 먼저 등록된 것을 끝까지 유지한다 — 나중 사람이 바꿔치기 못 하도록
     if(typeof e.h==='string'&&e.h){
       const cur=lock.get(id);
@@ -4040,7 +4060,7 @@ function renderRank(){
       '<td>'+GNAME[e.grade]+'</td>'+
       '<td class="num">'+(e.lv||1)+'</td>'+
       '<td class="num">'+e.power.toLocaleString('ko-KR')+'</td>'+
-      '<td>'+(e.boss?(e.boss>12?esc(BOSSES[e.boss-13].n)+' 하드':esc(BOSSES[e.boss-1].n)):'—')+'</td>'+
+      '<td>'+esc(bossLabel(e.boss))+'</td>'+
       '<td class="num">'+(e.ach||0)+'</td>'+
       '<td class="num">'+e.des+'</td>'+
       '<td class="num">'+e.tries+'</td>'+
@@ -4393,7 +4413,7 @@ initOnline();
 
 // 균형 점검용 노출 (게임 동작에는 영향 없음)
 try{ window.__CFG={SF,MAXSTAR,starCost,SHIELD,SLOTS,OPT,POOL,GCAP,UPRATE,UPGRADE,CUBES,
-  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,lineHTML,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,ACH,achStat,MAXLV,lvBonus,SLOT_ART,WEAPON_ART,stash,bagStar,bagLines,bagP4,dropSlot,BTYPE,renderAll,CRCOL,passTime,offerOffline,OFF_CAP,OFF_RATE,TR,carryLines,showDrop,cost,protUse,safeUse,IGCOST,igCost,MAST,MPS,mpFor,mastOf,mastFree,mastMult,mastSum,trStar,renderMast,starMult,expMult,engrave,ENG,renderShop,renderCubes,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
+  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,lineHTML,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,topBoss,bossLabel,myRec,DNAME,ACH,achStat,MAXLV,lvBonus,SLOT_ART,WEAPON_ART,stash,bagStar,bagLines,bagP4,dropSlot,BTYPE,renderAll,CRCOL,passTime,offerOffline,OFF_CAP,OFF_RATE,TR,carryLines,showDrop,cost,protUse,safeUse,IGCOST,igCost,MAST,MPS,mpFor,mastOf,mastFree,mastMult,mastSum,trStar,renderMast,starMult,expMult,engrave,ENG,renderShop,renderCubes,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
   get state(){return S;}, cur, power, income, mesoMult, dropMult, starMult, potMultOf, odds, potGrade, topGrade, totalStars, sfBonus}; }catch(e){}
 })();
 </script>

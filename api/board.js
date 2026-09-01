@@ -52,7 +52,7 @@ function cleanRec(r) {
   return {
     star:  n(r.star, 36),
     grade: n(r.grade, 3),
-    boss:  n(r.boss, 24),
+    boss:  n(r.boss, 200),      // 100+보스*3+난이도 — 스물두 마리 x 세 난이도
     ach:   n(r.ach, 99),
     lv:    n(r.lv, 300),
     job:   n(r.job, 2),
