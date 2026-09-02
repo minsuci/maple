@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="ko">
 <head>
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta charset="utf-8">
 <title>별 하나 더</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -4381,6 +4381,38 @@ function catchUp(sec){
   log('자리를 비운 <b>'+dur+'</b> 동안 <b>+'+fmt(Math.round(m))+'</b> 메소를 벌어뒀다','ok');
   renderAll(); save();
 }
+
+/* ---------- 더블탭 확대 막기 ---------- */
+// touch-action:manipulation 과 viewport 로도 남는 기기가 있다.
+// 두 번째 탭의 기본동작만 삼켜 확대를 막고, 클릭은 우리가 직접 쏴서
+// 강화 연타는 그대로 되게 한다. 밀었으면(스와이프) 손대지 않는다.
+(function(){
+  let tapT=0, x0=0, y0=0, moved=false;
+  addEventListener('touchstart',function(e){
+    if(e.touches.length!==1){ moved=true; return; }
+    x0=e.touches[0].clientX; y0=e.touches[0].clientY; moved=false;
+  },{passive:true});
+  addEventListener('touchmove',function(e){
+    const t=e.touches[0]; if(!t) return;
+    if(Math.abs(t.clientX-x0)>10||Math.abs(t.clientY-y0)>10) moved=true;
+  },{passive:true});
+  addEventListener('touchend',function(e){
+    const now=Date.now(), gap=now-tapT; tapT=now;
+    if(moved||e.touches.length) return;              // 민 것은 탭이 아니다
+    if(gap>320) return;                              // 첫 탭은 그대로 둔다
+    const t=e.changedTouches&&e.changedTouches[0]; if(!t) return;
+    const el=document.elementFromPoint(t.clientX,t.clientY);
+    if(!el) return;                                  // 칠 곳이 없으면 손대지 않는다 (탭을 삼키면 안 된다)
+    if(/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName||'')) return;       // 입력칸은 놔둔다
+    e.preventDefault();                              // 확대만 막는다
+    el.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true,
+      view:window, clientX:t.clientX, clientY:t.clientY}));            // 클릭은 살린다
+  },{passive:false});
+  // 사파리가 두 손가락/더블탭으로 여는 확대 제스처도 막는다
+  ['gesturestart','gesturechange','gestureend'].forEach(function(g){
+    addEventListener(g,function(e){ e.preventDefault(); },{passive:false});
+  });
+})();
 
 /* ---------- 루프 ---------- */
 let last=performance.now(), acc=0, saveT=0, lastWall=Date.now();
