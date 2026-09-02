@@ -1380,28 +1380,28 @@ const mapOpen=i=>!!MAPS[i]&&(S.lv||1)>=MAPS[i].lv;
 //      안 그러면 상위 보스 보상이 전부 같아져 카링이 검마보다 싸진다.
 // 하드/카오스 배수는 드롭 성향에 따라 다르다. 큐브·성공권으로 받는 놈은 메소가 짜다.
 const BOSSES=[
-  {n:'발록',        cyc:'일간', cd: 3600, req:  40, hreq:  75, creq:   0, rew:   140000, hrew:  300000, crew:        0, t:'메소'},
-  {n:'자쿰',        cyc:'일간', cd: 3600, req:  90, hreq: 160, creq:   0, rew:  170000, hrew:  640000, crew:        0, t:'메소'},
-  {n:'혼테일',      cyc:'일간', cd: 3600, req: 150, hreq: 250, creq:   0, rew:  270000, hrew:  840000, crew:        0, t:'장비'},
-  {n:'파풀라투스',  cyc:'일간', cd: 3600, req: 220, hreq: 370, creq:   0, rew:  400000, hrew:  960000, crew:        0, t:'큐브'},
-  {n:'핑크빈',      cyc:'일간', cd: 3600, req: 290, hreq: 540, creq:   0, rew:  640000, hrew: 2600000, crew:        0, t:'메소'},
-  {n:'반 레온',     cyc:'일간', cd: 3600, req: 400, hreq: 730, creq:   0, rew:  800000, hrew: 2500000, crew:        0, t:'쉴드'},
-  {n:'힐라',        cyc:'일간', cd: 3600, req: 450, hreq: 900, creq:   0, rew:  1000000, hrew: 4000000, crew:        0, t:'메소'},
-  {n:'매그너스',    cyc:'주간', cd:10800, req: 510, hreq:1060, creq:1340, rew: 3300000, hrew: 9200000, crew:19000000, t:'장비'},
-  {n:'아카이럼',    cyc:'주간', cd:10800, req: 640, hreq:1340, creq:1780, rew: 4400000, hrew: 8800000, crew:18000000, t:'큐브'},
-  {n:'아칸',        cyc:'주간', cd:10800, req: 680, hreq:1820, creq:   0, rew: 4400000, hrew: 16000000, crew:        0, t:'장비'},
-  {n:'스우',        cyc:'주간', cd:10800, req: 700, hreq:1320, creq:   0, rew: 4800000, hrew: 12000000, crew:        0, t:'쉴드'},
-  {n:'데미안',      cyc:'주간', cd:10800, req: 750, hreq:1360, creq:   0, rew: 4800000, hrew: 12000000, crew:        0, t:'장비'},
-  {n:'루시드',      cyc:'주간', cd:10800, req: 860, hreq:1680, creq:2800, rew: 5200000, hrew: 14000000, crew:34000000, t:'장비'},
-  {n:'더스크',      cyc:'주간', cd:10800, req:1000, hreq:1720, creq:   0, rew: 6000000, hrew: 11000000, crew:        0, t:'큐브'},
-  {n:'윌',          cyc:'주간', cd:10800, req:1080, hreq:2060, creq:3200, rew: 6000000, hrew: 14000000, crew:26000000, t:'성공권'},
-  {n:'진 힐라',     cyc:'주간', cd:10800, req:1300, hreq:2660, creq:   0, rew: 7200000, hrew: 16000000, crew:        0, t:'큐브'},
-  {n:'아자젤',      cyc:'주간', cd:10800, req:1320, hreq:3340, creq:   0, rew: 7200000, hrew:22000000, crew:        0, t:'쉴드'},
-  {n:'듄켈',        cyc:'주간', cd:10800, req:1440, hreq:3500, creq:   0, rew: 8400000, hrew:23000000, crew:        0, t:'장비'},
-  {n:'선택받은 세렌',cyc:'주간', cd:10800, req:1540, hreq:3940, creq:   0, rew: 9200000, hrew:18000000, crew:        0, t:'큐브'},
-  {n:'검은 마법사', cyc:'월간', cd:43200, req:1560, hreq:4080, creq:   0, rew:36000000, hrew:107000000, crew:        0, t:'전부'},
-  {n:'감시자 칼로스',cyc:'주간', cd:10800, req:1580, hreq:4880, creq:   0, rew: 9200000, hrew:19000000, crew:        0, t:'성공권'},
-  {n:'카링',        cyc:'월간', cd:43200, req:5600, hreq:7380, creq:   0, rew:68000000, hrew:140000000, crew:        0, t:'전부'}
+  {n:'발록',        cyc:'일간', cd: 3600, req:   40, hreq:   75, creq:    0, rew:   140000, hrew:  300000, crew:        0, t:'메소'},
+  {n:'자쿰',        cyc:'일간', cd: 3600, req:   90, hreq:  160, creq:    0, rew:  170000, hrew:  640000, crew:        0, t:'메소'},
+  {n:'혼테일',      cyc:'일간', cd: 3600, req:  150, hreq:  250, creq:    0, rew:  270000, hrew:  840000, crew:        0, t:'장비'},
+  {n:'파풀라투스',  cyc:'일간', cd: 3600, req:  220, hreq:  370, creq:    0, rew:  400000, hrew:  960000, crew:        0, t:'큐브'},
+  {n:'핑크빈',      cyc:'일간', cd: 3600, req:  290, hreq:  560, creq:    0, rew:  640000, hrew: 2600000, crew:        0, t:'메소'},
+  {n:'반 레온',     cyc:'일간', cd: 3600, req:  400, hreq:  760, creq:    0, rew:  800000, hrew: 2500000, crew:        0, t:'쉴드'},
+  {n:'힐라',        cyc:'일간', cd: 3600, req:  460, hreq:  960, creq:    0, rew:  1000000, hrew: 4000000, crew:        0, t:'메소'},
+  {n:'매그너스',    cyc:'주간', cd:10800, req:  530, hreq: 1220, creq: 1560, rew: 3300000, hrew: 9200000, crew:19000000, t:'장비'},
+  {n:'아카이럼',    cyc:'주간', cd:10800, req:  670, hreq: 1560, creq: 2060, rew: 4400000, hrew: 8800000, crew:18000000, t:'큐브'},
+  {n:'아칸',        cyc:'주간', cd:10800, req:  710, hreq: 2120, creq:    0, rew: 4400000, hrew: 16000000, crew:        0, t:'장비'},
+  {n:'스우',        cyc:'주간', cd:10800, req:  730, hreq: 1540, creq:    0, rew: 4800000, hrew: 12000000, crew:        0, t:'쉴드'},
+  {n:'데미안',      cyc:'주간', cd:10800, req:  780, hreq: 1580, creq:    0, rew: 4800000, hrew: 12000000, crew:        0, t:'장비'},
+  {n:'루시드',      cyc:'주간', cd:10800, req:  900, hreq: 1940, creq: 3840, rew: 5200000, hrew: 14000000, crew:34000000, t:'장비'},
+  {n:'더스크',      cyc:'주간', cd:10800, req: 1140, hreq: 2000, creq:    0, rew: 6000000, hrew: 11000000, crew:        0, t:'큐브'},
+  {n:'윌',          cyc:'주간', cd:10800, req: 1260, hreq: 2560, creq: 4380, rew: 6000000, hrew: 14000000, crew:26000000, t:'성공권'},
+  {n:'진 힐라',     cyc:'주간', cd:10800, req: 1500, hreq: 3640, creq:    0, rew: 7200000, hrew: 16000000, crew:        0, t:'큐브'},
+  {n:'아자젤',      cyc:'주간', cd:10800, req: 1540, hreq: 4580, creq:    0, rew: 7200000, hrew:22000000, crew:        0, t:'쉴드'},
+  {n:'듄켈',        cyc:'주간', cd:10800, req: 1680, hreq: 4780, creq:    0, rew: 8400000, hrew:23000000, crew:        0, t:'장비'},
+  {n:'선택받은 세렌',cyc:'주간', cd:10800, req: 1780, hreq: 5400, creq:    0, rew: 9200000, hrew:18000000, crew:        0, t:'큐브'},
+  {n:'검은 마법사', cyc:'월간', cd:43200, req: 1820, hreq: 5580, creq:    0, rew:36000000, hrew:107000000, crew:        0, t:'전부'},
+  {n:'감시자 칼로스',cyc:'주간', cd:10800, req: 1840, hreq: 6680, creq:    0, rew: 9200000, hrew:19000000, crew:        0, t:'성공권'},
+  {n:'카링',        cyc:'월간', cd:43200, req: 7660, hreq:10580, creq:    0, rew:68000000, hrew:140000000, crew:        0, t:'전부'}
 ];
 const DNAME=['일반','하드','카오스'];
 const DCOL=['#8B84B8','#FF8A96','#B15CFF'];
@@ -1658,7 +1658,12 @@ const earns=l=>{ const d=OPT[l.k]; if(!d) return false;
   if(d.part) for(const k in d.part) if(EARN[k]) return true;
   return false; };
 const deadOpt=l=>cpOf(l)<3&&!earns(l);
-const potMultOf=lines=>1+lines.reduce((a,l)=>a+cpOf(l),0)/100;
+// 잠재 등급이 클수록 같은 줄이라도 더 값지다. 예전엔 등급을 올려도
+// 수치가 14% 오르는 게 전부라(물리대미지 18.2 -> 20.7) 레전더리를 쫓을 이유가 없었다.
+// 별에 IGSTAR 를 준 것과 같은 얼개다. 부위 잠재배수가 유니크 x1.30 · 레전더리 x1.57 이 된다.
+// 메소·드롭·경험치는 cp 가 0 이라 여기 안 걸린다 — 수익 옵션은 그대로다.
+const POTG=[1.0, 1.6, 2.5, 4.0];
+const potMultOf=lines=>1+lines.reduce((a,l)=>a+cpOf(l)*(POTG[l.g|0]||1),0)/100;
 const slotPow=i=>{ const it=S.items[i]; if(!it||it.broken) return 0;
   return SLOTS[i].base*starMult(it.star,it.ig)*potMultOf(it.lines)*mastMult(i); };
 const totalStars=()=>S.items.reduce((a,it)=>a+(it.broken?0:it.star),0);
@@ -4529,7 +4534,7 @@ initOnline();
 // 균형 점검용 노출 (게임 동작에는 영향 없음)
 try{ window.__CFG={SF,MAXSTAR,starCost,SHIELD,SLOTS,OPT,POOL,GCAP,UPRATE,UPGRADE,CUBES,
   MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,skPct,SKMUL,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,lineHTML,potGradeOf,evenGrade,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,navViews,viewIdx,swipeTarget,swipeBlocked,VIEWS,topBoss,bossLabel,myRec,DNAME,ACH,achStat,MAXLV,lvBonus,lvMult,LVK,SLOT_ART,WEAPON_ART,stash,bagStar,bagLines,bagP4,dropSlot,BTYPE,renderAll,CRCOL,passTime,offerOffline,OFF_CAP,OFF_RATE,TR,carryLines,showDrop,cost,protUse,safeUse,IGCOST,igCost,MAST,MPS,mpFor,mastOf,mastFree,mastMult,mastSum,trStar,renderMast,starMult,expMult,IGSTAR,engrave,ENG,renderShop,renderCubes,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
-  get state(){return S;}, cur, power, income, mesoMult, dropMult, starMult, potMultOf, odds, potGrade, topGrade, totalStars, sfBonus}; }catch(e){}
+  get state(){return S;}, cur, power, income, mesoMult, dropMult, starMult, potMultOf, POTG, odds, potGrade, topGrade, totalStars, sfBonus}; }catch(e){}
 })();
 </script>
 </body>
