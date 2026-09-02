@@ -731,6 +731,31 @@ td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
 .switch{font-size:11.5px;color:var(--dimmer);border:1px solid var(--edge);border-radius:8px;padding:6px 11px;font-weight:700;}
 .switch:hover{color:var(--text);border-color:var(--edge2);}
 
+/* 랭킹은 열이 열둘이라 표로 두면 360px 화면에서 폭이 753px 이 된다.
+   화면 두 개 분량을 옆으로 끌어야 하고, 그동안 화면 스와이프는
+   가로 스크롤에 양보하느라 막힌다 - 갇힌 느낌이 나는 게 이것 때문이다.
+   좁으면 카드로, 넓으면 그대로 표로 본다. 둘 다 채워두고 CSS 가 고른다. */
+.rlist{display:none;flex-direction:column;gap:8px;}
+.rcard{border:1px solid var(--edge);border-radius:12px;background:#161334;
+  padding:11px 13px;display:flex;flex-direction:column;gap:6px;}
+.rcard.me{border-color:var(--gold);background:#241C4D;}
+.rtop{display:flex;align-items:baseline;gap:8px;}
+.rno{font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--dimmer);min-width:22px;}
+.rcard.me .rno{color:var(--gold);}
+.rid{font-weight:900;font-size:15px;flex:1;min-width:0;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.rjob{font-size:10.5px;font-weight:900;letter-spacing:.06em;color:var(--gold);
+  border:1px solid var(--edge2);border-radius:999px;padding:2px 8px;white-space:nowrap;}
+.rmid{display:flex;align-items:baseline;gap:7px;flex-wrap:wrap;}
+.rpw{font-family:'Bebas Neue',sans-serif;font-size:24px;line-height:1;
+  font-variant-numeric:tabular-nums;color:var(--text);}
+.rlbl{font-size:9.5px;font-weight:900;letter-spacing:.12em;color:var(--dimmer);}
+.rgear{margin-left:auto;font-size:12px;font-weight:700;color:var(--dim);white-space:nowrap;}
+.rgear b{color:var(--gold);font-weight:900;}
+.rboss{font-size:12.5px;font-weight:700;display:flex;gap:7px;align-items:baseline;}
+.rsub{font-size:11px;color:var(--dimmer);display:flex;justify-content:space-between;gap:10px;}
+.rempty{color:var(--dimmer);font-weight:500;padding:20px 4px;text-align:center;}
+@media (max-width:719px){ .rankwrap{display:none;} .rlist{display:flex;} }
 .rankwrap{overflow-x:auto;}
 .rank{width:100%;border-collapse:collapse;font-size:13px;white-space:nowrap;}
 .rank th{font-size:10px;letter-spacing:.14em;color:var(--dimmer);font-weight:900;text-align:left;padding:0 9px 9px;}
@@ -980,6 +1005,7 @@ td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
         <tbody id="rankBody"></tbody>
       </table>
     </div>
+    <div class="rlist" id="rankList"></div>
     <div class="rankfoot">
       <button class="btn gold" id="postBtn">랭킹에 기록 올리기</button>
       <small id="rankNote">기록을 올리면 같은 링크를 연 사람들에게도 보인다.</small>
@@ -4110,6 +4136,28 @@ function ago(ts){
   const d=Math.round(s/86400);
   return d<30?(d+'일 전'):(Math.round(d/30)+'달 전');
 }
+// 카드 쪽. 같은 줄을 쓰되 순서를 바꾼다 - 폰에서 먼저 보고 싶은 건
+// 아이디 · 전투력 · 최고 보스이고, 파괴나 시도 횟수는 맨 아래여도 된다.
+function renderRankCards(){
+  const L=$('rankList'); if(!L) return;
+  if(!BOARD.length){
+    L.innerHTML='<div class="rempty">아직 등록된 기록이 없다.<br>별을 올리고 아래 버튼으로 등록해보자.</div>';
+    return;
+  }
+  L.innerHTML=BOARD.map(function(e,i){
+    return '<div class="rcard '+(e.id===USER?'me':'')+'">'+
+      '<div class="rtop"><b class="rno">'+(i+1)+'</b>'+
+        '<span class="rid">'+esc(e.id)+'</span>'+
+        '<span class="rjob">'+((JOBS[e.job|0]||JOBS[0]).n)+'</span></div>'+
+      '<div class="rmid"><span class="rpw">'+e.power.toLocaleString('ko-KR')+'</span>'+
+        '<span class="rlbl">전투력</span>'+
+        '<span class="rgear"><b>'+e.star+'\u2605</b> '+GNAME[e.grade]+' \u00B7 Lv'+(e.lv||1)+'</span></div>'+
+      '<div class="rboss"><span class="rlbl">최고 보스</span>'+esc(bossLabel(e.boss))+'</div>'+
+      '<div class="rsub"><span>업적 '+(e.ach||0)+' \u00B7 파괴 '+e.des+' \u00B7 강화 '+e.tries+'</span>'+
+        '<span>'+ago(e.seen||e.ts)+'</span></div></div>';
+  }).join('');
+}
+
 function renderRank(){
   const body=$('rankBody');
   if(!BOARD.length){
@@ -4130,6 +4178,7 @@ function renderRank(){
       '<td class="num">'+e.tries+'</td>'+
       '<td class="num seen">'+ago(e.seen||e.ts)+'</td></tr>').join('');
   }
+  renderRankCards();
   const btn=$('postBtn');
   if(!USER){ btn.disabled=true; return; }
   const mine=BOARD.find(e=>e.id===USER), cur=myRec();
