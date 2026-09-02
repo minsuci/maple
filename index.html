@@ -939,8 +939,10 @@ td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
          <b style="color:#C0AEFF">보라</b> 좌우로 오간다, 언제 뛰느냐가 생긴다 ·
          <b style="color:#BFE4FF">얼음</b> 착지해도 안 멈춘다, 미끄러져 떨어질 수 있다</p>
       <p>같은 숲을 모두가 오른다. 어제 막힌 자리가 오늘도 그 자리에 있다.<br>
-         쿨타임 없이 몇 번이든 들어올 수 있고, 언제든 그만두고 그때 높이로 받는다.<br>
-         올라간 높이만큼 메소를 받고, <b>최고 기록을 넘긴 만큼</b>은 따로 크게 더 받는다.</p>
+         쿨타임 없이 몇 번이든 들어올 수 있다.<br>
+         메소는 <b>그만둘 때 서 있는 높이</b>로 센다 — 올라갔다가 떨어지면 그만큼 줄어든다.
+         찍고 내려오는 게 아니라 <b>버티고 서 있어야</b> 값을 한다.<br>
+         거기에 <b>최고 기록을 넘긴 만큼</b>은 따로 크게 더 받는다.</p>
       <div class="frow">
         <button class="btn gold" id="fStart">숲에 들어간다</button>
         <span class="fbest" id="fBest">0<small style="font-size:13px">m</small></span>
@@ -2446,9 +2448,12 @@ function fDraw(){
     g.strokeStyle='#FFC94A'; g.lineWidth=2; g.beginPath();
     g.moveTo(px,py-8); g.lineTo(px+F.dir*(10+F.chg*22),py-8-F.chg*16); g.stroke(); }
   $('fH').innerHTML=fMeters(F.y)+'<small>m</small>';
-  const rb=fRec((S.fbest|0)*FOR.PXM,F.best);
-  $('fInfo').innerHTML='이번 판 최고 <b>'+fMeters(F.best)+'m</b><br>받을 메소 <b>'+fmt(fReward(F.best))+'</b>'+
-    (rb>0?' <span style="color:#8FE3B0">(기록 '+fmt(rb)+')</span>':'');
+  // 지금 서 있는 높이로 센다. 올라갔다가 떨어지면 그만큼 돈이 줄어든다 -
+  // 최고점으로 주면 한 번 찍고 굴러떨어져도 값이 같아서, 내려오는 게 안 아프다.
+  const rb=fRec((S.fbest|0)*FOR.PXM,F.y), fell=fMeters(F.best)-fMeters(F.y);
+  $('fInfo').innerHTML='지금 그만두면 <b>'+fmt(fReward(F.y))+'</b>'+
+    (rb>0?' <span style="color:#8FE3B0">(기록 '+fmt(rb)+')</span>':'')+
+    (fell>3?'<br><span style="color:#FF8FA3">최고 '+fMeters(F.best)+'m 에서 '+fell+'m 내려왔다</span>':'');
 }
 function fPress(e,on){
   if(!F||F.done) return;
@@ -2461,9 +2466,9 @@ function fPress(e,on){
 function fEnd(){
   if(!F||F.done) return;
   F.done=true; cancelAnimationFrame(fRaf); clearInterval(fWatch);
-  const m=fMeters(F.best), top=F.best>=FOR.TOP;
-  const run=fRun(F.best), bonus=fRec((S.fbest|0)*FOR.PXM,F.best), rw=run+bonus;
-  const rec=m>(S.fbest|0);
+  const m=fMeters(F.y), top=F.y>=FOR.TOP;         // 최고점이 아니라 지금 선 자리다
+  const run=fRun(F.y), bonus=fRec((S.fbest|0)*FOR.PXM,F.y), rw=run+bonus;
+  const rec=m>(S.fbest|0), peak=fMeters(F.best);
   S.fbest=Math.max(S.fbest|0,m);
   S.meso+=rw;
   $('fGame').hidden=true; F=null;
@@ -2472,7 +2477,8 @@ function fEnd(){
     flash('꼭대기','시련의 숲을 끝까지 올랐다','#8FE3B0'); }
   else if(rec) flash('최고 기록',m+'m 까지 올랐다','#FFC94A');
   log('시련의 숲 — <b>'+m+'m</b>'+(rec?' (최고 기록)':'')+' · <b>+'+fmt(rw)+'</b> 메소'+
-      (bonus>0?' (기록 갱신 '+fmt(bonus)+' 포함)':''),top?'up':'ok');
+      (bonus>0?' (기록 갱신 '+fmt(bonus)+' 포함)':'')+
+      (peak>m+3?' · 최고 '+peak+'m 에서 내려왔다':''),top?'up':'ok');
   renderAll(); updateHunt(); save();
 }
 function renderForest(){
