@@ -33,10 +33,12 @@
   --r:14px;
 }
 *{box-sizing:border-box;}
-html,body{margin:0;min-height:100%;}
-/* 강화 버튼을 연타하면 브라우저가 더블탭 확대로 받아버린다.
-   manipulation 은 그 확대만 끄고 스크롤과 두 손가락 확대는 남긴다 — 접근성을 안 죽인다. */
-html{touch-action:manipulation;}
+html,body{margin:0;min-height:100%;-webkit-text-size-adjust:100%;text-size-adjust:100%;}
+/* 연타하면 브라우저가 더블탭 확대로 받아버린다.
+   manipulation 은 그 확대만 끄고 스크롤과 두 손가락 확대는 남긴다 — 접근성을 안 죽인다.
+   touch-action 은 상속되지 않는다. html 에만 걸면 그 박스 하나만 적용돼서,
+   카드·여백·글자 위에서는 그대로 확대됐다. 전부에 건다. */
+*,*::before,*::after{touch-action:manipulation;}
 body{
   background:
     radial-gradient(120% 80% at 50% -10%, #241C4D 0%, #131126 46%, #0B0A14 100%) fixed,
