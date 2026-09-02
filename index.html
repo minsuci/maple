@@ -335,6 +335,45 @@ button:disabled{cursor:not-allowed;opacity:.45;}
 .att.now .ad{color:var(--gold);}
 .att .at{font-size:12.5px;font-weight:700;}
 .att .am{font-family:'Bebas Neue',sans-serif;font-size:17px;color:var(--meso);letter-spacing:.03em;}
+/* 상태창 */
+.sthead{text-align:center;padding:4px 0 16px;border-bottom:1px solid var(--edge);margin-bottom:16px;}
+.sthead .p{font-family:'Bebas Neue',sans-serif;font-size:46px;line-height:1;color:var(--pow,#8FD9FF);
+  text-shadow:0 0 24px #6BE3FF44;font-variant-numeric:tabular-nums;}
+.sthead .l{font-size:10px;font-weight:900;letter-spacing:.2em;color:var(--dimmer);margin-top:2px;}
+.sthead .w{font-size:12.5px;color:var(--dim);font-weight:700;margin-top:7px;}
+.sthead .w b{color:var(--gold);}
+.stsec{font-size:10px;font-weight:900;letter-spacing:.18em;color:var(--dimmer);
+  margin:18px 0 8px;display:flex;align-items:baseline;gap:8px;}
+.stsec::after{content:'';flex:1;height:1px;background:var(--edge);}
+.stgrid{display:flex;flex-direction:column;gap:5px;}
+.strow{display:grid;grid-template-columns:1fr auto;gap:4px 10px;align-items:baseline;
+  background:#15122C;border:1px solid var(--edge);border-radius:10px;padding:9px 12px;}
+.strow.zero{opacity:.42;}
+.strow.key{border-color:var(--edge2);background:#1B1638;}
+.strow .n{font-size:13px;font-weight:700;}
+.strow.key .n{color:var(--gold);}
+.strow .v{font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:.03em;
+  font-variant-numeric:tabular-nums;color:var(--text);}
+.strow.key .v{color:var(--gold);}
+.strow .s{grid-column:1/-1;font-size:10.5px;color:var(--dimmer);font-weight:500;}
+.strow .s em{font-style:normal;color:var(--dim);}
+/* 전투력 구성 — 곱해지는 순서대로 */
+.stchain{display:flex;flex-direction:column;gap:4px;}
+.stlink{display:grid;grid-template-columns:auto 1fr auto auto;gap:9px;align-items:baseline;
+  font-size:12.5px;padding:7px 11px;background:#15122C;border:1px solid var(--edge);border-radius:10px;}
+.stlink .op{font-family:'Bebas Neue',sans-serif;font-size:17px;color:var(--dimmer);width:14px;}
+.stlink .f{font-family:'Bebas Neue',sans-serif;font-size:16px;color:var(--gold);
+  font-variant-numeric:tabular-nums;}
+.stlink .r{font-family:'Bebas Neue',sans-serif;font-size:16px;color:var(--dim);
+  font-variant-numeric:tabular-nums;min-width:62px;text-align:right;}
+.stlink.last{border-color:var(--pow,#8FD9FF);background:#0E2230;}
+.stlink.last .r{color:var(--pow,#8FD9FF);}
+/* 부위별 몫 */
+.stslot{display:grid;grid-template-columns:52px 1fr auto;gap:9px;align-items:center;font-size:12px;}
+.stslot .b{height:6px;border-radius:3px;background:var(--edge);overflow:hidden;}
+.stslot .b i{display:block;height:100%;background:linear-gradient(90deg,#7A5CFF,var(--gold));}
+.stslot .q{font-family:'Bebas Neue',sans-serif;font-size:15px;color:var(--dim);
+  font-variant-numeric:tabular-nums;min-width:44px;text-align:right;}
 .attnote{margin:12px 0 0;font-size:11.5px;color:var(--dimmer);text-align:center;line-height:1.6;}
 .attnote b{color:var(--gold);}
 .burger{position:relative;}
@@ -1099,6 +1138,14 @@ td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
 
 <div class="swipehint" id="swipeHint" hidden></div>
 
+<div class="compare" id="stats" hidden>
+  <div class="cmpcard">
+    <h2>상태</h2>
+    <div id="stBody"></div>
+    <div class="cmpbtns"><button class="btn" id="stClose">닫기</button></div>
+  </div>
+</div>
+
 <div class="compare" id="jobPick" hidden>
   <div class="cmpcard">
     <h2 id="jobTitle">직업</h2>
@@ -1138,6 +1185,7 @@ td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
     <button class="mitem" id="mAtt">출석<span class="badge" id="attBadge" hidden></span><small>하루 한 번 · 7일 주기</small></button>
     <button class="mitem" data-v="ach">업적<small>41종</small></button>
     <button class="mitem" data-v="rank">랭킹<small>길드 기록</small></button>
+    <button class="mitem" id="mStat">상태<small>가진 능력치 전부</small></button>
     <button class="mitem" data-v="rec">기록<small>내 통계</small></button>
   </div>
 </div>
@@ -2029,6 +2077,96 @@ function renderItem(){
     el.innerHTML=lineHTML(l);
   }
 }
+/* ---------- 상태창 ---------- */
+// 흩어져 있던 걸 한 곳에 모은다. 값은 전부 실제로 쓰이는 함수에서 꺼낸다 -
+// 여기서 다시 계산하면 언젠가 화면과 실제가 갈린다.
+const STATSEC=[
+  ['공격', [['pdm','물리대미지','%'],['mdm','마법대미지','%'],['bat','보스공격력','%'],
+            ['dmg','주력 대미지','%'],['crit','치명타확률','%'],
+            ['acc','명중률','%'],['bdf','보스방어력','%']]],
+  ['방어', [['hp','최대HP',''],['mp','최대MP',''],['hpr','HP회복력',''],
+            ['mpr','MP회복력',''],['evd','회피율','%'],['cre','치명타저항','%']]],
+  ['획득', [['exp','경험치획득량','%'],['mes','메소획득량','%'],['drp','아이템 드롭률','%']]]
+];
+// 직업마다 주력이 다르다 — 전사·도적은 물리, 마법사는 마법.
+const KEYOPT=()=>jobKey()==='mag'?'mdm':'pdm';
+
+// 한 능력치가 어디서 왔는지. 잠재·마스터리·업적·버프를 따로 들고 다닌다.
+function statOf(k){
+  if(k==='crit') return {tot:critRate(), src:[['기본',CRIT.base],['잠재',critRate()-CRIT.base]],
+                          note:'터지면 대미지 '+CRIT.mul+'배'+(critRate()>=CRIT.cap?' · 상한 도달':'')};
+  if(k==='dmg')  return {tot:mastSum('dmg')+achStat().dmg, src:[['마스터리',mastSum('dmg')],['업적',achStat().dmg]]};
+  const pot=sumOpt(k);
+  const mst=MASTK[k]?mastSum(k):0;
+  const ach=(k==='bat')?achStat().bat:0;
+  // 메소·드롭·경험치는 버프가 곱으로 붙는다. 더해서 보여주면 거짓말이 되니
+  // 실제로 쓰이는 배수를 그대로 되돌려 읽는다.
+  const bx=k=>bufOn(k)>0?'잠재와 버프는 더하는 게 아니라 곱해진다':'';
+  if(k==='mes') return {tot:+((mesoMult()-1)*100).toFixed(1), note:bx('mes'),
+    src:[['잠재',pot],['마스터리',mst],['버프',Math.round(bufOn('mes')*100)]]};
+  if(k==='drp') return {tot:+((dropMult()-1)*100).toFixed(1), note:bx('drp'),
+    src:[['잠재',pot],['버프',Math.round(bufOn('drp')*100)]]};
+  if(k==='exp') return {tot:+((expMult()-1)*100).toFixed(1), src:[['잠재',pot],['마스터리',mst]]};
+  return {tot:+(pot+mst+ach).toFixed(1), src:[['잠재',pot],['마스터리',mst],['업적',ach]]};
+}
+
+function renderStats(){
+  const p=power(), ko=KEYOPT();
+  const num=n=>(Math.round(n*10)/10).toLocaleString('ko-KR');
+  let h='<div class="sthead"><div class="p">'+p.toLocaleString('ko-KR')+'</div>'+
+        '<div class="l">전투력</div>'+
+        '<div class="w">Lv <b>'+(S.lv||1)+'</b> '+curJob().n+' · 총 스타포스 <b>'+totalStars()+'</b>'+
+        ' · 업적 <b>'+Object.keys(S.ach||{}).length+'</b>종</div></div>';
+
+  // ---- 전투력이 어디서 오는가 ----
+  const base=S.items.reduce(function(a,_,i){ return a+slotPow(i); },0);
+  const chain=[['장비 여덟 부위',null,base],
+               ['레벨',lvMult(),base*lvMult()],
+               ['스타포스',1+sfBonus()/100,base*lvMult()*(1+sfBonus()/100)],
+               ['업적',1+achStat().cp/100,base*lvMult()*(1+sfBonus()/100)*(1+achStat().cp/100)],
+               ['치명타',critMult(),p]];
+  h+='<div class="stsec">전투력이 어디서 오나</div><div class="stchain">';
+  chain.forEach(function(c,i){
+    const last=i===chain.length-1;
+    h+='<div class="stlink'+(last?' last':'')+'">'+
+       '<span class="op">'+(c[1]===null?'':'\u00D7')+'</span>'+
+       '<span>'+c[0]+'</span>'+
+       '<span class="f">'+(c[1]===null?'':c[1].toFixed(3))+'</span>'+
+       '<span class="r">'+Math.round(c[2]).toLocaleString('ko-KR')+'</span></div>';
+  });
+  h+='</div>';
+
+  // ---- 부위별 몫 ----
+  h+='<div class="stsec">어느 부위가 버티나</div><div class="stgrid">';
+  const pows=S.items.map(function(_,i){ return slotPow(i); });
+  const mx=Math.max.apply(null,pows.concat([1]));
+  pows.forEach(function(v,i){
+    h+='<div class="strow" style="grid-template-columns:1fr">'+
+       '<div class="stslot"><span>'+SLOTS[i].n+'</span>'+
+       '<span class="b"><i style="width:'+(v/mx*100).toFixed(1)+'%"></i></span>'+
+       '<span class="q">'+(base?(v/base*100).toFixed(1):'0.0')+'%</span></div></div>';
+  });
+  h+='</div>';
+
+  // ---- 능력치 ----
+  STATSEC.forEach(function(sec){
+    h+='<div class="stsec">'+sec[0]+'</div><div class="stgrid">';
+    sec[1].forEach(function(row){
+      const k=row[0], st=statOf(k);
+      const key=(k===ko)||(k==='dmg')||(k==='bat');
+      const sub=st.src.filter(function(s){ return s[1]>0.05; })
+                      .map(function(s){ return s[0]+' <em>+'+num(s[1])+row[2]+'</em>'; }).join(' \u00B7 ');
+      h+='<div class="strow'+(st.tot>0.05?'':' zero')+(key&&st.tot>0.05?' key':'')+'">'+
+         '<span class="n">'+row[1]+(k===ko?' <small style="color:var(--dimmer)">주력</small>':'')+'</span>'+
+         '<span class="v">+'+num(st.tot)+row[2]+'</span>'+
+         ((sub||st.note)?'<span class="s">'+[sub,st.note].filter(Boolean).join(' \u00B7 ')+'</span>':'')+
+         '</div>';
+    });
+    h+='</div>';
+  });
+  $('stBody').innerHTML=h;
+}
+
 function renderTop(){
   $('mesoV').textContent=fmt(S.meso);
   $('incV').innerHTML=fmt(income())+'<small>/초</small>';
@@ -4581,11 +4719,17 @@ $('burger').addEventListener('click',function(){ $('menu').hidden=false; });
 $('mAtt').addEventListener('click',function(){ $('menu').hidden=true; renderDaily(); $('attend').hidden=false; });
 $('meltJunk').addEventListener('click',function(){ ac(); meltJunk(); });
 $('mJob').addEventListener('click',function(){ $('menu').hidden=true; openJobs('change'); });
+$('mStat').addEventListener('click',function(){ $('menu').hidden=true; renderStats(); $('stats').hidden=false; });
+$('stClose').addEventListener('click',function(){ $('stats').hidden=true; });
+$('stats').addEventListener('click',function(e){ if(e.target===$('stats')) $('stats').hidden=true; });
 $('jobClose').addEventListener('click',function(){ $('jobPick').hidden=true; save(); });
 $('attBtn').addEventListener('click',function(){ ac(); claimDaily(); });
 $('attClose').addEventListener('click',function(){ $('attend').hidden=true; });
 $('menu').addEventListener('click',function(e){ if(e.target===$('menu')) $('menu').hidden=true; });
-document.querySelectorAll('.mitem').forEach(function(b){ b.addEventListener('click',function(){ showView(b.dataset.v); }); });
+document.querySelectorAll('.mitem').forEach(function(b){   // data-v 없는 항목(직업·출석·상태)은 각자 연다
+  if(!b.dataset.v) return;
+  b.addEventListener('click',function(){ showView(b.dataset.v); });
+});
 $('bpClose').addEventListener('click',function(){ $('bossPick').hidden=true; });
 $('bpGo').addEventListener('click',function(){ ac(); fightPicked(); });
 $('bossPick').addEventListener('click',function(e){ if(e.target===$('bossPick')) $('bossPick').hidden=true; });
@@ -4604,7 +4748,7 @@ initOnline();
 
 // 균형 점검용 노출 (게임 동작에는 영향 없음)
 try{ window.__CFG={SF,MAXSTAR,starCost,SHIELD,SLOTS,OPT,POOL,GCAP,UPRATE,UPGRADE,CUBES,
-  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,skPct,SKMUL,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,lineHTML,potGradeOf,evenGrade,critRate,critMult,CRIT,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,navViews,viewIdx,swipeTarget,swipeBlocked,VIEWS,topBoss,bossLabel,myRec,DNAME,ACH,achStat,MAXLV,lvBonus,lvMult,LVK,SLOT_ART,WEAPON_ART,stash,bagStar,bagLines,bagP4,dropSlot,BTYPE,renderAll,CRCOL,passTime,offerOffline,OFF_CAP,OFF_RATE,TR,carryLines,showDrop,cost,protUse,safeUse,IGCOST,igCost,MAST,MPS,mpFor,mastOf,mastFree,mastMult,mastSum,trStar,renderMast,starMult,expMult,IGSTAR,engrave,ENG,renderShop,renderCubes,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
+  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,skPct,SKMUL,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,lineHTML,potGradeOf,evenGrade,critRate,critMult,CRIT,renderStats,statOf,sumOpt,mastSum,slotPow,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,navViews,viewIdx,swipeTarget,swipeBlocked,VIEWS,topBoss,bossLabel,myRec,DNAME,ACH,achStat,MAXLV,lvBonus,lvMult,LVK,SLOT_ART,WEAPON_ART,stash,bagStar,bagLines,bagP4,dropSlot,BTYPE,renderAll,CRCOL,passTime,offerOffline,OFF_CAP,OFF_RATE,TR,carryLines,showDrop,cost,protUse,safeUse,IGCOST,igCost,MAST,MPS,mpFor,mastOf,mastFree,mastMult,mastSum,trStar,renderMast,starMult,expMult,IGSTAR,engrave,ENG,renderShop,renderCubes,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
   get state(){return S;}, cur, power, income, mesoMult, dropMult, starMult, potMultOf, POTG, odds, potGrade, topGrade, totalStars, sfBonus}; }catch(e){}
 })();
 </script>
