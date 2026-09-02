@@ -926,6 +926,30 @@ td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
 
   <div class="bufbar" id="bufBar" hidden></div>
 
+  <div class="view" id="viewForest" hidden>
+  <section class="card">
+    <h2>시련의 숲</h2>
+    <div class="fcard" id="fCard2">
+      <h3>꼭대기까지 300m</h3>
+      <p>누르고 있으면 힘이 차고, 떼면 그 방향으로 뛴다. 화면 왼쪽을 누르면 왼쪽,
+         오른쪽을 누르면 오른쪽이다. <b>공중에서는 손을 못 댄다</b> — 한 번 뛰면 끝까지 간다.<br>
+         떨어지면 아래 발판까지 미끄러진다. 그게 이 놀이의 전부다.</p>
+      <p>위로 갈수록 발판이 좁아지고 성격이 붙는다.<br>
+         <b style="color:#5C9B78">흙</b> 평범하다 ·
+         <b style="color:#C0AEFF">보라</b> 좌우로 오간다, 언제 뛰느냐가 생긴다 ·
+         <b style="color:#BFE4FF">얼음</b> 착지해도 안 멈춘다, 미끄러져 떨어질 수 있다</p>
+      <p>같은 숲을 모두가 오른다. 어제 막힌 자리가 오늘도 그 자리에 있다.<br>
+         쿨타임 없이 몇 번이든 들어올 수 있고, 언제든 그만두고 그때 높이로 받는다.<br>
+         올라간 높이만큼 메소를 받고, <b>최고 기록을 넘긴 만큼</b>은 따로 크게 더 받는다.</p>
+      <div class="frow">
+        <button class="btn gold" id="fStart">숲에 들어간다</button>
+        <span class="fbest" id="fBest">0<small style="font-size:13px">m</small></span>
+        <span class="fsub" id="fSub"></span>
+      </div>
+    </div>
+  </section>
+  </div>
+
   <div class="view" id="viewStat" hidden>
   <section class="card">
     <h2>상태</h2>
@@ -1062,18 +1086,7 @@ td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
         <div class="bgrid" id="bossList"></div>
       </div>
     </div>
-    <div class="fcard" id="fCard">
-      <h3>시련의 숲</h3>
-      <p>누르고 있으면 힘이 차고, 떼면 그 방향으로 뛴다. 공중에서는 손을 못 댄다 —
-         한 번 뛰면 끝까지 간다. 떨어지면 아래 발판까지 미끄러진다.<br>
-         쿨타임 없이 몇 번이든 들어올 수 있다. 올라간 높이만큼 메소를 받고,
-         <b>최고 기록을 넘긴 만큼</b>은 따로 크게 더 받는다.</p>
-      <div class="frow">
-        <button class="btn gold" id="fStart">숲에 들어간다</button>
-        <span class="fbest" id="fBest">0<small style="font-size:13px">m</small></span>
-        <span class="fsub" id="fSub"></span>
-      </div>
-    </div>
+    
     <p class="hnote" id="huntNote"></p>
     <div class="animtog">전투 연출
       <button class="sw" id="animTog" role="switch" aria-checked="true" aria-label="전투 연출"></button>
@@ -1215,6 +1228,7 @@ td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
     <button class="mitem" data-v="up" aria-selected="true">강화<small>장비창 · 스타포스 · 큐브 · 상점</small></button>
     <button class="mitem" data-v="inv">가방<small>소지품 · 장비 한눈에</small></button>
     <button class="mitem" data-v="hunt">사냥<small>사냥터 16곳 · 보스 22종</small></button>
+    <button class="mitem" data-v="forest">시련의 숲<small>올라간 만큼 메소 · 쿨 없다</small></button>
     <button class="mitem" id="mJob">직업<small id="mJobSub">전사</small></button>
     <button class="mitem" id="mAtt">출석<span class="badge" id="attBadge" hidden></span><small>하루 한 번 · 7일 주기</small></button>
     <button class="mitem" data-v="ach">업적<small>41종</small></button>
@@ -2228,42 +2242,92 @@ const FOR={
   W:360, TOP:4200, PXM:14,          // 가로 360, 총 4200px = 300m
   G:1800, JMIN:420, JMAX:920, HX:0.62,
   CHARGE:0.55, BOUNCE:0.62, SEED:20260902,
-  RUN:600, REC:3600                 // 한 판 10분치 · 기록 갱신분 60분치
+  ICE:0.972, MVA:34, MVS:1.1,       // 얼음 감속 · 움직이는 발판 폭과 빠르기
+  RUN:3600, REC:3600                // 한 판 60분치 · 기록 갱신분 60분치
 };
 const fMeters=y=>Math.max(0,Math.round(y/FOR.PXM));
 // 같은 숲을 모두가 오른다. 고정 시드라 기록끼리 견줄 수 있다.
 function fRng(seed){ let s=seed>>>0; return function(){
   s=(s*1664525+1013904223)>>>0; return s/4294967296; }; }
+// 올라갈수록 발판이 좁아지고, 성격이 하나씩 늘어난다.
+//   ~22%  넓은 흙 발판만. 조작을 익히는 구간이다.
+//   22%~  움직이는 발판. 언제 뛰느냐가 생긴다.
+//   45%~  얼음 발판. 착지해도 안 멈춘다 - 미끄러져 떨어질 수 있다.
+//   75%~  좁은 데다 둘이 섞인다.
+// 둘을 한 발판에 겹치지는 않는다. 움직이는 얼음은 사람이 할 게 못 된다.
+// 성격 있는 발판은 넓어야 한다. 72px 얼음에 미끄러진 채 내려서면
+// 멈출 자리가 없어 그냥 흘러 떨어진다 - 꼭대기가 막혀 있던 게 이것이다.
+// 얼음은 118, 움직이는 발판은 96 을 바닥으로 둔다.
+function fMake(r,x,y,w,t,prev){
+  const p={x:x,y:y,w:w};
+  if(prev) return p;                              // 성격은 연달아 붙이지 않는다
+  const roll=r();
+  if(t>0.42&&roll<(t-0.42)*0.85){
+    p.ice=1; p.w=Math.max(118,w);
+    p.x=Math.min(p.x,FOR.W-p.w);
+  } else if(t>0.20&&roll>1-(t-0.20)*0.60){
+    p.mv=1; p.w=Math.max(96,w);
+    p.ph=r()*6.283; p.spd=FOR.MVS*(0.7+r()*0.6);
+    p.amp=Math.max(0,Math.min(FOR.MVA,(FOR.W-p.w)/2-4));
+    p.x=Math.round(FOR.W/2-p.w/2+(r()*2-1)*Math.max(0,(FOR.W-p.w)/2-p.amp-4));
+  }
+  return p;
+}
 function fBuild(){
   const r=fRng(FOR.SEED), P=[{x:0,y:0,w:FOR.W}];   // 바닥은 통짜
-  let y=0;
-  while(y<FOR.TOP){
+  let y=0, prev=false;
+  while(y<FOR.TOP-160){
     const t=y/FOR.TOP;
-    const gap=96+r()*(52+t*46);                    // 위로 갈수록 벌어지고
-    const w=Math.round(132-t*68+r()*26);           // 발판은 좁아진다
+    const gap=96+r()*(46+t*30);                    // 위로 갈수록 벌어지고 (최대 172)
+    const w=Math.round(132-t*50+r()*26);           // 발판은 좁아진다 (최소 82)
     y+=gap;
     const x=Math.round(r()*(FOR.W-w));
-    P.push({x:x,y:Math.round(y),w:w});
+    const p=fMake(r,x,Math.round(y),w,t,prev);
+    prev=!!(p.ice||p.mv);
+    P.push(p);
     if(r()<0.34-t*0.18){                            // 가끔 같은 높이에 하나 더
-      const w2=Math.round(80-t*30+r()*20);
-      let x2=Math.round(r()*(FOR.W-w2));
+      const w2=Math.round(80-t*24+r()*20);
+      const x2=Math.round(r()*(FOR.W-w2));
       if(Math.abs(x2-x)>w+20) P.push({x:x2,y:Math.round(y),w:w2});
     }
   }
+  // 마지막 한 칸은 늘 평범한 발판으로 둔다. 꼭대기 바로 앞에서
+  // 움직이는 얼음을 밟게 하면 거기서 끝나버린다.
+  P.push({x:Math.round(FOR.W/2-60),y:FOR.TOP-150,w:120});
   P.push({x:Math.round(FOR.W/2-70),y:FOR.TOP,w:140,top:1});
   return P.sort(function(a,b){ return a.y-b.y; });
 }
+// 움직이는 발판의 지금 x. 시간만 있으면 어디 있는지 알 수 있어야
+// 화면 없이도 굴려볼 수 있다.
+const fPx=(p,t)=>p.mv?(p.x+p.amp*Math.sin(t*p.spd+p.ph)):p.x;
 
 // 한 걸음. 순수 함수로 두면 화면 없이도 굴려볼 수 있다 -
 // 이 판에서는 rAF 가 안 돌아서 그러지 않으면 확인할 방법이 없다.
 function fStep(st,dt,P){
+  st.t=(st.t||0)+dt;
   if(st.grounded){
-    if(st.press) st.chg=Math.min(1,st.chg+dt/FOR.CHARGE);
-    else if(st.chg>0){                              // 뗐다 - 뛴다
-      const p=FOR.JMIN+(FOR.JMAX-FOR.JMIN)*st.chg;
-      st.vy=p; st.vx=p*FOR.HX*st.dir; st.grounded=false; st.chg=0; st.jumps++;
+    const p=(st.on>=0)?P[st.on]:null;
+    if(p&&p.mv) st.x+=fPx(p,st.t)-fPx(p,st.t-dt);   // 발판이 나를 데리고 간다
+    if(p&&p.ice){                                    // 얼음은 안 멈춘다
+      st.x+=st.vx*dt;
+      st.vx*=Math.pow(FOR.ICE,dt*60);
+      if(Math.abs(st.vx)<5) st.vx=0;
+    } else st.vx=0;
+    if(st.x<8){ st.x=8; st.vx=-st.vx*FOR.BOUNCE; }
+    if(st.x>FOR.W-8){ st.x=FOR.W-8; st.vx=-st.vx*FOR.BOUNCE; }
+    if(p&&st.y>0){                                   // 발판 밖으로 미끄러졌나
+      const px=fPx(p,st.t);
+      if(st.x<px-7||st.x>px+p.w+7){ st.grounded=false; st.chg=0; st.on=-1; }
     }
-    if(st.grounded) return st;
+    if(st.grounded){
+      if(st.press) st.chg=Math.min(1,st.chg+dt/FOR.CHARGE);
+      else if(st.chg>0){                             // 뗐다 - 뛴다
+        const q=FOR.JMIN+(FOR.JMAX-FOR.JMIN)*st.chg;
+        st.vy=q; st.vx=q*FOR.HX*st.dir;
+        st.grounded=false; st.on=-1; st.chg=0; st.jumps++;
+      }
+      if(st.grounded) return st;
+    }
   }
   st.vy-=FOR.G*dt;
   const py=st.y;
@@ -2271,12 +2335,14 @@ function fStep(st,dt,P){
   if(st.x<8){ st.x=8; st.vx=-st.vx*FOR.BOUNCE; }    // 벽에 튕긴다
   if(st.x>FOR.W-8){ st.x=FOR.W-8; st.vx=-st.vx*FOR.BOUNCE; }
   if(st.vy<0){                                      // 내려올 때만 발판을 탄다
-    for(let i=0;i<P.length;i++){ const p=P[i];
-      if(py>=p.y&&st.y<=p.y&&st.x>=p.x-7&&st.x<=p.x+p.w+7){
-        st.y=p.y; st.vy=0; st.vx=0; st.grounded=true; st.land=p; break;
+    for(let i=0;i<P.length;i++){ const p=P[i], px=fPx(p,st.t);
+      if(py>=p.y&&st.y<=p.y&&st.x>=px-7&&st.x<=px+p.w+7){
+        st.y=p.y; st.vy=0; st.grounded=true; st.on=i;
+        st.vx=p.ice?st.vx*0.55:0;                   // 얼음은 속도를 남긴다
+        break;
       } }
   }
-  if(st.y<0){ st.y=0; st.vy=0; st.vx=0; st.grounded=true; }
+  if(st.y<0){ st.y=0; st.vy=0; st.vx=0; st.grounded=true; st.on=0; }
   if(st.y>st.best) st.best=st.y;
   return st;
 }
@@ -2291,7 +2357,7 @@ const fRec=(from,to)=>Math.round(income()*FOR.REC*Math.max(0,Math.min(1,to/FOR.T
 const fReward=h=>fRun(h)+fRec((S.fbest|0)*FOR.PXM,h);
 function fEnter(){
   const P=fBuild();
-  F={P:P, x:FOR.W/2, y:0, vx:0, vy:0, grounded:true, chg:0, dir:1,
+  F={P:P, x:FOR.W/2, y:0, vx:0, vy:0, grounded:true, on:0, chg:0, dir:1,
      press:false, best:0, jumps:0, t:0, done:false, acc:0, last:0};
   $('fGame').hidden=false;
   fResize(); fLoop(performance.now()); fWatchStart();
@@ -2354,10 +2420,17 @@ function fDraw(){
   // 발판
   F.P.forEach(function(p){
     const y=Y(p.y); if(y<-20||y>H+20) return;
-    g.fillStyle=p.top?'#FFC94A':'#3E6B52';
-    g.fillRect(p.x*sc,y,p.w*sc,7);
-    g.fillStyle=p.top?'#FFE9A8':'#5C9B78';
-    g.fillRect(p.x*sc,y,p.w*sc,2.5);
+    const px=fPx(p,F.t)*sc, pw=p.w*sc;
+    const c=p.top?['#FFC94A','#FFE9A8']
+          :p.ice?['#4E86B8','#BFE4FF']
+          :p.mv ?['#6E52B8','#C0AEFF']
+                :['#3E6B52','#5C9B78'];
+    g.fillStyle=c[0]; g.fillRect(px,y,pw,7);
+    g.fillStyle=c[1]; g.fillRect(px,y,pw,2.5);
+    if(p.mv){                                    // 어디까지 오가는지 그려준다
+      g.strokeStyle='rgba(192,174,255,.28)'; g.lineWidth=1;
+      g.beginPath(); g.moveTo((p.x-p.amp)*sc,y+3.5); g.lineTo((p.x+p.amp+p.w)*sc,y+3.5); g.stroke();
+    }
   });
   // 나
   const px=F.x*sc, py=Y(F.y);
@@ -3647,10 +3720,10 @@ function claimDaily(){
 // 세 번째 칸은 스와이프할 때 어디로 가는지 띄워주는 이름이다
 const VIEWS=[['stat','viewStat','상태'],['up','viewUp','강화'],['inv','viewInv','가방'],
              ['hunt','viewHunt','사냥'],['ach','viewAch','업적'],['rank','viewRank','랭킹'],
-             ['rec','viewRec','기록'],['adm','viewAdm','마스터']];
+             ['rec','viewRec','기록'],['forest','viewForest','시련의 숲'],['adm','viewAdm','마스터']];
 // 줄에 서는 건 여섯 칸까지다. 일곱이면 폰에서 글자가 눌린다.
 // 기록은 자주 볼 게 아니라 메뉴에서만 연다 - 화면은 그대로 살아 있다.
-const NAVOUT={rec:1};
+const NAVOUT={rec:1, forest:1};
 // 마스터 칸은 권한이 있을 때만 줄에 낀다. 예전엔 VIEWS 를 그대로 써서
 // 단추만 숨기고 스와이프로는 끝까지 밀면 마스터 화면이 나왔다.
 const navViews=()=>VIEWS.filter(function(v){ return !NAVOUT[v[0]]&&(v[0]!=='adm'||ADMIN); });
@@ -3670,6 +3743,7 @@ function showView(k){
   if(k==='ach') renderAch();
   if(k==='adm') renderAdm(true);
   if(k==='stat') renderStat();
+  if(k==='forest') renderForest();
   if(to>=0&&from>=0&&to!==from){              // 들어오는 쪽만 밀어 넣는다 — 화면마다 높이가 달라서
     const el=$((navViews()[to]||VIEWS[0])[1]);   // 두 장을 나란히 끌면 아래가 출렁인다
     el.classList.remove('vnext','vprev');
@@ -5011,7 +5085,7 @@ initOnline();
 
 // 균형 점검용 노출 (게임 동작에는 영향 없음)
 try{ window.__CFG={SF,MAXSTAR,starCost,SHIELD,SLOTS,OPT,POOL,GCAP,UPRATE,UPGRADE,CUBES,
-  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,skPct,SKMUL,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,lineHTML,potGradeOf,evenGrade,critRate,critMult,CRIT,FOR,fBuild,fStep,fRng,fMeters,fEnter,fEnd,fReward,fRun,fRec,renderForest,renderStat,statOf,sumOpt,mastSum,slotPow,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,navViews,viewIdx,swipeTarget,swipeBlocked,VIEWS,topBoss,bossLabel,myRec,DNAME,ACH,achStat,MAXLV,lvBonus,lvMult,LVK,SLOT_ART,WEAPON_ART,stash,bagStar,bagLines,bagP4,dropSlot,BTYPE,renderAll,CRCOL,passTime,offerOffline,OFF_CAP,OFF_RATE,TR,carryLines,showDrop,cost,protUse,safeUse,IGCOST,igCost,MAST,MPS,mpFor,mastOf,mastFree,mastMult,mastSum,trStar,renderMast,starMult,expMult,IGSTAR,engrave,ENG,renderShop,renderCubes,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
+  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,skPct,SKMUL,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,lineHTML,potGradeOf,evenGrade,critRate,critMult,CRIT,FOR,fBuild,fStep,fRng,fMeters,fPx,fEnter,fEnd,fReward,fRun,fRec,renderForest,renderStat,statOf,sumOpt,mastSum,slotPow,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,navViews,viewIdx,swipeTarget,swipeBlocked,VIEWS,topBoss,bossLabel,myRec,DNAME,ACH,achStat,MAXLV,lvBonus,lvMult,LVK,SLOT_ART,WEAPON_ART,stash,bagStar,bagLines,bagP4,dropSlot,BTYPE,renderAll,CRCOL,passTime,offerOffline,OFF_CAP,OFF_RATE,TR,carryLines,showDrop,cost,protUse,safeUse,IGCOST,igCost,MAST,MPS,mpFor,mastOf,mastFree,mastMult,mastSum,trStar,renderMast,starMult,expMult,IGSTAR,engrave,ENG,renderShop,renderCubes,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
   get state(){return S;}, cur, power, income, mesoMult, dropMult, starMult, potMultOf, POTG, odds, potGrade, topGrade, totalStars, sfBonus}; }catch(e){}
 })();
 </script>
