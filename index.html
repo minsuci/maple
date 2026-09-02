@@ -1666,10 +1666,16 @@ const pickName=i=>{ const a=slotNames(i); return a[(Math.random()*a.length)|0]; 
 // 캐릭터 레벨 — 모자의 경험치획득량 옵션이 여기서 값을 한다
 const MAXLV=300;
 // 250렙에 한 달, 거기서 260렙까지 다시 2주가 걸리도록 맞춘 지수 곡선.
-// 기준은 검은 마법사의 성에서 활동 2시간 + 오프라인 8시간 수령.
+// 기준은 검은 마법사의 성에서 활동 2시간 + 오프라인 12시간 수령.
 const xpNeed=L=>Math.round(186*Math.pow(1.03904,L));
-const OFF_CAP=8*3600;          // 오프라인 수입 상한 8시간
-const OFF_RATE=0.5;            // 자리를 비우면 절반만 번다
+// 자리를 비웠다고 덜 주지 않는다. 이 게임은 붙들고 하는 게 아니라
+// 가끔 들어와서 몇 번 누르는 것이고, 앱을 여는 이유는 방치 수입이
+// 아니라 보스와 숲이다. 절반만 주던 때는 후반이 특히 얇았다 -
+// lv270 에서 여덟 시간을 자고 와도 강화 열다섯 번, 그 구간 성공률이
+// 6% 대라 별 하나가 안 붙었다. 진 힐라 하드 두 번이 그 여덟 시간을
+// 따라잡던 것도 앞뒤가 안 맞는다.
+const OFF_CAP=12*3600;         // 하룻밤 자고 와도 다 담기게 12시간
+const OFF_RATE=1.0;            // 온라인과 같은 속도로 쌓인다
 
 // 업적 — 이미 쌓고 있는 통계를 그대로 쓴다
 // 업적은 트랙마다 여러 단계로 쌓인다. 뒷 단계일수록 유효옵이 붙는다.
@@ -3650,7 +3656,7 @@ function renderAch(){
   }).join('');
 }
 /* 시간만 지나면 되는 것들 — 보스 쿨, 스킬 쿨, 버프.
-   수입은 8시간까지만 쌓이지만 쿨은 실제로 흐른 만큼 흐른다. 상세창에도
+   수입은 12시간까지만 쌓이지만 쿨은 실제로 흐른 만큼 흐른다. 상세창에도
    "자리를 비운 동안에도 쿨은 흐른다"고 적어놨으니 그래야 맞다. */
 function passTime(sec){
   const el=Math.max(0,Math.floor(sec));
@@ -3673,7 +3679,7 @@ function offerOffline(sec){
   $('offBody').innerHTML=
     '<div class="offrow"><span>사냥 수입</span><b>'+fmt(meso)+' 메소</b></div>'+
     '<div class="offrow"><span>경험치</span><b>'+xp.toLocaleString('ko-KR')+'</b></div>'+
-    '<div class="offnote">자리를 비운 동안엔 절반만 번다 · 수입은 최대 8시간까지 쌓인다'+
+    '<div class="offnote">자리를 비워도 사냥 속도는 그대로다 · 수입은 최대 12시간까지 쌓인다'+
       (sec>OFF_CAP?'<br><b>보스 쿨타임은 상한 없이 '+(h?h+'시간 ':'')+m+'분 전부 흘렀다</b>':'')+'</div>';
   $('offTake').onclick=function(){
     S.meso+=meso; gainXp(xp); offPend=0;
@@ -4948,7 +4954,7 @@ function catchUp(sec){
   passTime(sec);                                  // 쿨은 상한 없이
   const el=Math.min(OFF_CAP,sec);                 // 수입만 8시간까지
   if(el<3){ renderAll(); return; }
-  const m=income()*el*OFF_RATE, xp=xpRate()*el*OFF_RATE;   // 창을 열어둔 채 묻어둔 것도 절반이다
+  const m=income()*el*OFF_RATE, xp=xpRate()*el*OFF_RATE;   // 창을 열어둔 채 묻어둬도 같은 값이다
   S.meso+=m; gainXp(xp);
   const h=Math.floor(el/3600), mi=Math.floor(el%3600/60), s=Math.floor(el%60);
   const dur=h?(h+'시간 '+mi+'분'):(mi?(mi+'분'):(s+'초'));
