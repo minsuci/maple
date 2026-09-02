@@ -4069,16 +4069,21 @@ function mergeBoard(){
   for(const list of arguments) for(const e of (list||[])){
     if(!e||!okId(String(e.id))) continue;
     const id=String(e.id);
+    // 여기서 레코드를 새로 짓는다. 빠뜨린 칸은 서버가 제대로 보내줘도
+    // 이 줄에서 사라진다 — job 이 그렇게 빠져서 모두가 전사로 보였다.
     const r={id:id, star:Math.min(36,+e.star||0), grade:Math.min(3,+e.grade||0),
              power:+e.power||0, des:+e.des||0, tries:+e.tries||0,
-             boss:Math.min(200,+e.boss||0), ach:Math.min(99,+e.ach||0), lv:Math.min(300,+e.lv||1), ts:+e.ts||0};
+             job:Math.min(JOBS.length-1,Math.max(0,+e.job||0)),
+             boss:Math.min(200,+e.boss||0), ach:Math.min(99,+e.ach||0), lv:Math.min(300,+e.lv||1),
+             seen:+e.seen||+e.ts||0, ts:+e.ts||0};
     // 잠금(h)은 가장 먼저 등록된 것을 끝까지 유지한다 — 나중 사람이 바꿔치기 못 하도록
     if(typeof e.h==='string'&&e.h){
       const cur=lock.get(id);
       if(!cur||r.ts<cur.ts) lock.set(id,{h:e.h,ts:r.ts||Infinity});
     }
     const prev=m.get(id);
-    m.set(id, (!prev||cmpRec(r,prev)<0) ? r : prev);
+    if(prev) r.seen=Math.max(r.seen,prev.seen);   // 마지막 접속은 진 기록 쪽이 더 최근일 수 있다
+    m.set(id, (!prev||cmpRec(r,prev)<0) ? r : Object.assign(prev,{seen:r.seen}));
   }
   const out=Array.from(m.values());
   for(const r of out){ const L=lock.get(r.id); if(L) r.h=L.h; }
