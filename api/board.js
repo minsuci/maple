@@ -56,6 +56,16 @@ function cleanRec(r) {
     ach:   n(r.ach, 99),
     lv:    n(r.lv, 300),
     job:   n(r.job, 2),
+    // 부위별 [성수치, 장비등급, 잠재등급, 네줄여부]. 잠재등급만 -1(없음)을 허용한다.
+    gear:  Array.isArray(r.gear) ? r.gear.slice(0, 8).map(function (g) {
+             if (!Array.isArray(g)) return [0, 0, -1, 0];
+             const pg = Math.floor(Number(g[2]));
+             return [n(g[0], 36), n(g[1], 3),
+                     Number.isFinite(pg) ? Math.max(-1, Math.min(3, pg)) : -1,
+                     n(g[3], 1)];
+           }) : [],
+    mst:   n(r.mst, 999),
+    fbest: n(r.fbest, 99999),
     ig:    n(r.ig, 2),
     power: n(r.power, 100000),
     des:   n(r.des, 1000000),
