@@ -903,6 +903,13 @@ td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
 
   <div class="bufbar" id="bufBar" hidden></div>
 
+  <div class="view" id="viewStat" hidden>
+  <section class="card">
+    <h2>상태</h2>
+    <div id="stBody"></div>
+  </section>
+  </div>
+
   <div class="view" id="viewUp">
   <div class="main">
     <!-- 아이템 -->
@@ -1138,14 +1145,6 @@ td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
 
 <div class="swipehint" id="swipeHint" hidden></div>
 
-<div class="compare" id="stats" hidden>
-  <div class="cmpcard">
-    <h2>상태</h2>
-    <div id="stBody"></div>
-    <div class="cmpbtns"><button class="btn" id="stClose">닫기</button></div>
-  </div>
-</div>
-
 <div class="compare" id="jobPick" hidden>
   <div class="cmpcard">
     <h2 id="jobTitle">직업</h2>
@@ -1185,7 +1184,7 @@ td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
     <button class="mitem" id="mAtt">출석<span class="badge" id="attBadge" hidden></span><small>하루 한 번 · 7일 주기</small></button>
     <button class="mitem" data-v="ach">업적<small>41종</small></button>
     <button class="mitem" data-v="rank">랭킹<small>길드 기록</small></button>
-    <button class="mitem" id="mStat">상태<small>가진 능력치 전부</small></button>
+    <button class="mitem" data-v="stat">상태<small>가진 능력치 전부</small></button>
     <button class="mitem" data-v="rec">기록<small>내 통계</small></button>
   </div>
 </div>
@@ -2110,7 +2109,7 @@ function statOf(k){
   return {tot:+(pot+mst+ach).toFixed(1), src:[['잠재',pot],['마스터리',mst],['업적',ach]]};
 }
 
-function renderStats(){
+function renderStat(){
   const p=power(), ko=KEYOPT();
   const num=n=>(Math.round(n*10)/10).toLocaleString('ko-KR');
   let h='<div class="sthead"><div class="p">'+p.toLocaleString('ko-KR')+'</div>'+
@@ -2351,6 +2350,7 @@ function renderAll(){
   if(cur().broken) repairUI(); else renderCubes();
   renderShop(); renderTShop(); renderLevel(); renderDaily(); checkAch(); renderAch();
   if(!$('bossPick').hidden) renderBossPick();
+  if((S.view||'up')==='stat') renderStat();   // 보고 있는 동안에도 값이 움직인다
   const fb=$('fbBox'); if(fb) fb.hidden=!(SRV&&TOKEN&&USER);
   const jv=$('jobV'); jv.hidden=!USER; jv.textContent=curJob().n;
   $('mJobSub').textContent=curJob().n+' · '+curJob().w;
@@ -3398,13 +3398,18 @@ function claimDaily(){
 
 /* ---------- 화면 전환 ---------- */
 // 세 번째 칸은 스와이프할 때 어디로 가는지 띄워주는 이름이다
-const VIEWS=[['up','viewUp','강화'],['inv','viewInv','가방'],['hunt','viewHunt','사냥'],['ach','viewAch','업적'],
-             ['rank','viewRank','랭킹'],['rec','viewRec','기록'],['adm','viewAdm','마스터']];
+const VIEWS=[['stat','viewStat','상태'],['up','viewUp','강화'],['inv','viewInv','가방'],
+             ['hunt','viewHunt','사냥'],['ach','viewAch','업적'],['rank','viewRank','랭킹'],
+             ['rec','viewRec','기록'],['adm','viewAdm','마스터']];
+// 줄에 서는 건 여섯 칸까지다. 일곱이면 폰에서 글자가 눌린다.
+// 기록은 자주 볼 게 아니라 메뉴에서만 연다 - 화면은 그대로 살아 있다.
+const NAVOUT={rec:1};
 // 마스터 칸은 권한이 있을 때만 줄에 낀다. 예전엔 VIEWS 를 그대로 써서
 // 단추만 숨기고 스와이프로는 끝까지 밀면 마스터 화면이 나왔다.
-const navViews=()=>VIEWS.filter(function(v){ return v[0]!=='adm'||ADMIN; });
-const viewIdx=k=>{ const L=navViews();
-  return Math.max(0,L.findIndex(function(v){ return v[0]===(k||S.view||'up'); })); };
+const navViews=()=>VIEWS.filter(function(v){ return !NAVOUT[v[0]]&&(v[0]!=='adm'||ADMIN); });
+// 줄에 없는 화면(기록)은 -1 이다. 0 으로 뭉개면 거기서 민 스와이프가
+// 맨 앞으로 튀고, 슬라이드도 엉뚱한 화면에 걸린다.
+const viewIdx=k=>navViews().findIndex(function(v){ return v[0]===(k||S.view||'up'); });
 function showView(k){
   const from=viewIdx(), to=viewIdx(k);
   S.view=k;
@@ -3417,7 +3422,8 @@ function showView(k){
   if(k==='rank') renderRank();
   if(k==='ach') renderAch();
   if(k==='adm') renderAdm(true);
-  if(to!==from){                              // 들어오는 쪽만 밀어 넣는다 — 화면마다 높이가 달라서
+  if(k==='stat') renderStat();
+  if(to>=0&&from>=0&&to!==from){              // 들어오는 쪽만 밀어 넣는다 — 화면마다 높이가 달라서
     const el=$((navViews()[to]||VIEWS[0])[1]);   // 두 장을 나란히 끌면 아래가 출렁인다
     el.classList.remove('vnext','vprev');
     void el.offsetWidth;                      // 애니메이션 재시작
@@ -3434,7 +3440,7 @@ function goView(k){ document.querySelectorAll('.compare:not([hidden])')
 
 function buildNav(){
   const n=$('nav'); n.innerHTML='';
-  VIEWS.forEach(function(v){
+  navViews().forEach(function(v){
     const b=document.createElement('button');
     b.className='ntab'; b.dataset.v=v[0]; b.type='button';
     b.textContent=v[2];
@@ -3605,7 +3611,9 @@ function renderBag(){
 // 손가락을 따라 화면이 밀리고, 충분히 밀면 넘어간다. 안 밀면 제자리로 돌아온다.
 // 세로 스크롤을 뺏으면 안 되니 첫 움직임에서 축을 정하고 그 제스처 내내 유지한다.
 const SW={el:null, x0:0, y0:0, dx:0, axis:'', t0:0};
-function swipeTarget(dir){ const L=navViews(), i=viewIdx()+dir; return (i<0||i>=L.length)?null:L[i]; }
+function swipeTarget(dir){ const L=navViews(), c=viewIdx();
+  if(c<0) return null;
+  const i=c+dir; return (i<0||i>=L.length)?null:L[i]; }
 function swipeBlocked(t){
   if(!$('menu').hidden) return true;
   if(document.querySelector('.compare:not([hidden])')) return true;   // 모달이 떠 있으면 양보
@@ -3628,6 +3636,7 @@ function swipeHint(dx){
 }
 function swipeStart(e){
   if(e.touches.length!==1||swipeBlocked(e.target)) return;
+  if(viewIdx()<0) return;                     // 줄에 없는 화면에서는 밀 곳이 없다
   const t=e.touches[0];
   SW.x0=t.clientX; SW.y0=t.clientY; SW.dx=0; SW.axis=''; SW.t0=Date.now();
   SW.el=$(navViews()[viewIdx()][1]);
@@ -4719,9 +4728,6 @@ $('burger').addEventListener('click',function(){ $('menu').hidden=false; });
 $('mAtt').addEventListener('click',function(){ $('menu').hidden=true; renderDaily(); $('attend').hidden=false; });
 $('meltJunk').addEventListener('click',function(){ ac(); meltJunk(); });
 $('mJob').addEventListener('click',function(){ $('menu').hidden=true; openJobs('change'); });
-$('mStat').addEventListener('click',function(){ $('menu').hidden=true; renderStats(); $('stats').hidden=false; });
-$('stClose').addEventListener('click',function(){ $('stats').hidden=true; });
-$('stats').addEventListener('click',function(e){ if(e.target===$('stats')) $('stats').hidden=true; });
 $('jobClose').addEventListener('click',function(){ $('jobPick').hidden=true; save(); });
 $('attBtn').addEventListener('click',function(){ ac(); claimDaily(); });
 $('attClose').addEventListener('click',function(){ $('attend').hidden=true; });
@@ -4748,7 +4754,7 @@ initOnline();
 
 // 균형 점검용 노출 (게임 동작에는 영향 없음)
 try{ window.__CFG={SF,MAXSTAR,starCost,SHIELD,SLOTS,OPT,POOL,GCAP,UPRATE,UPGRADE,CUBES,
-  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,skPct,SKMUL,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,lineHTML,potGradeOf,evenGrade,critRate,critMult,CRIT,renderStats,statOf,sumOpt,mastSum,slotPow,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,navViews,viewIdx,swipeTarget,swipeBlocked,VIEWS,topBoss,bossLabel,myRec,DNAME,ACH,achStat,MAXLV,lvBonus,lvMult,LVK,SLOT_ART,WEAPON_ART,stash,bagStar,bagLines,bagP4,dropSlot,BTYPE,renderAll,CRCOL,passTime,offerOffline,OFF_CAP,OFF_RATE,TR,carryLines,showDrop,cost,protUse,safeUse,IGCOST,igCost,MAST,MPS,mpFor,mastOf,mastFree,mastMult,mastSum,trStar,renderMast,starMult,expMult,IGSTAR,engrave,ENG,renderShop,renderCubes,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
+  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,skPct,SKMUL,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,lineHTML,potGradeOf,evenGrade,critRate,critMult,CRIT,renderStat,statOf,sumOpt,mastSum,slotPow,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,navViews,viewIdx,swipeTarget,swipeBlocked,VIEWS,topBoss,bossLabel,myRec,DNAME,ACH,achStat,MAXLV,lvBonus,lvMult,LVK,SLOT_ART,WEAPON_ART,stash,bagStar,bagLines,bagP4,dropSlot,BTYPE,renderAll,CRCOL,passTime,offerOffline,OFF_CAP,OFF_RATE,TR,carryLines,showDrop,cost,protUse,safeUse,IGCOST,igCost,MAST,MPS,mpFor,mastOf,mastFree,mastMult,mastSum,trStar,renderMast,starMult,expMult,IGSTAR,engrave,ENG,renderShop,renderCubes,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
   get state(){return S;}, cur, power, income, mesoMult, dropMult, starMult, potMultOf, POTG, odds, potGrade, topGrade, totalStars, sfBonus}; }catch(e){}
 })();
 </script>
