@@ -2999,7 +2999,7 @@ function bossBattle(i,done){
     $('bFoe').classList.add('dmg');
     bdmg('me','-'+Math.round(s.dmg*4200),'#FFE9A8');
     burst(90,'#FF4D6A',{sp:1.4}); tone(920,140,.2,'square',.055);
-    flash(s.n,'대미지 +'+Math.round(s.dmg*100)+'%','#FF4D6A');
+    flash(s.n,'보스 체력 -'+skPct(k)+'%','#FF4D6A');
     log('<b>'+s.n+'</b> — '+bossName(i)+'에게 한 방','up');
     renderBattleSkills(skUsed);
     at(220,function(){ $('bFoe').classList.remove('dmg'); });
@@ -3050,7 +3050,7 @@ function buildBattleSkills(onUse){
   SKILLS.forEach(function(s,k){
     const el=document.createElement('button');
     el.className='bsk'; el.dataset.k=k; el.type='button';
-    el.innerHTML='<span class="sn">'+s.n+'</span><span class="sd">+'+Math.round(s.dmg*100)+'%</span>';
+    el.innerHTML='<span class="sn">'+s.n+'</span><span class="sd">-'+skPct(k)+'%</span>';
     el.addEventListener('click',function(e){ e.stopPropagation(); ac(); onUse(k); });
     b.appendChild(el);
   });
@@ -3494,7 +3494,12 @@ const SKILLS=[
 const skLearned=k=>(S.lv||1)>=SKILLS[k].lv;
 const skReady=k=>skLearned(k)&&!(((S.skcd||[])[k])>0);
 // 스킬 한 방이 깎는 보스 체력 (보스 HP 는 100). 리미트 브레이크면 66.
-const skHit=k=>SKILLS[k].dmg*60;
+// 보스 HP 는 100 이다. 예전엔 계수x60 이라 리미트 한 방이 66 을 깎았고,
+// 이길 수 없는 보스(승산 7%)도 스킬 한 번이면 97% 가 됐다. 전투력이 무의미해진다.
+// 이제 x12 — 밀어주는 한 방이지 전세를 뒤집는 한 방은 아니다.
+const SKMUL=12;
+const skHit=k=>SKILLS[k].dmg*SKMUL;
+const skPct=k=>Math.round(SKILLS[k].dmg*SKMUL);   // 보스 HP 100 기준이라 그대로 %
 
 /* ---------- 사냥터 · 보스 ---------- */
 const fmtCd=s=>{ s=Math.ceil(s); const m=Math.floor(s/60); return m?(m+'분'):(s+'초'); };
@@ -3503,7 +3508,7 @@ function buildSkills(){
   SKILLS.forEach(function(s,k){
     const el=document.createElement('button');
     el.className='skbtn'; el.dataset.k=k;
-    el.innerHTML='<span class="sn">'+s.n+'</span><span class="sd">+'+Math.round(s.dmg*100)+'%</span>'+
+    el.innerHTML='<span class="sn">'+s.n+'</span><span class="sd">-'+skPct(k)+'%</span>'+
                  '<span class="sc"></span>';
     el.disabled=true;                          // 여기선 쿨타임만 본다 — 쓰는 건 전투 중에
     b.appendChild(el);
@@ -3517,7 +3522,8 @@ function renderSkills(){
     el.querySelector('.sc').textContent=!learned?('lv '+s.lv):(cd>0?fmtCd(cd):'준비');
   });
   const next=SKILLS.findIndex(function(s,k){ return !skLearned(k); });
-  $('skillNote').innerHTML='스킬은 <b>전투 중에</b> 쓴다 — 체력이 안 깎이는 게 보이면 그때 지른다. 한 판에 하나.'+
+  $('skillNote').innerHTML='스킬은 <b>전투 중에</b> 쓴다 — 체력이 안 깎이는 게 보이면 그때 지른다. 한 판에 하나. '+
+    '적힌 숫자는 <b>보스 체력을 몇 % 깎는지</b>다 — 반반인 싸움을 이기는 쪽으로 밀어주지, 못 이길 보스를 잡아주지는 않는다.'+
     (next<0?'':' · 다음 스킬 <b>'+SKILLS[next].n+'</b>은 <b>lv '+SKILLS[next].lv+'</b>부터.');
 }
 
@@ -4522,7 +4528,7 @@ initOnline();
 
 // 균형 점검용 노출 (게임 동작에는 영향 없음)
 try{ window.__CFG={SF,MAXSTAR,starCost,SHIELD,SLOTS,OPT,POOL,GCAP,UPRATE,UPGRADE,CUBES,
-  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,lineHTML,potGradeOf,evenGrade,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,navViews,viewIdx,swipeTarget,swipeBlocked,VIEWS,topBoss,bossLabel,myRec,DNAME,ACH,achStat,MAXLV,lvBonus,lvMult,LVK,SLOT_ART,WEAPON_ART,stash,bagStar,bagLines,bagP4,dropSlot,BTYPE,renderAll,CRCOL,passTime,offerOffline,OFF_CAP,OFF_RATE,TR,carryLines,showDrop,cost,protUse,safeUse,IGCOST,igCost,MAST,MPS,mpFor,mastOf,mastFree,mastMult,mastSum,trStar,renderMast,starMult,expMult,IGSTAR,engrave,ENG,renderShop,renderCubes,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
+  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,skPct,SKMUL,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,lineHTML,potGradeOf,evenGrade,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,navViews,viewIdx,swipeTarget,swipeBlocked,VIEWS,topBoss,bossLabel,myRec,DNAME,ACH,achStat,MAXLV,lvBonus,lvMult,LVK,SLOT_ART,WEAPON_ART,stash,bagStar,bagLines,bagP4,dropSlot,BTYPE,renderAll,CRCOL,passTime,offerOffline,OFF_CAP,OFF_RATE,TR,carryLines,showDrop,cost,protUse,safeUse,IGCOST,igCost,MAST,MPS,mpFor,mastOf,mastFree,mastMult,mastSum,trStar,renderMast,starMult,expMult,IGSTAR,engrave,ENG,renderShop,renderCubes,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
   get state(){return S;}, cur, power, income, mesoMult, dropMult, starMult, potMultOf, odds, potGrade, topGrade, totalStars, sfBonus}; }catch(e){}
 })();
 </script>
