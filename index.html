@@ -115,14 +115,6 @@ button:disabled{cursor:not-allowed;opacity:.45;}
 .btn.big{width:100%;padding:16px;font-size:18px;letter-spacing:.02em;}
 
 /* ---------- 이벤트 배너 ---------- */
-.event{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:11px 16px;border-radius:var(--r);
-  border:1px solid var(--edge);background:#15122C;color:var(--dimmer);font-size:12.5px;font-weight:700;}
-.event .ename{font-weight:900;letter-spacing:.14em;font-size:12px;}
-.event .etime{margin-left:auto;font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:.04em;}
-.event.on{border-color:var(--gold);color:var(--gold);
-  background:linear-gradient(90deg,#2A2208,#3B2E0B 60%,#2A2208);
-  box-shadow:0 0 30px -10px var(--gold);animation:evglow 1.8s ease-in-out infinite;}
-.event.on .edesc{color:#FFE9A8;}
 @keyframes evglow{50%{box-shadow:0 0 42px -8px var(--gold);}}
 
 /* ---------- 레이아웃 ---------- */
@@ -832,11 +824,6 @@ td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
   <div class="xpbar"><div class="xptrack"><div class="xpfill" id="xpFill"></div></div><div class="xptext" id="xpText"></div></div>
 
   <div class="bufbar" id="bufBar" hidden></div>
-  <div class="event" id="eventBar">
-    <span class="ename">럭키데이</span>
-    <span class="edesc" id="eventDesc">성공 확률 2배 · 강화 비용 30% 할인</span>
-    <span class="etime" id="eventTime">—</span>
-  </div>
 
   <div class="view" id="viewUp">
   <div class="main">
@@ -900,6 +887,10 @@ td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
         <div class="opt">
           <div><div class="t">세이프티 쉴드</div><div class="d" id="safeDesc">파괴를 막는다 · 비용 3배</div></div>
           <button class="sw" id="swSafe" role="switch" aria-checked="false" aria-label="세이프티 쉴드"></button>
+        </div>
+        <div class="opt">
+          <div><div class="t">럭키데이</div><div class="d" id="luckDesc">성공 확률 2배 · 비용 2.5배</div></div>
+          <button class="sw" id="swLuck" role="switch" aria-checked="false" aria-label="럭키데이"></button>
         </div>
       </div>
 
@@ -1002,7 +993,7 @@ td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
     <h2>기록</h2>
     <dl class="recs" id="recs"></dl>
     <div class="foot">
-      <small>스타포스 확률표와 잠재능력 옵션표는 <b>메이플스토리M 공식 확률 공개 페이지</b>의 수치를 그대로 옮겼다 (잠재는 무기 200레벨 기준). 6★부터 하락, 16★부터 파괴, 20★부터는 성공 6%로 고정된다.<br>쉴드 비용 배수 · 장비 승급 확률 · 럭키데이 주기는 공식 수치가 없어 내가 정했다.<br><b>목표는 스물두 보스를 카오스까지 전부 잡는 것.</b> 잠재 등급 상한은 장비 등급이 정한다 — 레전더리 잠재는 유니크 장비에서만 나온다. 계정 진행 상황은 서버에 저장되어 다른 기기에서도 이어진다.</small>
+      <small>스타포스 확률표와 잠재능력 옵션표는 <b>메이플스토리M 공식 확률 공개 페이지</b>의 수치를 그대로 옮겼다 (잠재는 무기 200레벨 기준). 6★부터 하락, 16★부터 파괴, 20★부터는 성공 6%로 고정된다.<br>쉴드와 럭키데이의 비용 배수 · 장비 승급 확률은 공식 수치가 없어 내가 정했다.<br><b>목표는 스물두 보스를 카오스까지 전부 잡는 것.</b> 잠재 등급 상한은 장비 등급이 정한다 — 레전더리 잠재는 유니크 장비에서만 나온다. 계정 진행 상황은 서버에 저장되어 다른 기기에서도 이어진다.</small>
       <button class="reset" id="resetBtn">기록 전부 초기화</button>
     </div>
       <div class="fbwrap" id="fbBox" hidden>
@@ -1608,7 +1599,7 @@ const DEF=()=>({
   job:'war', diff:0, skcd:[0,0,0,0,0], tok:0, buf:{mes:0,drp:0}, useProt:true, useSafe:true, map:0, zone:0, mv:0, anim:true, hard:false, view:'up', lv:1, xp:0, ach:{},
   att:{last:0, day:0, total:0},
   bcd:BOSSES.map(function(){return 0;}), bk:BOSSES.map(function(){return 0;}),
-  inv:defInv(), bag:[], evT:0, evCd:180,
+  inv:defInv(), bag:[], useLuck:false,
   st:{try:0,suc:0,keep:0,down:0,des:0,max:0,mg:0,cube:0,up:0,spent:0,best:0,hall:0}
 });
 let S=DEF();
@@ -1981,8 +1972,7 @@ function renderTop(){
   $('mbPow').textContent=power().toLocaleString('ko-KR');
   const rb=$('repBtn'); if(rb) rb.disabled=S.meso<restoreCost();
 }
-function renderEvent(){
-  const el=$('eventBar'), on=EV();  // 켜져 있는 버프를 럭키데이 줄 옆에 같이 보여준다
+function renderEvent(){         // 켜져 있는 시간제 버프만 칩으로 보여준다
   const bb=$('bufBar'); bb.innerHTML='';
   Object.keys(BUFFS).forEach(function(k){
     const t=(S.buf&&S.buf[k])|0; if(t<=0) return;
@@ -1993,18 +1983,13 @@ function renderEvent(){
     bb.appendChild(el);
   });
   bb.hidden=!bb.children.length;
-
-  el.classList.toggle('on',on);
-  if(on){
-    $('eventDesc').textContent='성공 확률 2배 · 강화 비용 30% 할인';
-    $('eventTime').textContent=Math.ceil(S.evT)+'초';
-  }else{
-    const c=Math.ceil(S.evCd);
-    $('eventDesc').textContent='다음 럭키데이를 기다리는 중 — 그때까지 메소를 모으자';
-    $('eventTime').textContent=Math.floor(c/60)+':'+String(c%60).padStart(2,'0');
-  }
 }
-const EV=()=>S.evT>0;
+// 럭키데이 — 예전엔 3분마다 60초씩 저절로 켜지는 이벤트였다. 줄이 하나 더 생겨
+// 화면이 밀렸고, 주기가 짧아 늘 눈에 띄었다. 쉴드처럼 내가 켜고 끄는 값으로 바꾼다.
+// 성공이 두 배면 시도 횟수가 반이라 x2 면 본전이다. 2.5 배를 받는다 —
+// 메소로는 25% 손해지만 손이 반만 간다. 급할 때 켜는 물건이 된다.
+const LUCK={mul:2.5};
+const EV=()=>!!S.useLuck;
 const shTicket=()=>(S.inv&&S.inv.sh>0)&&(protUse()||safeUse());   // 쉴드권이 배수를 면제한다
 // 쉴드는 막을 게 있을 때만 값을 받는다. 하락도 파괴도 없는 구간에서
 // 배수를 물리면 켜두는 것만으로 초반이 여덟 배가 된다 — 켜고 시작하니 더 그렇다.
@@ -2016,7 +2001,7 @@ function cost(){
     if(protUse()) c*=SHIELD.prot;
     if(safeUse()) c*=SHIELD.safe;
   }
-  if(EV()) c*=.7;
+  if(EV()) c*=LUCK.mul;
   return god()?0:Math.round(c/10)*10;
 }
 function odds(){
@@ -2055,12 +2040,16 @@ function renderStarPane(){
     : '강화하기 <b>'+it.star+'★ → '+(it.star+1)+'★</b>';
   $('swProt').setAttribute('aria-checked',String(S.useProt));
   $('swSafe').setAttribute('aria-checked',String(S.useSafe));
+  $('swLuck').setAttribute('aria-checked',String(!!S.useLuck));
   const tk=shTicket();
   const pOn=(SF[it.star]||[])[2]>0, sOn=(SF[it.star]||[])[3]>0;
   $('starNote').innerHTML='<b>'+IGNAME[it.ig]+' 장비</b>라 별값에 <b>x'+igCost(it).toFixed(1)+
     '</b>가 붙는다 (레어 1.0 · 에픽 1.2 · 유니크 1.5 · 레전더리 2.0) · <b>'+SLOTS[S.sel||0].n+
     '</b> 부위 배수 x'+SLOTS[S.sel||0].cost.toFixed(2)+
     '<br>비싸게 박은 별은 <b>전수</b>할 때 마스터리 포인트로 그만큼 더 돌아온다.';
+  $('luckDesc').textContent=EV()
+    ? ('성공 두 배 · 비용 '+LUCK.mul+'배 — 손이 반만 간다')
+    : ('성공 확률 2배 · 비용 '+LUCK.mul+'배 · 성공이 100%인 구간엔 켜도 소용없다');
   $('protDesc').textContent=pOn
     ? ('하락을 막는다 · 비용 '+(tk?'면제 (교환권)':SHIELD.prot+'배'))
     : '지금은 하락이 없다 · 6★부터 · 값도 안 받는다';
@@ -2650,14 +2639,6 @@ const SHOP=[
    price:function(){ return ENG.cost; }, can:function(){ return true; },
    buy:function(){ S.inv.eng=(S.inv.eng|0)+1; SND.up();
      log('<b>금빛 각인</b>을 샀다 — 강화대에서 레전더리 장비에 쓴다','up'); }},
-  {k:'ev', n:'럭키데이 소환',
-   d:function(){ return EV()?'이미 진행 중이다':'성공 확률 2배 · 강화 비용 30% 할인을 60초 동안'; },
-   // 60초 동안 성공 두 배다. 지금 굴리는 강화 스무 번 값을 받는다 —
-   // 진행에 맞춰 오르고, 사서 쓰면 그래도 남는 장사다.
-   price:function(){ return Math.max(50000, Math.round(cost()*20/1000)*1000); }, can:function(){ return !EV(); },
-   buy:function(){ S.evT=60; S.evCd=180; SND.up();
-     flash('럭키데이','60초 동안 성공 확률이 두 배','#FFC94A');
-     log('<b>럭키데이를 불렀다</b> — 60초','up'); }}
 ];
 function renderMast(){
   const i=S.sel||0, m=mastOf(i), free=mastFree(i);
@@ -2701,7 +2682,7 @@ function renderShop(){
     });
     L.appendChild(b);
   });
-  $('shopNote').innerHTML='상점은 <b>시간</b>만 판다 — 초반 15성을 건너뛰거나 럭키데이를 앞당기는 것. '+
+  $('shopNote').innerHTML='상점은 <b>시간</b>만 판다 — 초반 15성을 건너뛰거나 부스터를 켜는 것. '+
     '<b>금빛 각인</b>만 예외다 — 레전더리 장비가 없으면 살 이유가 없는 물건이라 값으로 막아뒀다.<br>'+
     '<b>소모품은 전부 보스가 떨군다.</b> 큐브는 파풀라투스·아카이럼·진 힐라(초이스는 진 힐라·검은 마법사만), '+
     '쉴드 교환권은 반 레온, <b>확정 성공권은 윌·검은 마법사가 아주 드물게</b> 준다.';
@@ -3122,7 +3103,7 @@ function renderAch(){
       '<span class="ar">'+fmt(a[4])+'</span></div>';
   }).join('');
 }
-/* 시간만 지나면 되는 것들 — 보스 쿨, 스킬 쿨, 버프, 럭키데이.
+/* 시간만 지나면 되는 것들 — 보스 쿨, 스킬 쿨, 버프.
    수입은 8시간까지만 쌓이지만 쿨은 실제로 흐른 만큼 흐른다. 상세창에도
    "자리를 비운 동안에도 쿨은 흐른다"고 적어놨으니 그래야 맞다. */
 function passTime(sec){
@@ -3131,8 +3112,6 @@ function passTime(sec){
   if(S.buf) for(const k in S.buf) if(S.buf[k]>0) S.buf[k]=Math.max(0,S.buf[k]-el);
   if(Array.isArray(S.bcd)) for(let i=0;i<S.bcd.length;i++) if(S.bcd[i]>0) S.bcd[i]=Math.max(0,S.bcd[i]-el);
   if(Array.isArray(S.skcd)) for(let k=0;k<S.skcd.length;k++) if(S.skcd[k]>0) S.skcd[k]=Math.max(0,S.skcd[k]-el);
-  if(S.evT>0){ S.evT=0; S.evCd=180; }        // 자리 비운 사이 럭키데이는 지나갔다
-  else S.evCd=Math.max(5,S.evCd-(el%180));
 }
 
 /* 오프라인 수입 */
@@ -4442,15 +4421,6 @@ function loop(t){
     S.buf[k]=Math.max(0,S.buf[k]-dt);
     if(!S.buf[k]) log('<b>'+BUFFS[k].n+'</b>가 끝났다','');
   }
-  if(S.evT>0){
-    S.evT-=dt;
-    if(S.evT<=0){ S.evT=0; S.evCd=180; log('럭키데이 종료','') ; renderAll(); }
-  } else {
-    S.evCd-=dt;
-    if(S.evCd<=0){ S.evT=60; S.evCd=180; SND.up();
-      log('<b>럭키데이 시작!</b> 60초 동안 성공 확률 2배 · 비용 30% 할인','up');
-      flash('럭키데이','60초 동안 성공 확률이 두 배','#FFC94A'); renderAll(); }
-  }
   acc+=dt;
   if(acc>.12){ acc=0; renderTop(); renderLevel(); renderEvent(); updateHunt(); checkAch(); if(!busy) renderStarPane(); }
   saveT+=dt; if(saveT>5){ saveT=0; save(); }
@@ -4472,6 +4442,7 @@ addEventListener('keydown',e=>{
 $('swSafe').addEventListener('click',()=>{ S.useSafe=!S.useSafe; renderStarPane(); save(); });
 [0,1,2,3].forEach(i=>$('p'+i).addEventListener('click',()=>pickLine(i)));
 $('swProt').addEventListener('click',()=>{ S.useProt=!S.useProt; renderStarPane(); save(); });
+$('swLuck').addEventListener('click',()=>{ S.useLuck=!S.useLuck; renderStarPane(); save(); });
 $('fbSend').addEventListener('click',function(){ ac(); sendFeedback(); });
 $('fbText').addEventListener('input',fbCount);
 $('admFb').addEventListener('click',function(){ ac(); admWhat='feedback'; renderAdm(false); });
