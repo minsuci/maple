@@ -930,7 +930,7 @@ td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
   <section class="card">
     <h2>시련의 숲</h2>
     <div class="fcard" id="fCard2">
-      <h3>꼭대기까지 300m</h3>
+      <h3>끝이 없다</h3>
       <p>누르고 있으면 힘이 차고, 떼면 그 방향으로 뛴다. 화면 왼쪽을 누르면 왼쪽,
          오른쪽을 누르면 오른쪽이다. <b>공중에서는 손을 못 댄다</b> — 한 번 뛰면 끝까지 간다.<br>
          떨어지면 아래 발판까지 미끄러진다. 그게 이 놀이의 전부다.</p>
@@ -938,11 +938,15 @@ td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
          <b style="color:#5C9B78">흙</b> 평범하다 ·
          <b style="color:#C0AEFF">보라</b> 좌우로 오간다, 언제 뛰느냐가 생긴다 ·
          <b style="color:#BFE4FF">얼음</b> 착지해도 안 멈춘다, 미끄러져 떨어질 수 있다</p>
-      <p>같은 숲을 모두가 오른다. 어제 막힌 자리가 오늘도 그 자리에 있다.<br>
+      <p>꼭대기가 없다. 올라가는 만큼 위로 이어 지어진다 —
+         발판은 계속 좁아지고 성격 붙은 발판이 늘어난다.<br>
+         씨앗이 하나라 몇 번을 들어와도 같은 숲이다. 어제 막힌 자리가 오늘도 그 자리에 있다.<br>
          쿨타임 없이 몇 번이든 들어올 수 있다.<br>
          메소는 <b>그만둘 때 서 있는 높이</b>로 센다 — 올라갔다가 떨어지면 그만큼 줄어든다.
          찍고 내려오는 게 아니라 <b>버티고 서 있어야</b> 값을 한다.<br>
-         거기에 <b>최고 기록을 넘긴 만큼</b>은 따로 크게 더 받는다.</p>
+         거기에 <b>최고 기록을 넘긴 만큼</b>은 따로 크게 더 받는다.<br>
+         값은 높이의 <b>1.6 승</b>이라 두 배 오르면 세 배를 받는다 —
+         100m 10분치 · 300m 한 시간치 · 600m 세 시간치 · 1000m 일곱 시간치.</p>
       <div class="frow">
         <button class="btn gold" id="fStart">숲에 들어간다</button>
         <span class="fbest" id="fBest">0<small style="font-size:13px">m</small></span>
@@ -2241,13 +2245,21 @@ function renderStat(){
 // 공중 조작이 없는 게 이 장르의 핵심이라 그건 그대로 뒀다 - 대신
 // 한 판이 길어지지 않게 꼭대기를 300m 로 짧게 잡았다. 잘 뛰면 1분대다.
 const FOR={
-  W:360, TOP:4200, PXM:14,          // 가로 360, 총 4200px = 300m
+  W:360, PXM:14,                    // 가로 360 · 14px 이 1m
   G:1800, JMIN:420, JMAX:920, HX:0.62,
   CHARGE:0.55, BOUNCE:0.62, SEED:20260902,
   ICE:0.972, MVA:34, MVS:1.1,       // 얼음 감속 · 움직이는 발판 폭과 빠르기
-  RUN:3600, REC:3600                // 한 판 60분치 · 기록 갱신분 60분치
+  AHEAD:1600,                       // 머리 위로 이만큼 미리 지어둔다
+  RUNK:620, RECK:620, POW:1.6       // 값 곡선 - 아래 fVal 을 보라
 };
 const fMeters=y=>Math.max(0,Math.round(y/FOR.PXM));
+// 난이도는 높이를 따라 계속 오르되 1 을 넘지 않는다. 상한이 없으면
+// 언젠가 최대 점프(235px)로 못 닿는 간격이 나와서 거기서 탑이 끝난다.
+//   300m 0.63 · 600m 0.77 · 1000m 0.85 · 2000m 0.92
+const fT=y=>{ const m=y/FOR.PXM; return m/(m+180); };
+// 높이의 값. 100m 를 1 로 두고 1.6 승이라 두 배 오르면 세 배를 받는다.
+//   100m 10분치 · 300m 1시간치 · 600m 3.1시간치 · 1000m 6.9시간치
+const fVal=m=>Math.pow(Math.max(0,m)/100,FOR.POW);
 // 같은 숲을 모두가 오른다. 고정 시드라 기록끼리 견줄 수 있다.
 function fRng(seed){ let s=seed>>>0; return function(){
   s=(s*1664525+1013904223)>>>0; return s/4294967296; }; }
@@ -2264,10 +2276,10 @@ function fMake(r,x,y,w,t,prev){
   const p={x:x,y:y,w:w};
   if(prev) return p;                              // 성격은 연달아 붙이지 않는다
   const roll=r();
-  if(t>0.42&&roll<(t-0.42)*0.85){
+  if(t>0.35&&roll<Math.min(0.5,(t-0.35)*1.6)){
     p.ice=1; p.w=Math.max(118,w);
     p.x=Math.min(p.x,FOR.W-p.w);
-  } else if(t>0.20&&roll>1-(t-0.20)*0.60){
+  } else if(t>0.20&&roll>1-Math.min(0.5,(t-0.20)*1.2)){
     p.mv=1; p.w=Math.max(96,w);
     p.ph=r()*6.283; p.spd=FOR.MVS*(0.7+r()*0.6);
     p.amp=Math.max(0,Math.min(FOR.MVA,(FOR.W-p.w)/2-4));
@@ -2275,29 +2287,28 @@ function fMake(r,x,y,w,t,prev){
   }
   return p;
 }
-function fBuild(){
-  const r=fRng(FOR.SEED), P=[{x:0,y:0,w:FOR.W}];   // 바닥은 통짜
-  let y=0, prev=false;
-  while(y<FOR.TOP-160){
-    const t=y/FOR.TOP;
-    const gap=96+r()*(46+t*30);                    // 위로 갈수록 벌어지고 (최대 172)
-    const w=Math.round(132-t*50+r()*26);           // 발판은 좁아진다 (최소 82)
-    y+=gap;
+// 꼭대기가 없다. 오르는 만큼 위로 이어 짓는다 - 씨앗이 하나라
+// 몇 번을 들어와도 같은 숲이고, 어제 막힌 자리가 오늘도 그 자리다.
+function fStart(){
+  return {r:fRng(FOR.SEED), P:[{x:0,y:0,w:FOR.W}], y:0, prev:false};
+}
+function fGrow(G,upto){
+  while(G.y<upto){
+    const t=fT(G.y), r=G.r;
+    const gap=Math.min(200,88+r()*(40+t*76));
+    const w=Math.max(68,Math.round(132-t*72+r()*26));
+    G.y+=gap;
     const x=Math.round(r()*(FOR.W-w));
-    const p=fMake(r,x,Math.round(y),w,t,prev);
-    prev=!!(p.ice||p.mv);
-    P.push(p);
-    if(r()<0.34-t*0.18){                            // 가끔 같은 높이에 하나 더
-      const w2=Math.round(80-t*24+r()*20);
+    const p=fMake(r,x,Math.round(G.y),w,t,G.prev);
+    G.prev=!!(p.ice||p.mv);
+    G.P.push(p);
+    if(r()<0.34-t*0.24){                           // 가끔 같은 높이에 하나 더
+      const w2=Math.max(60,Math.round(88-t*34+r()*20));
       const x2=Math.round(r()*(FOR.W-w2));
-      if(Math.abs(x2-x)>w+20) P.push({x:x2,y:Math.round(y),w:w2});
+      if(Math.abs(x2-x)>w+20) G.P.push({x:x2,y:Math.round(G.y),w:w2});
     }
   }
-  // 마지막 한 칸은 늘 평범한 발판으로 둔다. 꼭대기 바로 앞에서
-  // 움직이는 얼음을 밟게 하면 거기서 끝나버린다.
-  P.push({x:Math.round(FOR.W/2-60),y:FOR.TOP-150,w:120});
-  P.push({x:Math.round(FOR.W/2-70),y:FOR.TOP,w:140,top:1});
-  return P.sort(function(a,b){ return a.y-b.y; });
+  return G.P;
 }
 // 움직이는 발판의 지금 x. 시간만 있으면 어디 있는지 알 수 있어야
 // 화면 없이도 굴려볼 수 있다.
@@ -2354,12 +2365,12 @@ let F=null, fTimer=0, fRaf=0, fWatch=0;
 // 사람이 90초마다 한 시간을 찍어내서(약 40배) 경제가 무너진다.
 // 반복은 10분치로 줄이고, 큰 몫은 '기록을 깬 만큼'에 둔다 -
 // 갈아 넣는 건 언제든 되지만 값을 하는 건 더 올라갔을 때다.
-const fRun=h=>Math.round(income()*FOR.RUN*Math.min(1,h/FOR.TOP));
-const fRec=(from,to)=>Math.round(income()*FOR.REC*Math.max(0,Math.min(1,to/FOR.TOP)-Math.min(1,from/FOR.TOP)));
+const fRun=y=>Math.round(income()*FOR.RUNK*fVal(fMeters(y)));
+const fRec=(from,to)=>Math.round(income()*FOR.RECK*Math.max(0,fVal(fMeters(to))-fVal(fMeters(from))));
 const fReward=h=>fRun(h)+fRec((S.fbest|0)*FOR.PXM,h);
 function fEnter(){
-  const P=fBuild();
-  F={P:P, x:FOR.W/2, y:0, vx:0, vy:0, grounded:true, on:0, chg:0, dir:1,
+  const G=fStart(); fGrow(G,FOR.AHEAD);
+  F={G:G, P:G.P, x:FOR.W/2, y:0, vx:0, vy:0, grounded:true, on:0, chg:0, dir:1,
      press:false, best:0, jumps:0, t:0, done:false, acc:0, last:0};
   $('fGame').hidden=false;
   fResize(); fLoop(performance.now()); fWatchStart();
@@ -2374,6 +2385,7 @@ function fResize(){
 // 걸음은 1/120 초로 고정이고, 언제 부르든 그만큼 밀어 넣는다.
 function fTick(now){
   if(!F||F.done) return;
+  fGrow(F.G,F.y+FOR.AHEAD);                 // 머리 위는 늘 지어져 있게
   const dt=Math.min(0.05,(now-(F.last||now))/1000); F.last=now;
   F.acc+=dt; F.t+=dt;
   while(F.acc>=1/120){ fStep(F,1/120,F.P); F.acc-=1/120; }
@@ -2404,7 +2416,7 @@ function fDraw(){
   const Y=wy=>H-(wy-camY)*sc;
   g.fillStyle='#070B12'; g.fillRect(0,0,W,H);
   // 배경 - 위로 갈수록 밝아진다
-  const t=Math.min(1,F.y/FOR.TOP);
+  const t=Math.min(1,F.y/(FOR.PXM*500));      // 500m 쯤에서 하늘이 다 밝아진다
   const bg=g.createLinearGradient(0,0,0,H);
   bg.addColorStop(0,'rgb('+Math.round(12+t*40)+','+Math.round(24+t*46)+','+Math.round(38+t*60)+')');
   bg.addColorStop(1,'#070B12'); g.fillStyle=bg; g.fillRect(0,0,W,H);
@@ -2423,8 +2435,7 @@ function fDraw(){
   F.P.forEach(function(p){
     const y=Y(p.y); if(y<-20||y>H+20) return;
     const px=fPx(p,F.t)*sc, pw=p.w*sc;
-    const c=p.top?['#FFC94A','#FFE9A8']
-          :p.ice?['#4E86B8','#BFE4FF']
+    const c=p.ice?['#4E86B8','#BFE4FF']
           :p.mv ?['#6E52B8','#C0AEFF']
                 :['#3E6B52','#5C9B78'];
     g.fillStyle=c[0]; g.fillRect(px,y,pw,7);
@@ -2466,29 +2477,28 @@ function fPress(e,on){
 function fEnd(){
   if(!F||F.done) return;
   F.done=true; cancelAnimationFrame(fRaf); clearInterval(fWatch);
-  const m=fMeters(F.y), top=F.y>=FOR.TOP;         // 최고점이 아니라 지금 선 자리다
+  const m=fMeters(F.y);                           // 최고점이 아니라 지금 선 자리다
   const run=fRun(F.y), bonus=fRec((S.fbest|0)*FOR.PXM,F.y), rw=run+bonus;
   const rec=m>(S.fbest|0), peak=fMeters(F.best);
   S.fbest=Math.max(S.fbest|0,m);
   S.meso+=rw;
   $('fGame').hidden=true; F=null;
   SND.coin();
-  if(top){ SND.up(); burst(140,'#8FE3B0',{sp:1.4});
-    flash('꼭대기','시련의 숲을 끝까지 올랐다','#8FE3B0'); }
-  else if(rec) flash('최고 기록',m+'m 까지 올랐다','#FFC94A');
+  if(rec){ SND.up(); burst(m>=200?140:70,'#8FE3B0',{sp:1.3});
+    flash('최고 기록',m+'m 까지 올랐다','#FFC94A'); }
   log('시련의 숲 — <b>'+m+'m</b>'+(rec?' (최고 기록)':'')+' · <b>+'+fmt(rw)+'</b> 메소'+
       (bonus>0?' (기록 갱신 '+fmt(bonus)+' 포함)':'')+
-      (peak>m+3?' · 최고 '+peak+'m 에서 내려왔다':''),top?'up':'ok');
+      (peak>m+3?' · 최고 '+peak+'m 에서 내려왔다':''),rec?'up':'ok');
   renderAll(); updateHunt(); save();
 }
 function renderForest(){
   const b=$('fStart'), best=S.fbest|0;
-  b.disabled=false;
   b.textContent=best>0?'다시 오른다':'숲에 들어간다';
   $('fBest').innerHTML=best+'<small style="font-size:13px">m</small>';
-  $('fSub').textContent=best>=300
-    ? '한 판 '+fmt(fRun(FOR.TOP))+' · 꼭대기까지 다 올랐다'
-    : '한 판 최대 '+fmt(fRun(FOR.TOP))+' · '+best+'m 를 넘기면 넘긴 만큼 따로 더 (300m 까지 '+fmt(fRec(best*FOR.PXM,FOR.TOP))+')';
+  // 지금 기록에서 100m 를 더 가면 얼마인지가 제일 와닿는다.
+  const nx=best+100;
+  $('fSub').innerHTML='지금 기록에서 그만두면 <b>'+fmt(fRun(best*FOR.PXM))+'</b>'+
+    ' · '+nx+'m 까지 가면 <b>'+fmt(fRun(nx*FOR.PXM)+fRec(best*FOR.PXM,nx*FOR.PXM))+'</b>';
 }
 
 function renderTop(){
@@ -5091,7 +5101,7 @@ initOnline();
 
 // 균형 점검용 노출 (게임 동작에는 영향 없음)
 try{ window.__CFG={SF,MAXSTAR,starCost,SHIELD,SLOTS,OPT,POOL,GCAP,UPRATE,UPGRADE,CUBES,
-  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,skPct,SKMUL,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,lineHTML,potGradeOf,evenGrade,critRate,critMult,CRIT,FOR,fBuild,fStep,fRng,fMeters,fPx,fEnter,fEnd,fReward,fRun,fRec,renderForest,renderStat,statOf,sumOpt,mastSum,slotPow,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,navViews,viewIdx,swipeTarget,swipeBlocked,VIEWS,topBoss,bossLabel,myRec,DNAME,ACH,achStat,MAXLV,lvBonus,lvMult,LVK,SLOT_ART,WEAPON_ART,stash,bagStar,bagLines,bagP4,dropSlot,BTYPE,renderAll,CRCOL,passTime,offerOffline,OFF_CAP,OFF_RATE,TR,carryLines,showDrop,cost,protUse,safeUse,IGCOST,igCost,MAST,MPS,mpFor,mastOf,mastFree,mastMult,mastSum,trStar,renderMast,starMult,expMult,IGSTAR,engrave,ENG,renderShop,renderCubes,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
+  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,skPct,SKMUL,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,lineHTML,potGradeOf,evenGrade,critRate,critMult,CRIT,FOR,fStart,fGrow,fStep,fRng,fMeters,fPx,fT,fVal,fEnter,fEnd,fReward,fRun,fRec,renderForest,renderStat,statOf,sumOpt,mastSum,slotPow,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,navViews,viewIdx,swipeTarget,swipeBlocked,VIEWS,topBoss,bossLabel,myRec,DNAME,ACH,achStat,MAXLV,lvBonus,lvMult,LVK,SLOT_ART,WEAPON_ART,stash,bagStar,bagLines,bagP4,dropSlot,BTYPE,renderAll,CRCOL,passTime,offerOffline,OFF_CAP,OFF_RATE,TR,carryLines,showDrop,cost,protUse,safeUse,IGCOST,igCost,MAST,MPS,mpFor,mastOf,mastFree,mastMult,mastSum,trStar,renderMast,starMult,expMult,IGSTAR,engrave,ENG,renderShop,renderCubes,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
   get state(){return S;}, cur, power, income, mesoMult, dropMult, starMult, potMultOf, POTG, odds, potGrade, topGrade, totalStars, sfBonus}; }catch(e){}
 })();
 </script>
