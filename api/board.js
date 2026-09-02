@@ -56,13 +56,24 @@ function cleanRec(r) {
     ach:   n(r.ach, 99),
     lv:    n(r.lv, 300),
     job:   n(r.job, 2),
-    // 부위별 [성수치, 장비등급, 잠재등급, 네줄여부]. 잠재등급만 -1(없음)을 허용한다.
+    // 부위 한 칸 = [성수치, 장비등급, 네줄여부,
+    //              [마스터리 총점,주력,보스,경험치,메소], [[옵션,등급,수치],...]]
+    // 옵션 열쇠는 클라이언트가 OPT 에서 찾아 쓴다. 여기서는 모양과 범위만 본다 -
+    // 모르는 열쇠가 와도 화면에서 그냥 건너뛴다.
     gear:  Array.isArray(r.gear) ? r.gear.slice(0, 8).map(function (g) {
-             if (!Array.isArray(g)) return [0, 0, -1, 0];
-             const pg = Math.floor(Number(g[2]));
-             return [n(g[0], 36), n(g[1], 3),
-                     Number.isFinite(pg) ? Math.max(-1, Math.min(3, pg)) : -1,
-                     n(g[3], 1)];
+             if (!Array.isArray(g)) return [0, 0, 0, [0, 0, 0, 0, 0], []];
+             const m = Array.isArray(g[3]) ? g[3] : [];
+             const L = Array.isArray(g[4]) ? g[4] : [];
+             return [
+               n(g[0], 36), n(g[1], 3), n(g[2], 1),
+               [n(m[0], 999), n(m[1], 80), n(m[2], 80), n(m[3], 80), n(m[4], 80)],
+               L.slice(0, 4).map(function (l) {
+                 if (!Array.isArray(l)) return null;
+                 const k = String(l[0] || '');
+                 if (!/^[a-z]{2,3}$/.test(k)) return null;
+                 return [k, n(l[1], 3), Math.max(0, Math.min(99999, Number(l[2]) || 0))];
+               }).filter(Boolean)
+             ];
            }) : [],
     mst:   n(r.mst, 999),
     fbest: n(r.fbest, 99999),

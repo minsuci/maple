@@ -420,6 +420,16 @@ button:disabled{cursor:not-allowed;opacity:.45;}
 .pkrow .tags{display:flex;gap:4px;}
 .pkrow .tg{font-size:9.5px;font-weight:900;letter-spacing:.04em;border-radius:999px;
   padding:2px 7px;border:1px solid currentColor;white-space:nowrap;}
+.pkslot{background:#15122C;border:1px solid var(--edge);border-radius:10px;padding:8px 11px;}
+.pkslot.none{opacity:.4;}
+.pkslot .pkrow{background:none;border:0;border-radius:0;padding:0;}
+.pklines{display:flex;flex-direction:column;gap:2px;margin:7px 0 0 46px;}
+.pkl{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--dim);}
+.pkl i{width:5px;height:5px;border-radius:50%;flex:0 0 auto;}
+.pkl b{margin-left:auto;font-family:'Bebas Neue',sans-serif;font-size:14px;
+  letter-spacing:.03em;font-variant-numeric:tabular-nums;}
+.pkmast{margin:6px 0 0 46px;font-size:11px;color:#8FE3B0;}
+.pkmast b{font-family:'Bebas Neue',sans-serif;font-size:14px;}
 .pkstat{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-top:14px;}
 .pkstat div{background:#15122C;border:1px solid var(--edge);border-radius:10px;padding:8px 11px;
   display:flex;justify-content:space-between;align-items:baseline;font-size:12px;}
@@ -4657,11 +4667,19 @@ const bossLabel=function(b){
   const i=Math.floor((b-BOSS_BASE)/3), d=(b-BOSS_BASE)%3;
   return BOSSES[i] ? (BOSSES[i].n+(d?' '+DNAME[d]:'')) : '—';
 };
-// 부위별 한 줄. [성수치, 장비등급, 잠재등급, 네줄여부] 넷이면 남의 성장세를
-// 읽는 데 충분하다. 잠재 줄 내용까지는 안 싣는다 - 기록 한 줄이 무거워지고,
-// 어차피 남이 볼 건 '어디에 얼마나 부었나'다.
-const gearRec=()=>S.items.map(function(it){
-  return (it&&!it.broken)?[it.star|0,it.ig|0,potGradeOf(it),it.p4?1:0]:[0,0,-1,0];
+// 부위 한 칸을 다섯 장으로 싣는다.
+//   [성수치, 장비등급, 네줄여부, [마스터리 총점,주력,보스,경험치,메소], [[옵션,등급,수치],...]]
+// 잠재 등급은 줄에서 뽑을 수 있어 따로 안 싣는다. 옵션은 번호가 아니라
+// 'bat' 같은 열쇠 그대로 쓴다 - 세 글자라 얼마 안 되고, 나중에 OPT 순서를
+// 바꿔도 옛 기록이 안 깨진다.
+// 한 사람 700바이트쯤, 오십 줄이면 35KB. 그 정도는 실어도 된다.
+const gearRec=()=>S.items.map(function(it,i){
+  if(!it||it.broken) return [0,0,0,[0,0,0,0,0],[]];
+  const m=mastOf(i), u=m.u||{};
+  return [it.star|0, it.ig|0, it.p4?1:0,
+          [m.p|0,u.dmg|0,u.bat|0,u.exp|0,u.mes|0],
+          (it.lines||[]).slice(0,4).map(function(l){
+            return [l.k, l.g|0, +(+l.v).toFixed(1)]; })];
 });
 function myRec(){
   return {id:USER, star:S.st.max|0, grade:Math.max(S.st.mg||0,topGrade())|0, power:S.st.best|0,
@@ -4680,9 +4698,7 @@ function mergeBoard(){
     const r={id:id, star:Math.min(36,+e.star||0), grade:Math.min(3,+e.grade||0),
              power:+e.power||0, des:+e.des||0, tries:+e.tries||0,
              job:Math.min(JOBS.length-1,Math.max(0,+e.job||0)),
-             gear:Array.isArray(e.gear)?e.gear.slice(0,8).map(function(g){
-               return Array.isArray(g)?[Math.min(36,+g[0]||0),Math.min(3,+g[1]||0),
-                 Math.max(-1,Math.min(3,Math.floor(+g[2]))),(+g[3])?1:0]:[0,0,-1,0]; }):null,
+             gear:Array.isArray(e.gear)?e.gear.slice(0,8):null,
              mst:Math.min(999,+e.mst||0), fbest:Math.min(99999,+e.fbest||0),
              boss:Math.min(200,+e.boss||0), ach:Math.min(99,+e.ach||0), lv:Math.min(300,+e.lv||1),
              seen:+e.seen||+e.ts||0, ts:+e.ts||0};
@@ -4725,6 +4741,12 @@ function ago(ts){
 /* ---------- 남의 기록 들여다보기 ---------- */
 // 기록은 '가장 좋았을 때'의 한 장이다(서버가 더 좋을 때만 갈아끼운다).
 // 지금 이 순간이 아니라 그 사람의 최고점을 보는 것이라, 그렇게 적어둔다.
+// 옛 기록은 [성,등급,잠재등급,네줄] 넉 장이었다. 다섯째 칸이 배열이면 새 모양이다.
+const pkNew=g=>Array.isArray(g)&&Array.isArray(g[3])&&Array.isArray(g[4]);
+function pkGrade(g){                              // 잠재 등급 - 줄 중 가장 높은 것
+  if(!pkNew(g)) return Array.isArray(g)?Math.max(-1,Math.min(3,g[2]|0)):-1;
+  return g[4].length?g[4].reduce(function(a,l){ return Math.max(a,l[1]|0); },0):-1;
+}
 function openPeek(id){
   const e=BOARD.find(function(x){ return x.id===id; });
   if(!e) return;
@@ -4738,8 +4760,11 @@ function openPeek(id){
     h+='<div class="pkgear">';
     const mx=Math.max(1,G.reduce(function(a,g){ return Math.max(a,g[0]|0); },0));
     G.forEach(function(g,i){
-      const st=g[0]|0, ig=g[1]|0, pg=g[2], p4=g[3];
-      h+='<div class="pkrow'+(st||pg>=0?'':' none')+'">'+
+      const nw=pkNew(g);
+      const st=g[0]|0, ig=g[1]|0, pg=pkGrade(g), p4=(nw?g[2]:g[3])?1:0;
+      const ms=nw?g[3]:null, ln=nw?g[4]:null;
+      h+='<div class="pkslot'+(st||pg>=0?'':' none')+'">'+
+         '<div class="pkrow">'+
          '<span class="sl">'+(SLOTS[i]?SLOTS[i].n:'?')+'</span>'+
          '<span class="st">'+st+'\u2605</span>'+
          '<span class="bar"><i style="width:'+(st/mx*100).toFixed(0)+'%"></i></span>'+
@@ -4748,6 +4773,21 @@ function openPeek(id){
            (pg>=0?'<span class="tg" style="color:'+GCOL[pg]+'">'+GNAME[pg]+(p4?' 4줄':'')+'</span>'
                  :'<span class="tg" style="color:var(--dimmer)">잠재 없음</span>')+
          '</span></div>';
+      if(ln&&ln.length){
+        h+='<div class="pklines">'+ln.map(function(l){
+          const d=OPT[l[0]]; if(!d) return '';
+          return '<span class="pkl"><i style="background:'+GCOL[l[1]|0]+'"></i>'+
+                 d.n+' <b style="color:'+GCOL[l[1]|0]+'">+'+l[2]+d.u+'</b></span>';
+        }).join('')+'</div>';
+      }
+      if(ms&&(ms[0]|0)>0){
+        const nm=['주력 대미지','보스 공격력','경험치 획득량','메소 획득량'];
+        const used=[];
+        for(let k=0;k<4;k++) if(ms[k+1]>0) used.push(nm[k]+' +'+(ms[k+1]*MAST[k].v).toFixed(1)+'%');
+        h+='<div class="pkmast">마스터리 <b>'+ms[0]+'</b>'+
+           (used.length?' — '+used.join(' · '):' (아직 안 찍음)')+'</div>';
+      }
+      h+='</div>';
     });
     h+='</div>';
   }
@@ -4755,13 +4795,15 @@ function openPeek(id){
   h+='<div class="pkstat">'+
      cell('총 스타포스',G?tot:(e.star|0)+'★ 최고')+
      cell('업적',(e.ach||0)+'종')+
-     cell('마스터리',(e.mst|0))+
+     cell('마스터리',(e.mst|0)+'점')+
      cell('시련의 숲',(e.fbest|0)+'m')+
      cell('장비 파괴',(e.des||0))+
      cell('강화 시도',(e.tries||0))+
      '</div>';
   h+='<p class="pknote">랭킹에 올린 <b>가장 좋았던 한 장</b>이다 — 지금 상태가 아니다.<br>'+
-     '마지막 접속 '+ago(e.seen||e.ts)+(G?'':'<br>아직 옛 방식으로 올린 기록이라 부위별은 없다')+'</p>';
+     '마지막 접속 '+ago(e.seen||e.ts)+
+     (!G?'<br>아직 옛 방식으로 올린 기록이라 부위별은 없다'
+       :(G.some(pkNew)?'':'<br>옛 방식이라 잠재 줄과 마스터리는 없다 — 다음에 올리면 채워진다'))+'</p>';
   $('pkBody').innerHTML=h;
   $('peek').hidden=false;
 }
@@ -5209,7 +5251,7 @@ initOnline();
 
 // 균형 점검용 노출 (게임 동작에는 영향 없음)
 try{ window.__CFG={SF,MAXSTAR,starCost,SHIELD,SLOTS,OPT,POOL,GCAP,UPRATE,UPGRADE,CUBES,
-  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,skPct,SKMUL,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,lineHTML,potGradeOf,evenGrade,openPeek,gearRec,critRate,critMult,CRIT,FOR,fStart,fGrow,fStep,fRng,fMeters,fPx,fT,fVal,fEnter,fEnd,fReward,fRun,fRec,renderForest,renderStat,statOf,sumOpt,mastSum,slotPow,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,navViews,viewIdx,swipeTarget,swipeBlocked,VIEWS,topBoss,bossLabel,myRec,DNAME,ACH,achStat,MAXLV,lvBonus,lvMult,LVK,SLOT_ART,WEAPON_ART,stash,bagStar,bagLines,bagP4,dropSlot,BTYPE,renderAll,CRCOL,passTime,offerOffline,OFF_CAP,OFF_RATE,TR,carryLines,showDrop,cost,protUse,safeUse,IGCOST,igCost,MAST,MPS,mpFor,mastOf,mastFree,mastMult,mastSum,trStar,renderMast,starMult,expMult,IGSTAR,engrave,ENG,renderShop,renderCubes,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
+  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,skPct,SKMUL,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,lineHTML,potGradeOf,evenGrade,openPeek,gearRec,pkNew,pkGrade,critRate,critMult,CRIT,FOR,fStart,fGrow,fStep,fRng,fMeters,fPx,fT,fVal,fEnter,fEnd,fReward,fRun,fRec,renderForest,renderStat,statOf,sumOpt,mastSum,slotPow,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,navViews,viewIdx,swipeTarget,swipeBlocked,VIEWS,topBoss,bossLabel,myRec,DNAME,ACH,achStat,MAXLV,lvBonus,lvMult,LVK,SLOT_ART,WEAPON_ART,stash,bagStar,bagLines,bagP4,dropSlot,BTYPE,renderAll,CRCOL,passTime,offerOffline,OFF_CAP,OFF_RATE,TR,carryLines,showDrop,cost,protUse,safeUse,IGCOST,igCost,MAST,MPS,mpFor,mastOf,mastFree,mastMult,mastSum,trStar,renderMast,starMult,expMult,IGSTAR,engrave,ENG,renderShop,renderCubes,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
   get state(){return S;}, cur, power, income, mesoMult, dropMult, starMult, potMultOf, POTG, odds, potGrade, topGrade, totalStars, sfBonus}; }catch(e){}
 })();
 </script>
