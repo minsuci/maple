@@ -4854,7 +4854,9 @@ function renderRank(){
   const mine=BOARD.find(e=>e.id===USER), cur=myRec();
   const better=!mine||cmpRec(cur,mine)<0;
   btn.disabled=!better||S.st.try===0;
-  btn.textContent=better?'랭킹에 기록 올리기':'등록된 게 내 최고 기록이다';
+  btn.textContent=better?(canAuto()?'지금 바로 올리기':'랭킹에 기록 올리기')
+                        :'등록된 게 내 최고 기록이다';
+  if(canAuto()&&!better) note('기록이 더 좋아지면 저절로 올라간다');
 }
 
 async function fetchRemote(){
@@ -4907,17 +4909,36 @@ async function autoResume(){
   } else if(!USER){ showLogin(); }
 }
 let posting=false;
-async function postRank(){
+// 서버가 있을 때만 저절로 올린다. 아티팩트 판은 기록을 board.json 으로
+// 다시 펴내는 방식이라, 자동으로 돌리면 그 판을 보고 있는 사람마다 화면이
+// 새로 뜨고 남이 먼저 올렸으면 충돌이 난다. 거기서는 단추로만 올린다.
+const canAuto=()=>(typeof SRV!=='undefined')&&SRV&&!!TOKEN&&!!USER;
+const AUTO_GAP=90;                        // 아무리 자주여도 90초에 한 번
+let autoLast=0, autoT=0;
+function betterThanPosted(){
+  const mine=BOARD.find(function(e){ return e.id===USER; });
+  return !mine||cmpRec(myRec(),mine)<0;
+}
+function autoPost(){
+  if(!canAuto()||posting||S.st.try===0) return;
+  if(!betterThanPosted()) return;
+  const now=Date.now()/1000;
+  if(now-autoLast<AUTO_GAP) return;
+  autoLast=now;
+  postRank(true);
+}
+async function postRank(quiet){
   if(!USER||posting) return;
   posting=true;
   BOARD=mergeBoard(BOARD,[myRec()]); lsSet(LK.board,BOARD); renderRank();
   if(SRV){
     if(!TOKEN){ note('로그인이 필요하다. 아이디 변경에서 다시 들어가자.'); posting=false; return; }
-    note('등록 중…'); $('postBtn').disabled=true;
+    if(!quiet){ note('등록 중…'); $('postBtn').disabled=true; }
     const {status,j}=await apiPost({action:'submit',id:USER,token:TOKEN,rec:myRec(),save:saveBlob()});
-    if(status===200&&j&&j.ok){ absorb(j); note('랭킹에 등록했다. 이 주소를 연 사람 모두에게 보인다.'); setOnline('ok'); }
+    if(status===200&&j&&j.ok){ absorb(j); setOnline('ok');
+      note(quiet?'기록이 저절로 올라간다 — 방금 갱신했다':'랭킹에 등록했다. 이 주소를 연 사람 모두에게 보인다.'); }
     else if(status===401){ TOKEN=null; setOnline('readonly'); note('로그인이 만료됐다. 아이디 변경에서 다시 들어가자.'); }
-    else if(status===429) note('요청이 너무 잦다. 잠시 뒤에 다시.');
+    else if(status===429){ autoLast=Date.now()/1000+120; note('요청이 너무 잦다. 잠시 뒤에 다시.'); }
     else note('서버에 연결하지 못했다. 기록은 이 브라우저에 저장됐다.');
     posting=false; renderRank(); return;
   }
@@ -5148,6 +5169,7 @@ function loop(t){
   acc+=dt;
   if(acc>.12){ acc=0; renderTop(); renderLevel(); renderEvent(); updateHunt(); checkAch(); if(!busy) renderStarPane(); }
   saveT+=dt; if(saveT>5){ saveT=0; save(); }
+  autoT+=dt; if(autoT>10){ autoT=0; autoPost(); }   // 나아졌으면 저절로 올린다
   netT+=dt; if(netT>8){ netT=0; pushSave(false); }
 
   fxStep(dt);
@@ -5251,7 +5273,7 @@ initOnline();
 
 // 균형 점검용 노출 (게임 동작에는 영향 없음)
 try{ window.__CFG={SF,MAXSTAR,starCost,SHIELD,SLOTS,OPT,POOL,GCAP,UPRATE,UPGRADE,CUBES,
-  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,skPct,SKMUL,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,lineHTML,potGradeOf,evenGrade,openPeek,gearRec,pkNew,pkGrade,critRate,critMult,CRIT,FOR,fStart,fGrow,fStep,fRng,fMeters,fPx,fT,fVal,fEnter,fEnd,fReward,fRun,fRec,renderForest,renderStat,statOf,sumOpt,mastSum,slotPow,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,navViews,viewIdx,swipeTarget,swipeBlocked,VIEWS,topBoss,bossLabel,myRec,DNAME,ACH,achStat,MAXLV,lvBonus,lvMult,LVK,SLOT_ART,WEAPON_ART,stash,bagStar,bagLines,bagP4,dropSlot,BTYPE,renderAll,CRCOL,passTime,offerOffline,OFF_CAP,OFF_RATE,TR,carryLines,showDrop,cost,protUse,safeUse,IGCOST,igCost,MAST,MPS,mpFor,mastOf,mastFree,mastMult,mastSum,trStar,renderMast,starMult,expMult,IGSTAR,engrave,ENG,renderShop,renderCubes,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
+  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,skPct,SKMUL,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,lineHTML,potGradeOf,evenGrade,openPeek,gearRec,autoPost,canAuto,betterThanPosted,pkNew,pkGrade,critRate,critMult,CRIT,FOR,fStart,fGrow,fStep,fRng,fMeters,fPx,fT,fVal,fEnter,fEnd,fReward,fRun,fRec,renderForest,renderStat,statOf,sumOpt,mastSum,slotPow,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,navViews,viewIdx,swipeTarget,swipeBlocked,VIEWS,topBoss,bossLabel,myRec,DNAME,ACH,achStat,MAXLV,lvBonus,lvMult,LVK,SLOT_ART,WEAPON_ART,stash,bagStar,bagLines,bagP4,dropSlot,BTYPE,renderAll,CRCOL,passTime,offerOffline,OFF_CAP,OFF_RATE,TR,carryLines,showDrop,cost,protUse,safeUse,IGCOST,igCost,MAST,MPS,mpFor,mastOf,mastFree,mastMult,mastSum,trStar,renderMast,starMult,expMult,IGSTAR,engrave,ENG,renderShop,renderCubes,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
   get state(){return S;}, cur, power, income, mesoMult, dropMult, starMult, potMultOf, POTG, odds, potGrade, topGrade, totalStars, sfBonus}; }catch(e){}
 })();
 </script>
