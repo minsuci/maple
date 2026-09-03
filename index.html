@@ -1107,13 +1107,13 @@ td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
           <div><div class="t">럭키데이</div><div class="d" id="luckDesc">성공 확률 2배 · 비용 2.5배</div></div>
           <button class="sw" id="swLuck" role="switch" aria-checked="false" aria-label="럭키데이"></button>
         </div>
-        <div class="opt">
-          <div><div class="t">블랙 큐브 다섯 벌</div><div class="d" id="c5Desc">한 번에 다섯 벌을 굴려 하나 고른다 · 비용 5배</div></div>
-          <button class="sw" id="swC5" role="switch" aria-checked="false" aria-label="블랙 큐브 다섯 벌"></button>
-        </div>
       </div>
 
       <div class="pane" id="paneCube" role="tabpanel" aria-labelledby="tabCube" hidden>
+        <div class="opt" style="margin-bottom:11px">
+          <div><div class="t">블랙 큐브 다섯 벌</div><div class="d" id="c5Desc">한 번에 다섯 벌을 굴려 하나 고른다</div></div>
+          <button class="sw" id="swC5" role="switch" aria-checked="false" aria-label="블랙 큐브 다섯 벌"></button>
+        </div>
         <div class="cubes" id="cubeList"></div>
         <p class="pity" id="pityV"></p>
       </div>
@@ -2675,10 +2675,6 @@ function renderStarPane(){
   $('swProt').setAttribute('aria-checked',String(S.useProt));
   $('swSafe').setAttribute('aria-checked',String(S.useSafe));
   $('swLuck').setAttribute('aria-checked',String(!!S.useLuck));
-  $('swC5').setAttribute('aria-checked',String(!!S.cube5));
-  $('c5Desc').textContent=S.cube5
-    ? '블랙 큐브를 다섯 벌 굴려 그중 하나를 고른다 · 비용 5배'
-    : '한 번에 다섯 벌을 굴려 하나 고른다 · 비용 5배 · 블랙 큐브에만 걸린다';
   const tk=shTicket();
   const pOn=(SF[it.star]||[])[2]>0, sOn=(SF[it.star]||[])[3]>0;
   $('starNote').innerHTML='<b>'+IGNAME[it.ig]+' 장비</b>라 별값에 <b>x'+igCost(it).toFixed(1)+
@@ -2706,6 +2702,12 @@ function josa(w,a,b){ const c=String(w||'').slice(-1).charCodeAt(0);
   return ((c-0xAC00)%28)?a:b; }
 function renderCubes(){
   const it=cur(), L=$('cubeList'); L.innerHTML='';
+  // 스위치는 큐브 판에 있다. 예전엔 스타포스 판(쉴드 옆)에 뒀는데,
+  // 큐브를 굴리는 자리에서 안 보이니 있는 줄도 몰랐다.
+  $('swC5').setAttribute('aria-checked',String(!!S.cube5));
+  $('c5Desc').innerHTML=S.cube5
+    ? '블랙 큐브 <b>'+C5N+'개</b>를 한꺼번에 써서 다섯 벌 중 하나를 고른다'
+    : '블랙 큐브 '+C5N+'개를 한꺼번에 써서 다섯 벌 중 하나를 고른다 · 블랙에만 걸린다';
   const up=UPGRADE[it.ig];
   const ub=document.createElement('button');
   ub.className='cube'; ub.style.setProperty('--c','#5CE68A');
@@ -5280,7 +5282,7 @@ $('swSafe').addEventListener('click',()=>{ S.useSafe=!S.useSafe; renderStarPane(
 [0,1,2,3].forEach(i=>$('p'+i).addEventListener('click',()=>pickLine(i)));
 $('swProt').addEventListener('click',()=>{ S.useProt=!S.useProt; renderStarPane(); save(); });
 $('swLuck').addEventListener('click',()=>{ S.useLuck=!S.useLuck; renderStarPane(); save(); });
-$('swC5').addEventListener('click',()=>{ S.cube5=!S.cube5; renderStarPane(); renderCubes(); save(); });
+$('swC5').addEventListener('click',()=>{ ac(); S.cube5=!S.cube5; renderCubes(); save(); });
 $('fbSend').addEventListener('click',function(){ ac(); sendFeedback(); });
 $('fbText').addEventListener('input',fbCount);
 $('mastReset').addEventListener('click',function(){ const m=mastOf(S.sel||0); if(!mastUsed(S.sel||0)) return;
