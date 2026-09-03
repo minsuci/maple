@@ -1,0 +1,471 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>별 하나 더 — 운영</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Gothic+A1:wght@500;700;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --void:#0B0A14; --panel:#141126; --panel2:#1B1638; --edge:#2A2450; --edge2:#3D3470;
+  --text:#EDEAFB; --dim:#A9A2D6; --dimmer:#6F68A0;
+  --gold:#FFC94A; --meso:#FFD66B; --bad:#FF4D6A; --ok:#5CE68A; --pow:#8FD9FF;
+  --rare:#4FA8FF; --epic:#B15CFF; --uniq:#FFD23F; --lgnd:#5CE68A;
+}
+*{box-sizing:border-box;}
+*,*::before,*::after{touch-action:manipulation;}
+body{margin:0;background:var(--void);color:var(--text);
+  font-family:'Gothic A1',system-ui,sans-serif;font-size:14px;-webkit-tap-highlight-color:transparent;}
+.wrap{max-width:940px;margin:0 auto;padding:18px 14px 60px;}
+h1{font-family:'Bebas Neue',sans-serif;font-size:30px;letter-spacing:.05em;margin:0 0 2px;color:var(--gold);}
+.sub{font-size:11.5px;color:var(--dimmer);margin:0 0 18px;}
+.sub a{color:var(--dim);}
+.card{background:linear-gradient(180deg,var(--panel),#15122C);border:1px solid var(--edge);
+  border-radius:16px;padding:16px;margin-bottom:14px;}
+button{font-family:inherit;cursor:pointer;}
+.btn{padding:10px 15px;border-radius:10px;border:1px solid var(--edge2);background:var(--panel2);
+  color:var(--text);font-weight:900;font-size:13px;}
+.btn.gold{border-color:var(--gold);background:#2A2208;color:var(--gold);}
+.btn:disabled{opacity:.45;cursor:default;}
+.mini{padding:6px 10px;border-radius:8px;border:1px solid var(--edge2);background:var(--panel2);
+  color:var(--text);font-size:11.5px;font-weight:700;}
+input,select{padding:9px 11px;border-radius:9px;border:1px solid var(--edge2);
+  background:#0F0C22;color:var(--text);font-family:inherit;font-size:14px;font-weight:700;}
+input:focus,select:focus{outline:2px solid var(--gold);outline-offset:1px;}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.note{font-size:11.5px;color:var(--dimmer);line-height:1.7;margin:10px 0 0;}
+.note b{color:var(--gold);}
+.bad{color:var(--bad);}
+.tabs{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;}
+.tab{padding:9px 14px;border-radius:10px;border:1px solid var(--edge);background:transparent;
+  color:var(--dim);font-weight:900;font-size:13px;}
+.tab[aria-selected="true"]{border-color:var(--gold);background:#2A2208;color:var(--gold);}
+table{width:100%;border-collapse:collapse;font-size:12.5px;white-space:nowrap;}
+th{font-size:10px;letter-spacing:.12em;color:var(--dimmer);font-weight:900;text-align:left;padding:0 8px 8px;}
+td{padding:9px 8px;border-top:1px solid var(--edge);font-weight:700;}
+.num{font-family:'Bebas Neue',sans-serif;font-size:16px;font-variant-numeric:tabular-nums;}
+.scroll{overflow-x:auto;}
+.fbrow{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:start;
+  border-top:1px solid var(--edge);padding:11px 2px;}
+.fbrow.done{opacity:.45;}
+.fbrow .who{font-size:11.5px;color:var(--gold);font-weight:900;display:block;margin-bottom:4px;}
+.fbrow .who small{color:var(--dimmer);font-weight:500;margin-left:6px;}
+.fbrow .txt{white-space:pre-wrap;line-height:1.6;font-weight:500;}
+.rsslot{background:#15122C;border:1px solid var(--edge);border-radius:10px;padding:9px 11px;margin-bottom:7px;}
+.rshead{display:grid;grid-template-columns:52px 62px 1fr auto auto;gap:6px;align-items:center;}
+.rshead .sl{font-size:12.5px;font-weight:900;color:var(--dim);}
+.rshead input,.rshead select{padding:5px 7px;font-size:12px;width:100%;}
+.rsline{display:grid;grid-template-columns:14px 1fr 96px 78px;gap:6px;align-items:center;margin-top:6px;}
+.rsline .no{font-size:10px;color:var(--dimmer);font-weight:900;}
+.rsline select{padding:4px 6px;font-size:11.5px;width:100%;}
+.rsline select:disabled{opacity:.4;}
+.rsline .v{font-family:'Bebas Neue',sans-serif;font-size:14px;text-align:right;
+  font-variant-numeric:tabular-nums;}
+.p4{display:flex;align-items:center;gap:4px;font-size:10.5px;color:var(--dimmer);white-space:nowrap;}
+.warn{border:1px solid var(--bad);background:#2A0E16;border-radius:10px;padding:10px 13px;
+  font-size:11.5px;color:#FFB0BC;line-height:1.7;margin-bottom:14px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>별 하나 더 — 운영</h1>
+  <p class="sub">마스터 계정 전용. 권한은 서버가 정한다 — 여기서 뭘 눌러도 서버가 아니라면 403 이다.
+    &nbsp;·&nbsp; <a href="/">게임으로</a></p>
+
+  <div id="warnBox"></div>
+
+  <div class="card" id="loginCard">
+    <div class="row">
+      <input id="lid" placeholder="아이디" maxlength="10" autocomplete="username">
+      <input id="lpw" type="password" placeholder="비밀번호" maxlength="64" autocomplete="current-password">
+      <button class="btn gold" id="lgo">들어가기</button>
+    </div>
+    <p class="note" id="lerr"></p>
+    <p class="note">게임에서 쓰는 그 비밀번호다. 기록 잠금용이지 진짜 비밀번호를 넣는 자리가 아니다.</p>
+  </div>
+
+  <div id="main" hidden>
+    <div class="tabs">
+      <button class="tab" id="tFb" aria-selected="true">피드백</button>
+      <button class="tab" id="tPl" aria-selected="false">플레이어</button>
+      <button class="tab" id="tRs" aria-selected="false">복구</button>
+      <button class="mini" id="tOut" style="margin-left:auto">나가기</button>
+    </div>
+    <div class="card"><div id="body"></div></div>
+    <p class="note" id="msg"></p>
+  </div>
+</div>
+
+<script>
+/* ---------- 게임에서 그대로 떠온 표 ----------
+   손으로 옮기면 언젠가 어긋난다. 만들 때 index.html 에서 글자 그대로 떠오고,
+   열 때마다 지금 index.html 과 같은지 지문으로 대조해서 다르면 위에 띄운다. */
+const TBL_FP='6a9bc9de4c9b';
+const SLOTS=[
+  {n:'무기',   base:40, cost:1.0, ic:'⚔'},
+  {n:'한벌옷', base:20, cost:0.6, ic:'\u{1F455}'},
+  {n:'모자',   base:15, cost:0.5, ic:'\u{1F452}'},
+  {n:'신발',   base:12, cost:0.4, ic:'\u{1F462}'},
+  {n:'장갑',   base:13, cost:0.4, ic:'\u{1F9E4}'},
+  {n:'벨트',   base:14, cost:0.45, ic:'\u{1F9F5}'},
+  {n:'어깨',   base:12, cost:0.4,  ic:'\u{1F6E1}'},
+  {n:'망토',   base:16, cost:0.5,  ic:'\u{1F9E5}'}
+];
+const OPT={
+  acc:{n:'명중률',       u:'%',v:[3,4.9,6,7.2],             cp:v=>v*0.25},
+  pdm:{n:'물리대미지',    u:'%',v:[5.9,13.7,18.2,20.7],     cp:v=>v*1.00},
+  mdm:{n:'마법대미지',    u:'%',v:[5.9,13.7,18.2,20.7],     cp:v=>v*1.00},
+  // cp 는 예전 그대로 0.70 이다. 여기에 치명타가 실제로 터지는 몫이
+  // 더 붙으니, 치명타확률 줄은 예전보다 순수하게 좋아진 것이다.
+  crr:{n:'치명타확률',    u:'%',v:[4.1,6.3,8.5,10],         cp:v=>v*0.70},
+  bat:{n:'보스공격력',    u:'%',v:[4,12.1,16.2,18.7],       cp:v=>v*0.90},
+  bdf:{n:'보스방어력',    u:'%',v:[3.6,6.6,9,10.8],         cp:v=>v*0.20},
+  cre:{n:'치명타저항',    u:'%',v:[3.5,4.8,6.1,7.3],        cp:v=>v*0.15},
+  evd:{n:'회피율',       u:'%',v:[8.6,14,21.6,25.9],       cp:v=>v*0.20},
+  exp:{n:'경험치획득량',  u:'%',v:[7.8,13,17.4,20.9],       cp:v=>v*0.10},
+  hp: {n:'최대HP',       u:'', v:[1872,6768,13824,16589],  cp:v=>v/1000*0.6},
+  mp: {n:'최대MP',       u:'', v:[1872,2808,4968,5962],    cp:v=>v/1000*0.4},
+  hpr:{n:'HP회복력',     u:'', v:[35,70,140,168],          cp:v=>v*0.03},
+  mpr:{n:'MP회복력',     u:'', v:[20,42,53,63],            cp:v=>v*0.05},
+  mes:{n:'메소획득량',    u:'%',v:[6.1,8.2,12.2,14.7],      cp:v=>0, gold:1},
+  drp:{n:'아이템 드롭률', u:'%',v:[6.1,8.2,12.2,14.7],      cp:v=>0, drop:1},
+  // ---- 벨트 전용 ----
+  // 메m 은 프리셋이 있어서 보스용 벨트와 사냥용 벨트를 따로 차고 바꿔 낀다.
+  // 프리셋을 만들 게 아니라면 한 벨트가 두 몫을 해야 한다. 그래서 벨트 옵션은
+  // 전부 짝으로 되어 있다 — part 에 적힌 몫이 각각 그대로 붙는다.
+  // 순수 보스공격력(18.7)보다 전투력은 74% 만 나오고, 대신 반대쪽이 딸려온다.
+  bex:{n:'보스공격력·경험치',   u:'%',v:[3.0,9.0,12.0,13.9], cp:v=>0, part:{bat:1,exp:1}},
+  bme:{n:'보스공격력·메소',     u:'%',v:[3.0,9.0,12.0,13.9], cp:v=>0, part:{bat:1,mes:1}},
+  bdr:{n:'보스공격력·드롭률',   u:'%',v:[3.0,9.0,12.0,13.9], cp:v=>0, part:{bat:1,drp:1}},
+  emd:{n:'경험치·메소',         u:'%',v:[5.5,9.5,13.0,15.5], cp:v=>0, part:{exp:1,mes:1}},
+  edr:{n:'경험치·드롭률',       u:'%',v:[5.5,9.5,13.0,15.5], cp:v=>0, part:{exp:1,drp:1}}
+};
+const POOL=[
+  [['acc',19.1],['pdm',15.65],['mdm',15.65],['crr',12.8],['hp',11.2],['mp',9.8],['hpr',8.6],['mpr',7.5]],
+  [['bdf',19.1],['cre',14.7],['hp',14.7],['mp',14.7],['hpr',11.2],['mpr',9.8],['mes',8.6],['drp',7.5]],
+  [['crr',21.13],['hp',21.13],['mp',21.13],['hpr',14.5],['mpr',12.1],['exp',10.1]],
+  [['evd',21.13],['hp',21.13],['mp',21.13],['hpr',14.5],['mpr',12.1],['mes',10.1]],
+  [['acc',25.1],['bat',20.9],['hp',17.4],['mp',14.5],['hpr',12.1],['mpr',10.1]],
+  // 벨트는 다른 부위와 성격이 다르다. 보스용(보스공격력)과 사냥용(경험치·메소·드롭)이
+  // 한 자리에서 겨룬다. 전투력만 보면 보스공격력이 정답이지만, 메소·드롭은 전투력에
+  // 1도 안 잡히면서 수입을 크게 올린다 — 세 줄로 메소 +44%, 경험치 +63% 까지 간다.
+  // 그래서 벨트는 '무엇을 고를까'가 남는 유일한 부위다.
+  // 벨트는 한 줄이 두 몫을 한다. 프리셋 대신 하나로 겸하는 자리다.
+  // 순수 보스공격력은 일부러 뺐다. 짝 옵션이 전투력을 0.2% 밖에 안 깎으면서
+  // 경험치·메소를 40% 넘게 올려주니, 순수 줄은 아무도 안 고르는 함정이 된다.
+  // 그래서 벨트는 '두 몫을 하느냐'가 아니라 '어느 쪽을 겸하느냐'만 고르면 된다.
+  [['bex',26.0],['bme',24.0],['bdr',22.0],['emd',16.0],['edr',12.0]],
+  // 어깨 — 무기 말고 주력 대미지가 나오는 두 번째 자리. 무기 하나만 붙들던 걸 푼다.
+  [['pdm',18.0],['mdm',18.0],['crr',16.0],['acc',14.0],['hp',13.0],['mp',11.0],['hpr',10.0]],
+  // 망토 — 사냥과 방어만 나오는 자리. 여기 보스공격력을 넣어뒀던 건
+  // 내가 지어낸 것이고 실제 메m 망토에는 없다. 무기~벨트는 공식 표를
+  // 그대로 옮겼지만 어깨·망토는 표를 안 뽑고 성격만 정해 채웠다 - 그때
+  // '보스공격력과 사냥옵이 한 자리에서 겨루는 자리'로 만든 게 이 줄이다.
+  // 빼면 망토에서 제일 값하는 줄이 최대HP(cp 9.95)로 내려앉는다. 전투력은
+  // 3.5% 줄어드는데, 보스 표를 다시 깔 만한 폭은 아니라 그대로 둔다.
+  // 빼고 나니 마법사만 5.8% 더 내려앉았다. 다른 부위는 전부 HP·MP 가 짝으로
+  // 들어 있어 직업마다 값이 같은 줄이 하나씩 있는데, 망토에는 MP 가 없었다.
+  // 보스공격력이 세 직업 모두 가중 1.0 이라 그동안 그 자리를 메우고 있던 것이다.
+  // 신발과 같은 모양으로 HP·MP·회피율을 같은 무게로 세운다 —
+  // 전사는 HP, 마법사는 MP, 도적은 회피율이 각각 cp 9.95 로 붙는다.
+  [['hp',18.0],['mp',18.0],['evd',18.0],['exp',16.0],['drp',14.0],['mes',10.0],['mpr',6.0]]
+];
+const GNAME=['레어','에픽','유니크','레전더리'];
+const IGNAME=['레어','에픽','유니크','레전더리'];
+const GCOL=['#4FA8FF','#B15CFF','#FFD23F','#5CE68A'];
+const NAMES=[['여명의 장검','심연의 대검','폭풍의 창','재의 언월도'],
+             ['별빛 로브','흑룡의 갑주','서리꽃 예복','재의 흉갑'],
+             ['여명의 투구','심연의 관','폭풍의 두건','별무리 모자'],
+             ['질풍의 장화','심연의 부츠','서리꽃 신','별무리 구두'],
+             ['여명의 건틀릿','심연의 손아귀','폭풍의 장갑','재의 완갑'],
+             ['여명의 허리띠','심연의 벨트','폭풍의 요대','재의 허리띠'],
+             ['여명의 견갑','심연의 어깨','폭풍의 견장','재의 숄더'],
+             ['별빛 망토','심연의 겉옷','서리꽃 망토','재의 망토']];
+// 무기 이름은 직업을 따라간다
+const WNAMES={
+  war:['여명의 장검','심연의 대검','폭풍의 창','재의 언월도'],
+  mag:['별빛 스태프','심연의 마도서','서리꽃 완드','재의 지팡이'],
+  thf:['여명의 단검','심연의 쌍검','폭풍의 표창','재의 아대']
+};
+const MAXSTAR=36, MAXLV=300;
+const jobW=()=>1;                       // 여기서는 직업 가중을 안 본다
+const cpOf=l=>{ const d=OPT[l.k]; if(!d) return 0;  if(!d.part) return d.cp(l.v)*jobW(l.k);
+  let c=0; for(const k in d.part) c+=OPT[k].cp(l.v*d.part[k])*jobW(k);
+  return c; };
+
+/* ---------- 서버 ---------- */
+let USER=null, TOKEN=null;
+const $=id=>document.getElementById(id);
+const esc=v=>String(v).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const okId=v=>/^[가-힣A-Za-z0-9_]{2,10}$/.test(v);
+const fmt=n=>{ n=Math.floor(n||0);
+  if(n>=1e8) return (n/1e8).toFixed(n>=1e9?0:2)+'억';
+  if(n>=1e4) return (n/1e4).toFixed(n>=1e6?0:1)+'만';
+  return n.toLocaleString('ko-KR'); };
+function ago(ts){ if(!ts) return '—';
+  const s=Math.max(0,(Date.now()-ts)/1000);
+  if(s<60) return '방금'; if(s<3600) return Math.floor(s/60)+'분 전';
+  if(s<86400) return Math.floor(s/3600)+'시간 전'; return Math.floor(s/86400)+'일 전'; }
+async function api(body){
+  try{
+    const r=await fetch('/api/board',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(body)});
+    let j=null; try{ j=await r.json(); }catch(e){}
+    return {status:r.status, j:j};
+  }catch(e){ return {status:0, j:null}; }
+}
+const msg=t=>{ $('msg').innerHTML=t||''; };
+
+/* ---------- 표가 게임과 어긋났나 ----------
+   이 표는 만들 때 index.html 에서 글자 그대로 떠온 것이다. 나중에 게임 쪽만
+   고치면 여기가 조용히 낡는다. 열 때마다 옵션 이름표를 맞춰보고 다르면 띄운다. */
+(async function(){
+  try{
+    const r=await fetch('/index.html',{cache:'no-store'});
+    if(!r.ok) return;
+    const t=await r.text();
+    const NLC=String.fromCharCode(10);
+    const i=t.indexOf('const OPT={'); if(i<0) return;
+    const j=t.indexOf(NLC+'};',i); if(j<0) return;
+    // 정규식을 안 쓴다. 이 파일은 파이썬 문자열을 거쳐 나오는데,
+    // 백슬래시가 한 겹 먹히면 패턴이 조용히 딴것이 된다(그래서 한 번 틀렸다).
+    const theirs=[];
+    t.slice(i,j).split(NLC).forEach(function(x){
+      if(x.slice(0,2)!=='  ') return;
+      const c=x.indexOf(':');
+      if(c<4||c>5) return;
+      const k=x.slice(2,c);
+      for(let n=0;n<k.length;n++){ const q=k.charCodeAt(n); if(q<97||q>122) return; }
+      if(x.slice(c+1).replace(/ /g,'').charAt(0)!=='{') return;
+      theirs.push(k);
+    });
+    if(!theirs.length) return;
+    const mine=Object.keys(OPT);
+    const gone=mine.filter(function(k){ return theirs.indexOf(k)<0; });
+    const add=theirs.filter(function(k){ return mine.indexOf(k)<0; });
+    if(gone.length||add.length)
+      $('warnBox').innerHTML='<div class="warn">게임의 옵션표와 이 화면의 표가 <b>어긋났다</b>.'+
+        (add.length?'<br>게임에만 있는 것: '+add.join(', '):'')+
+        (gone.length?'<br>여기에만 있는 것: '+gone.join(', '):'')+
+        '<br>잠재 줄을 고쳐 쓰기 전에 admin.html 의 표를 index.html 에서 다시 떠오자.</div>';
+  }catch(e){}
+})();
+
+/* ---------- 로그인 ---------- */
+async function login(){
+  const id=($('lid').value||'').trim(), pw=$('lpw').value||'';
+  $('lerr').textContent='';
+  if(!okId(id)) return $('lerr').textContent='아이디는 한글·영문·숫자 2~10자다.';
+  if(pw.length<4) return $('lerr').textContent='비밀번호가 너무 짧다.';
+  $('lgo').disabled=true; $('lerr').textContent='들어가는 중…';
+  const {status,j}=await api({action:'enter',id:id,pw:pw,mode:'login'});
+  $('lgo').disabled=false;
+  if(status===404) return $('lerr').textContent='그런 아이디가 없다.';
+  if(status===401) return $('lerr').textContent='비밀번호가 틀렸다'+(j&&j.left!==undefined?(' — '+j.left+'번 남았다'):'')+'.';
+  if(status===429) return $('lerr').textContent='너무 여러 번 틀렸다. '+Math.ceil(((j&&j.wait)||900)/60)+'분 뒤에 다시.';
+  if(status!==200||!j||!j.ok) return $('lerr').textContent='서버에 연결하지 못했다 ('+status+').';
+  if(!j.admin) return $('lerr').textContent='이 아이디는 마스터가 아니다.';
+  USER=id; TOKEN=j.token;
+  $('loginCard').hidden=true; $('main').hidden=false;
+  go('feedback');
+}
+$('lgo').onclick=login;
+$('lpw').addEventListener('keydown',e=>{ if(e.key==='Enter') login(); });
+$('lid').addEventListener('keydown',e=>{ if(e.key==='Enter') $('lpw').focus(); });
+$('tOut').onclick=()=>{ USER=null; TOKEN=null; $('main').hidden=true; $('loginCard').hidden=false;
+  $('lpw').value=''; $('lerr').textContent=''; };
+
+async function adm(what,extra){
+  const {status,j}=await api(Object.assign({action:'admin',id:USER,token:TOKEN,what:what},extra||{}));
+  if(status===403){ msg('<span class="bad">마스터 권한이 없다.</span>'); return null; }
+  if(status===401){ msg('<span class="bad">로그인이 만료됐다. 나갔다 다시 들어오자.</span>'); return null; }
+  if(status!==200||!j||!j.ok){ msg('<span class="bad">실패 ('+((j&&j.error)||status)+')</span>'); return null; }
+  return j;
+}
+
+/* ---------- 탭 ---------- */
+let tab='feedback';
+function go(t){ tab=t;
+  $('tFb').setAttribute('aria-selected',String(t==='feedback'));
+  $('tPl').setAttribute('aria-selected',String(t==='players'));
+  $('tRs').setAttribute('aria-selected',String(t==='restore'));
+  msg('');
+  if(t==='feedback') loadFeedback();
+  else if(t==='players') loadPlayers();
+  else renderRestore();
+}
+$('tFb').onclick=()=>go('feedback');
+$('tPl').onclick=()=>go('players');
+$('tRs').onclick=()=>go('restore');
+
+/* ---------- 피드백 ---------- */
+async function loadFeedback(){
+  $('body').innerHTML='<p class="note">불러오는 중…</p>';
+  const j=await adm('feedback'); if(!j) return;
+  const rows=j.feedback||[];
+  if(!rows.length){ $('body').innerHTML='<p class="note">아직 온 게 없다.</p>'; return; }
+  $('body').innerHTML=rows.map(f=>
+    '<div class="fbrow'+(f.done?' done':'')+'">'+
+      '<span><span class="who">'+esc(f.id)+
+        '<small>Lv '+(f.lv|0)+' · 전투력 '+(f.power|0).toLocaleString('ko-KR')+' · '+ago(f.ts)+'</small></span>'+
+        '<span class="txt">'+esc(f.text)+'</span></span>'+
+      '<button class="mini fbd" data-i="'+f.i+'">'+(f.done?'되돌리기':'처리')+'</button></div>').join('');
+  document.querySelectorAll('.fbd').forEach(b=>{ b.onclick=async()=>{
+    b.disabled=true; const r=await adm('done',{i:+b.dataset.i}); if(r) loadFeedback(); else b.disabled=false; }; });
+  msg(rows.length+'편 · 처리 안 된 것 '+rows.filter(f=>!f.done).length+'편');
+}
+
+/* ---------- 플레이어 ---------- */
+async function loadPlayers(){
+  $('body').innerHTML='<p class="note">불러오는 중…</p>';
+  const j=await adm('players'); if(!j) return;
+  const rows=j.players||[];
+  $('body').innerHTML='<div class="scroll"><table><thead><tr>'+
+    ['아이디','Lv','전투력','최고★','잠재','보스','업적','시도','파괴','세이브','마지막']
+      .map(h=>'<th>'+h+'</th>').join('')+'</tr></thead><tbody>'+
+    rows.map(p=>'<tr>'+
+      '<td>'+esc(p.id)+'</td>'+
+      '<td class="num">'+(p.lv|0)+'</td>'+
+      '<td class="num">'+(p.power|0).toLocaleString('ko-KR')+'</td>'+
+      '<td class="num">'+(p.star|0)+'</td>'+
+      '<td>'+(GNAME[p.grade|0]||'—')+'</td>'+
+      '<td class="num">'+(p.boss|0)+'</td>'+
+      '<td class="num">'+(p.ach|0)+'</td>'+
+      '<td class="num">'+(p.tries|0)+'</td>'+
+      '<td class="num">'+(p.des|0)+'</td>'+
+      '<td>'+(p.has?'있음':'<span class="bad">없음</span>')+'</td>'+
+      '<td>'+ago(p.seen)+'</td></tr>').join('')+'</tbody></table></div>';
+  msg(rows.length+'명 · 최근 접속 순. 비밀번호와 세이브 내용은 서버가 안 내보낸다.');
+}
+
+/* ---------- 복구 ---------- */
+let rsId='', rsSave=null, rsRec=null, rsG=null;
+function rsLoadGear(){
+  const it=(rsSave&&rsSave.items)||[];
+  rsG=SLOTS.map((_,i)=>{ const o=it[i]||{};
+    return {star:o.star|0, ig:o.ig|0, p4:!!o.p4,
+      lines:(Array.isArray(o.lines)?o.lines:[]).slice(0,4)
+        .filter(l=>l&&OPT[l.k]).map(l=>({k:l.k,g:Math.max(0,Math.min(3,l.g|0))}))}; });
+}
+const rsN=i=>rsG[i].p4?4:3;
+const rsVal=l=>(l&&OPT[l.k])?OPT[l.k].v[Math.max(0,Math.min(3,l.g|0))]:0;
+function rsBest(slot,g){ let b=null;
+  POOL[slot].forEach(e=>{ const d=OPT[e[0]]; if(!d||!d.v) return;
+    const l={k:e[0],g:g,v:d.v[g]}; if(!b||cpOf(l)>cpOf(b)) b=l; });
+  return b; }
+
+function renderRestore(){
+  let h='<div class="row" style="margin-bottom:12px">'+
+    '<input id="rsInput" placeholder="아이디" maxlength="10" value="'+esc(rsId)+'" style="flex:1;min-width:120px">'+
+    '<button class="btn" id="rsLoad">불러오기</button></div>';
+  if(!rsSave||!rsG){
+    h+='<p class="note">아이디를 넣고 불러오면 그 사람의 세이브를 연다.<br>'+
+       '고친 뒤 저장하면 <b>서버 세이브를 덮어쓴다</b> — 상대가 접속 중이면 8초 뒤 되돌아간다.<br>'+
+       '<b>상대를 먼저 앱에서 나가게 하고</b>, 저장한 뒤 다시 들어오게 하자.</p>';
+    $('body').innerHTML=h; wireRs(); return;
+  }
+  const S2=rsSave;
+  h+='<p class="note"><b>'+esc(rsId)+'</b> — Lv '+(S2.lv|0)+' · 메소 '+fmt(S2.meso)+
+     ' · 가방 '+((S2.bag||[]).length)+'칸 · 세이브 '+JSON.stringify(S2).length.toLocaleString('ko-KR')+'자'+
+     (rsRec?('<br>랭킹 기록: '+(rsRec.star|0)+'★ · '+(GNAME[rsRec.grade|0]||'—')+' 잠재 · Lv '+(rsRec.lv|0)+
+             ' · 전투력 '+(rsRec.power|0).toLocaleString('ko-KR')+' · 업적 '+(rsRec.ach|0)+'종'):'')+'</p>';
+  const opt=(arr,v)=>arr.map((n,k)=>'<option value="'+k+'"'+(k===v?' selected':'')+'>'+n+'</option>').join('');
+  h+='<div class="row" style="margin:12px 0">'+
+     '<span class="note" style="margin:0">레벨</span><input id="rsLv" type="number" min="1" max="'+MAXLV+'" value="'+(S2.lv|0)+'" style="width:88px">'+
+     '<span class="note" style="margin:0 0 0 10px">메소</span><input id="rsMeso" type="number" min="0" value="'+Math.floor(S2.meso||0)+'" style="width:150px">'+
+     '</div>';
+  SLOTS.forEach((sl,i)=>{
+    const g=rsG[i];
+    h+='<div class="rsslot"><div class="rshead">'+
+       '<span class="sl">'+sl.n+'</span>'+
+       '<input class="rsStar" data-i="'+i+'" type="number" min="0" max="'+MAXSTAR+'" value="'+g.star+'">'+
+       '<select class="rsIg" data-i="'+i+'">'+opt(IGNAME,g.ig)+'</select>'+
+       '<button class="mini rsFill" data-i="'+i+'">최고옵</button>'+
+       '<label class="p4"><input class="rsP4" data-i="'+i+'" type="checkbox"'+(g.p4?' checked':'')+'>4줄</label>'+
+       '</div>';
+    const pool=POOL[i].filter(e=>OPT[e[0]]&&OPT[e[0]].v);
+    for(let k=0;k<rsN(i);k++){
+      const l=g.lines[k]||null;
+      h+='<div class="rsline"><span class="no">'+(k+1)+'</span>'+
+         '<select class="rsK" data-i="'+i+'" data-k="'+k+'">'+
+           '<option value=""'+(l?'':' selected')+'>— 비움 —</option>'+
+           pool.map(e=>'<option value="'+e[0]+'"'+((l&&l.k===e[0])?' selected':'')+'>'+OPT[e[0]].n+'</option>').join('')+
+         '</select>'+
+         '<select class="rsG" data-i="'+i+'" data-k="'+k+'"'+(l?'':' disabled')+'>'+opt(GNAME,l?l.g:3)+'</select>'+
+         '<span class="v" style="color:'+(l?GCOL[l.g]:'var(--dimmer)')+'">'+
+           (l?('+'+rsVal(l)+OPT[l.k].u):'—')+'</span></div>';
+    }
+    h+='</div>';
+  });
+  h+='<div class="row" style="margin-top:14px">'+
+     '<button class="btn gold" id="rsSave">이대로 저장</button>'+
+     '<button class="btn" id="rsDrop">닫기</button></div>'+
+     '<p class="note">줄마다 옵션과 등급을 직접 고른다. 수치는 그 등급의 공식 값으로 붙는다.<br>'+
+     '<b>최고옵</b>은 그 부위에서 전투력이 제일 높은 줄로 채워주는 것뿐이다 — 원래 뭐였는지는 서버에 안 남아 있다.</p>';
+  $('body').innerHTML=h; wireRs();
+}
+function wireRs(){
+  const keep=()=>{ if($('rsLv')) rsSave.lv=Math.max(1,Math.min(MAXLV,+$('rsLv').value||1));
+                   if($('rsMeso')) rsSave.meso=Math.max(0,+$('rsMeso').value||0); };
+  if($('rsLoad')) $('rsLoad').onclick=rsFetch;
+  if($('rsDrop')) $('rsDrop').onclick=()=>{ rsSave=null; rsG=null; rsRec=null; renderRestore(); };
+  if($('rsSave')) $('rsSave').onclick=rsPut;
+  if($('rsInput')) $('rsInput').onkeydown=e=>{ if(e.key==='Enter') rsFetch(); };
+  if(!rsG) return;
+  document.querySelectorAll('.rsStar').forEach(e=>{ e.onchange=()=>{
+    rsG[+e.dataset.i].star=Math.max(0,Math.min(MAXSTAR,+e.value||0)); }; });
+  document.querySelectorAll('.rsIg').forEach(e=>{ e.onchange=()=>{
+    rsG[+e.dataset.i].ig=+e.value|0; keep(); renderRestore(); }; });
+  document.querySelectorAll('.rsP4').forEach(e=>{ e.onchange=()=>{
+    rsG[+e.dataset.i].p4=e.checked; keep(); renderRestore(); }; });
+  document.querySelectorAll('.rsK').forEach(e=>{ e.onchange=()=>{
+    const i=+e.dataset.i, k=+e.dataset.k;
+    if(!e.value) rsG[i].lines[k]=null;
+    else { const o=rsG[i].lines[k]; rsG[i].lines[k]={k:e.value,g:o?o.g:3}; }
+    keep(); renderRestore(); }; });
+  document.querySelectorAll('.rsG').forEach(e=>{ e.onchange=()=>{
+    const i=+e.dataset.i, k=+e.dataset.k;
+    if(rsG[i].lines[k]) rsG[i].lines[k].g=+e.value|0;
+    keep(); renderRestore(); }; });
+  document.querySelectorAll('.rsFill').forEach(e=>{ e.onclick=()=>{
+    const i=+e.dataset.i, gr=rsG[i];
+    const g=(gr.lines.find(l=>l)||{g:3}).g;
+    gr.lines=[]; for(let k=0;k<rsN(i);k++){ const b=rsBest(i,g); gr.lines.push({k:b.k,g:b.g}); }
+    keep(); renderRestore(); }; });
+}
+async function rsFetch(){
+  const id=($('rsInput').value||'').trim();
+  if(!okId(id)) return msg('<span class="bad">아이디 모양이 맞지 않는다.</span>');
+  rsId=id; msg('불러오는 중…');
+  const j=await adm('getsave',{target:id}); if(!j) return;
+  if(!j.save){ rsSave=null; rsG=null; renderRestore(); return msg(id+' 는 서버에 저장된 세이브가 없다.'); }
+  try{ rsSave=JSON.parse(j.save); }catch(e){ return msg('<span class="bad">세이브를 읽지 못했다.</span>'); }
+  rsRec=j.rec||null; rsLoadGear();
+  const tot=rsG.reduce((a,g)=>a+g.star,0), ln=rsG.reduce((a,g)=>a+g.lines.filter(Boolean).length,0);
+  msg('불러왔다 — 총 <b>'+tot+'성</b> · 잠재 <b>'+ln+'줄</b> · 서버 저장 시각 '+(j.saveAt?ago(j.saveAt):'모름'));
+  renderRestore();
+}
+async function rsPut(){
+  if(!rsSave||!rsG) return;
+  const S2=rsSave;
+  S2.lv=Math.max(1,Math.min(MAXLV,+$('rsLv').value||1));
+  S2.meso=Math.max(0,+$('rsMeso').value||0);
+  if(!Array.isArray(S2.items)) S2.items=[];
+  SLOTS.forEach((sl,i)=>{
+    const g=rsG[i], o=S2.items[i]||(S2.items[i]={});
+    o.star=g.star; o.ig=g.ig; o.broken=false; o.p4=!!(g.p4&&g.ig>=3);
+    if(!o.name) o.name=(i===0?WNAMES.war:NAMES[i])[Math.min(g.ig,3)]||'복구된 장비';
+    o.lines=g.lines.slice(0,rsN(i)).filter(Boolean).map(l=>({k:l.k,g:l.g,v:rsVal(l)}));
+  });
+  S2.items.length=SLOTS.length;
+  S2.ts=Date.now();
+  const blob=JSON.stringify(S2);
+  msg('저장 중…');
+  const j=await adm('putsave',{target:rsId,save:blob}); if(!j) return;
+  msg('<b>'+esc(rsId)+'</b> 세이브를 덮었다 ('+blob.length.toLocaleString('ko-KR')+'자). 그 사람이 다시 들어오면 이게 뜬다.');
+}
+</script>
+</body>
+</html>
