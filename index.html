@@ -435,6 +435,19 @@ button:disabled{cursor:not-allowed;opacity:.45;}
   display:flex;justify-content:space-between;align-items:baseline;font-size:12px;}
 .pkstat b{font-family:'Bebas Neue',sans-serif;font-size:17px;font-variant-numeric:tabular-nums;}
 .pknote{margin:13px 0 0;font-size:11px;color:var(--dimmer);text-align:center;line-height:1.6;}
+/* 마스터 복구 판 */
+.rsbar{display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin-bottom:12px;}
+.rsbar input{flex:1;min-width:110px;padding:9px 11px;border-radius:9px;border:1px solid var(--edge2);
+  background:#0F0C22;color:var(--text);font-family:inherit;font-size:14px;font-weight:700;}
+.rsinfo{font-size:11.5px;color:var(--dimmer);line-height:1.7;margin:0 0 12px;}
+.rsinfo b{color:var(--gold);}
+.rsrow{display:grid;grid-template-columns:46px 58px 1fr 1fr 46px;gap:6px;align-items:center;
+  background:#15122C;border:1px solid var(--edge);border-radius:9px;padding:6px 9px;margin-bottom:5px;}
+.rsrow .sl{font-size:12px;font-weight:700;color:var(--dim);}
+.rsrow input,.rsrow select{padding:5px 6px;border-radius:7px;border:1px solid var(--edge2);
+  background:#0F0C22;color:var(--text);font-family:inherit;font-size:12px;width:100%;}
+.rsrow .p4{display:flex;align-items:center;justify-content:center;font-size:10.5px;color:var(--dimmer);}
+.rswarn{margin:12px 0 0;font-size:11.5px;color:#FF8FA3;line-height:1.7;}
 .attnote{margin:12px 0 0;font-size:11.5px;color:var(--dimmer);text-align:center;line-height:1.6;}
 .attnote b{color:var(--gold);}
 .burger{position:relative;}
@@ -1193,6 +1206,7 @@ td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
       <button class="admtab" id="admFb" aria-selected="true">피드백</button>
       <button class="admtab" id="admPl" aria-selected="false">플레이어</button>
       <button class="admtab" id="admMk" aria-selected="false">만들기</button>
+      <button class="admtab" id="admRs" aria-selected="false">복구</button>
     </div>
     <div class="adm" id="admBody"></div>
     <p class="pity" id="admNote"></p>
@@ -4306,13 +4320,114 @@ async function admLoad(what,extra){
   if(status===403){ setAdmin(false); note('마스터 권한이 없다.'); return null; }
   return (status===200&&j&&j.ok)?j:null;
 }
+/* ---------- 마스터: 남의 기록 복구 ---------- */
+// 세이브가 한 벌뿐이고 이력이 없어서, 한 번 덮이면 서버에서 되살릴 수가 없다.
+// 남은 기록(성수치·등급·레벨)을 근거로 사람이 직접 맞춰 넣는 자리다.
+let rsId='', rsSave=null, rsRec=null;
+function rsBlank(){ return {star:0,ig:0,pg:-1,p4:false}; }
+function renderRestore(){
+  const B=$('admBody');
+  let h='<div class="rsbar">'+
+    '<input id="rsInput" placeholder="아이디" value="'+esc(rsId)+'" maxlength="10">'+
+    '<button class="mini" id="rsLoad">불러오기</button></div>';
+  if(!rsSave){
+    h+='<p class="rsinfo">아이디를 넣고 불러오면 그 사람의 세이브를 연다.<br>'+
+       '고친 뒤 저장하면 <b>서버 세이브를 덮어쓴다</b> — 상대가 접속 중이면 8초 뒤 되돌아간다.<br>'+
+       '<b>상대를 먼저 앱에서 나가게 하고</b>, 저장한 뒤 다시 들어오게 하자.</p>';
+    B.innerHTML=h; wireRestore(); return;
+  }
+  const S2=rsSave, it=S2.items||[];
+  h+='<p class="rsinfo"><b>'+esc(rsId)+'</b> — Lv '+(S2.lv|0)+' · 메소 '+fmt(S2.meso||0)+
+     ' · 가방 '+((S2.bag||[]).length)+'칸 · 세이브 '+JSON.stringify(S2).length.toLocaleString('ko-KR')+'자<br>'+
+     (rsRec?('랭킹 기록: '+(rsRec.star|0)+'★ · '+GNAME[rsRec.grade|0]+' 잠재 · Lv '+(rsRec.lv|0)+
+            ' · 전투력 '+(rsRec.power|0).toLocaleString('ko-KR')+' · 업적 '+(rsRec.ach|0)+'종'):'')+'</p>';
+  h+='<div class="rsrow" style="background:none;border:0">'+
+     '<span class="sl">레벨</span>'+
+     '<input id="rsLv" type="number" min="1" max="300" value="'+(S2.lv|0)+'">'+
+     '<span class="sl" style="grid-column:span 2">메소</span>'+
+     '<input id="rsMeso" type="number" min="0" value="'+Math.floor(S2.meso||0)+'" style="grid-column:span 1">'+
+     '</div>';
+  const opt=(arr,v)=>arr.map(function(n,i){ return '<option value="'+i+'"'+(i===v?' selected':'')+'>'+n+'</option>'; }).join('');
+  SLOTS.forEach(function(sl,i){
+    const o=it[i]||{}, pg=(o.lines&&o.lines.length)?o.lines.reduce(function(a,l){return Math.max(a,l.g|0);},0):-1;
+    h+='<div class="rsrow">'+
+       '<span class="sl">'+sl.n+'</span>'+
+       '<input class="rsStar" data-i="'+i+'" type="number" min="0" max="'+MAXSTAR+'" value="'+(o.star|0)+'">'+
+       '<select class="rsIg" data-i="'+i+'">'+opt(IGNAME,o.ig|0)+'</select>'+
+       '<select class="rsPg" data-i="'+i+'"><option value="-1"'+(pg<0?' selected':'')+'>잠재 없음</option>'+opt(GNAME,pg)+'</select>'+
+       '<label class="p4"><input class="rsP4" data-i="'+i+'" type="checkbox"'+(o.p4?' checked':'')+'> 4줄</label>'+
+       '</div>';
+  });
+  h+='<div class="rsbar" style="margin-top:12px">'+
+     '<button class="mini" id="rsSave">이대로 저장</button>'+
+     '<button class="mini" id="rsDrop">닫기</button></div>';
+  h+='<p class="rswarn">잠재 줄은 고른 등급의 <b>그 부위 최고옵</b>으로 채운다 — 원래 뭐였는지는 서버에 안 남아 있다.<br>'+
+     '저장은 서버 세이브를 덮어쓴다. 상대가 접속 중이면 소용없다.</p>';
+  B.innerHTML=h; wireRestore();
+}
+function bestLineFor(slot,g){
+  let b=null;
+  POOL[slot].forEach(function(e){ const d=OPT[e[0]]; if(!d||!d.v) return;
+    const l={k:e[0],g:g,v:d.v[g]}; if(!b||cpOf(l)>cpOf(b)) b=l; });
+  return b;
+}
+function wireRestore(){
+  const L=$('rsLoad'); if(L) L.onclick=rsFetch;
+  const D=$('rsDrop'); if(D) D.onclick=function(){ rsSave=null; rsRec=null; renderRestore(); };
+  const V=$('rsSave'); if(V) V.onclick=rsPut;
+}
+async function rsFetch(){
+  const id=($('rsInput').value||'').trim();
+  if(!okId(id)){ $('admNote').textContent='아이디 모양이 맞지 않는다.'; return; }
+  rsId=id; $('admNote').textContent='불러오는 중…';
+  const {status,j}=await apiPost({action:'admin',id:USER,token:TOKEN,what:'getsave',target:id});
+  if(status!==200||!j||!j.ok){ $('admNote').textContent='불러오지 못했다 ('+((j&&j.error)||status)+')'; return; }
+  if(!j.save){ $('admNote').textContent=id+' 는 서버에 저장된 세이브가 없다.'; rsSave=null; renderRestore(); return; }
+  try{ rsSave=JSON.parse(j.save); }catch(e){ $('admNote').textContent='세이브를 읽지 못했다.'; return; }
+  rsRec=j.rec||null;
+  $('admNote').textContent='불러왔다 — 서버 저장 시각 '+(j.saveAt?ago(j.saveAt):'모름');
+  renderRestore();
+}
+async function rsPut(){
+  if(!rsSave) return;
+  const S2=rsSave;
+  S2.lv=Math.max(1,Math.min(MAXLV,+$('rsLv').value||1));
+  S2.meso=Math.max(0,+$('rsMeso').value||0);
+  if(!Array.isArray(S2.items)) S2.items=[];
+  SLOTS.forEach(function(sl,i){
+    const st=Math.max(0,Math.min(MAXSTAR,+document.querySelector('.rsStar[data-i="'+i+'"]').value||0));
+    const ig=+document.querySelector('.rsIg[data-i="'+i+'"]').value|0;
+    const pg=+document.querySelector('.rsPg[data-i="'+i+'"]').value;
+    const p4=document.querySelector('.rsP4[data-i="'+i+'"]').checked;
+    const o=S2.items[i]||(S2.items[i]={});
+    o.star=st; o.ig=ig; o.broken=false; o.p4=!!(p4&&ig>=3);
+    if(!o.name) o.name=(i===0?WNAMES.war:NAMES[i])[Math.min(ig,3)]||'복구된 장비';
+    if(pg<0) o.lines=[];
+    else {
+      const n=o.p4?4:3, L=[];
+      for(let k=0;k<n;k++) L.push(Object.assign({},bestLineFor(i,pg)));
+      o.lines=L;
+    }
+  });
+  S2.items.length=SLOTS.length;
+  S2.ts=Date.now();                       // 상대가 다시 들어올 때 이게 이기게
+  const blob=JSON.stringify(S2);
+  $('admNote').textContent='저장 중…';
+  const {status,j}=await apiPost({action:'admin',id:USER,token:TOKEN,what:'putsave',target:rsId,save:blob});
+  if(status===200&&j&&j.ok){
+    $('admNote').textContent=rsId+' 세이브를 덮었다 ('+blob.length.toLocaleString('ko-KR')+'자). 그 사람이 다시 들어오면 이게 뜬다.';
+  } else $('admNote').textContent='저장 실패 ('+((j&&j.error)||status)+')';
+}
+
 async function renderAdm(force){
   if(!ADMIN) return;
   const B=$('admBody');
   $('admFb').setAttribute('aria-selected',String(admWhat==='feedback'));
   $('admPl').setAttribute('aria-selected',String(admWhat==='players'));
   $('admMk').setAttribute('aria-selected',String(admWhat==='make'));
+  $('admRs').setAttribute('aria-selected',String(admWhat==='restore'));
   if(admWhat==='make'){ renderMake(); return; }
+  if(admWhat==='restore'){ renderRestore(); return; }
   if(force||!admData[admWhat]){
     B.innerHTML='<p class="fbmsg">불러오는 중…</p>';
     const j=await admLoad(admWhat);
@@ -4345,7 +4460,7 @@ async function renderAdm(force){
           '</td><td>'+(p.star|0)+'</td><td>'+(GNAME[p.grade]||'—')+'</td><td>'+esc(bossLabel(p.boss))+'</td><td>'+(p.ach|0)+
           '</td><td>'+(p.tries|0).toLocaleString('ko-KR')+'</td><td>'+(p.des|0)+'</td><td>'+ago(p.seen)+'</td></tr>';
       }).join('')+'</tbody></table></div>';
-    $('admNote').innerHTML='<b>'+rows.length+'</b>명. 최근 접속 순이다. 세이브 내용과 비밀번호는 서버에서도 안 내보낸다 — 여기서 남의 기록을 고칠 수는 없다.';
+    $('admNote').innerHTML='<b>'+rows.length+'</b>명. 최근 접속 순이다. 비밀번호는 서버에서도 안 내보낸다. 세이브를 고쳐야 하면 <b>복구</b> 탭에서 한다.';
   }
 }
 
@@ -5218,6 +5333,7 @@ $('fbText').addEventListener('input',fbCount);
 $('admFb').addEventListener('click',function(){ ac(); admWhat='feedback'; renderAdm(false); });
 $('admPl').addEventListener('click',function(){ ac(); admWhat='players'; renderAdm(false); });
 $('admMk').addEventListener('click',function(){ ac(); admWhat='make'; renderAdm(false); });
+$('admRs').addEventListener('click',function(){ ac(); admWhat='restore'; renderAdm(false); });
 $('mastReset').addEventListener('click',function(){ const m=mastOf(S.sel||0); if(!mastUsed(S.sel||0)) return;
   ac(); m.u={}; log('마스터리를 전부 되돌렸다 — 포인트는 그대로다',''); renderAll(); save(); });
 const TABS=[['tabStar','paneStar'],['tabCube','paneCube'],['tabMast','paneMast'],['tabShop','paneShop']];

@@ -310,6 +310,25 @@ module.exports = async (req, res) => {
         return res.status(200).json({ ok: true, admin: true, players: rows });
       }
 
+      // 복구용. 마스터만, 토큰까지 맞아야 여기까지 온다.
+      // 세이브를 통째로 주고받는 자리라 아이디 모양과 길이를 다시 본다.
+      if (what === 'getsave' || what === 'putsave') {
+        const tid = String(body.target || '');
+        if (!ID_RE.test(tid)) return res.status(400).json({ error: 'bad_target' });
+        const t = await readUser(tid);
+        if (!t) return res.status(404).json({ error: 'no_user' });
+        if (what === 'getsave') {
+          return res.status(200).json({ ok: true, admin: true, id: tid, save: t.save || null,
+                                        rec: t.rec || null, seen: t.seen || 0, saveAt: t.saveAt || 0 });
+        }
+        const blob = String(body.save || '');
+        if (blob.length > MAX_SAVE) return res.status(413).json({ error: 'too_big', max: MAX_SAVE });
+        try { JSON.parse(blob); } catch (e) { return res.status(400).json({ error: 'bad_json' }); }
+        t.save = blob; t.saveAt = Date.now();
+        await writeUser(tid, t);
+        return res.status(200).json({ ok: true, admin: true, id: tid, saveAt: t.saveAt });
+      }
+
       return res.status(400).json({ error: 'bad_what' });
     }
 
