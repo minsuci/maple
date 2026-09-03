@@ -458,6 +458,22 @@ button:disabled{cursor:not-allowed;opacity:.45;}
   font-variant-numeric:tabular-nums;}
 .rsFill{white-space:nowrap;}
 .rswarn{margin:12px 0 0;font-size:11.5px;color:#FF8FA3;line-height:1.7;}
+/* 블랙 큐브 다섯 벌 */
+.c5grid{display:flex;flex-direction:column;gap:7px;}
+.c5{border:1px solid var(--edge);border-radius:11px;background:#15122C;padding:9px 11px;
+  cursor:pointer;text-align:left;width:100%;font-family:inherit;color:inherit;}
+.c5:hover{border-color:var(--edge2);}
+.c5[aria-pressed="true"]{border-color:var(--gold);background:#241C05;box-shadow:0 0 0 1px var(--gold) inset;}
+.c5 .h{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+.c5 .no{font-family:'Bebas Neue',sans-serif;font-size:17px;color:var(--dimmer);min-width:16px;}
+.c5[aria-pressed="true"] .no{color:var(--gold);}
+.c5 .pw{margin-left:auto;font-family:'Bebas Neue',sans-serif;font-size:16px;
+  font-variant-numeric:tabular-nums;color:var(--dim);}
+.c5.best .pw{color:var(--ok);}
+.c5 .potline{font-size:11.5px;padding:5px 8px;min-height:0;margin-bottom:3px;}
+.c5 .potline .v{font-size:14px;}
+.c5now{border-style:dashed;opacity:.75;cursor:default;}
+.c5now:hover{border-color:var(--edge);}
 .attnote{margin:12px 0 0;font-size:11.5px;color:var(--dimmer);text-align:center;line-height:1.6;}
 .attnote b{color:var(--gold);}
 .burger{position:relative;}
@@ -1091,6 +1107,10 @@ td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
           <div><div class="t">럭키데이</div><div class="d" id="luckDesc">성공 확률 2배 · 비용 2.5배</div></div>
           <button class="sw" id="swLuck" role="switch" aria-checked="false" aria-label="럭키데이"></button>
         </div>
+        <div class="opt">
+          <div><div class="t">블랙 큐브 다섯 벌</div><div class="d" id="c5Desc">한 번에 다섯 벌을 굴려 하나 고른다 · 비용 5배</div></div>
+          <button class="sw" id="swC5" role="switch" aria-checked="false" aria-label="블랙 큐브 다섯 벌"></button>
+        </div>
       </div>
 
       <div class="pane" id="paneCube" role="tabpanel" aria-labelledby="tabCube" hidden>
@@ -1345,11 +1365,11 @@ td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
 
 <div class="compare" id="compare" hidden>
   <div class="cmpcard">
-    <h2>블랙 큐브 — 어느 쪽을 남길까</h2>
+    <h2 id="cmpTitle">블랙 큐브</h2>
     <div class="cmpbody" id="cmpBody"></div>
     <div class="cmpbtns">
-      <button class="btn" id="keepOld">이전 유지</button>
-      <button class="btn gold" id="keepNew">이후 적용</button>
+      <button class="btn" id="keepOld">한 번 더</button>
+      <button class="btn gold" id="keepNew">이걸로 적용</button>
     </div>
   </div>
 </div>
@@ -1533,8 +1553,13 @@ const upRate=(k,g)=>((UPRATE[k]||UPRATE.red)[g]||0);
 // 지금은 잠재 합계가 강화의 49%, 효율 차이 1.30배 — 클릭 품값만큼만 싸다.
 // 초이스는 이미 최후반용으로 값을 매겨놨으니 등급 배수를 걸지 않는다.
 const GCOST=[1,2,4,8];
+const C5N=5;
+// 다섯 벌은 다섯 번 굴리는 값을 그대로 낸다. 이득은 돈이 아니라 손이다 -
+// 블랙을 다섯 번 따로 굴려도 마음에 드는 걸 고를 수 있었으니, 값을 깎으면
+// 그냥 더 싼 블랙이 된다.
+const c5On=cb=>!!(S.cube5&&cb&&cb.k==='black');
 const cubeCost=cb=>god()?0:(cb.k==='choice'?cb.cost
-  :Math.round(cb.cost*(GCOST[potGrade()]||1)/1000)*1000);
+  :Math.round(cb.cost*(GCOST[potGrade()]||1)/1000)*1000)*(c5On(cb)?C5N:1);
 // 승급하면 성수치를 40% 내려놓는다. 대가가 없으면 36성을 찍어놓고 메소만 내면
 // 등급이 따라오니, 등급을 언제 올릴지 고민할 이유가 사라진다.
 const UP_LOSS=0.4;
@@ -1543,7 +1568,7 @@ const UPGRADE=[{to:1,p:40,cost:400000},{to:2,p:25,cost:2000000}];
 // 그래서 값도 제일 비싸다.
 const CUBES=[
   {k:'red',   n:'레드 큐브',  c:'#FF5E6C', ic:'◆', cost:100000,  d:'{N}줄 전부 재설정 · 결과 그대로 적용'},
-  {k:'black', n:'블랙 큐브',  c:'#FFC94A', ic:'✦', cost:270000,  d:'{N}줄 재설정 후 이전/이후를 골라 적용'},
+  {k:'black', n:'블랙 큐브',  c:'#FFC94A', ic:'✦', cost:270000,  d:'{N}줄 재설정 · 마음에 안 들면 한 번 더'},
   {k:'choice',n:'초이스 큐브', c:'#B15CFF', ic:'◈', cost:100000000, d:'고른 한 줄만 재설정 · 나머지 {M}줄은 그대로'}
 ];
 // 사냥터는 구역 넷으로 나눈다 — 열여섯 줄을 한 화면에 쏟아부으면 고르는 게 아니라 훑는 게 된다.
@@ -1834,7 +1859,7 @@ const DEF=()=>({
   job:'war', diff:0, skcd:[0,0,0,0,0], tok:0, buf:{mes:0,drp:0}, useProt:true, useSafe:true, map:0, zone:0, mv:0, anim:true, hard:false, view:'up', lv:1, xp:0, ach:{},
   att:{last:0, day:0, total:0},
   bcd:BOSSES.map(function(){return 0;}), bk:BOSSES.map(function(){return 0;}),
-  inv:defInv(), bag:[], useLuck:false, fbest:0,
+  inv:defInv(), bag:[], useLuck:false, cube5:false, fbest:0,
   st:{try:0,suc:0,keep:0,down:0,des:0,max:0,mg:0,cube:0,up:0,spent:0,best:0,hall:0}
 });
 let S=DEF();
@@ -2650,6 +2675,10 @@ function renderStarPane(){
   $('swProt').setAttribute('aria-checked',String(S.useProt));
   $('swSafe').setAttribute('aria-checked',String(S.useSafe));
   $('swLuck').setAttribute('aria-checked',String(!!S.useLuck));
+  $('swC5').setAttribute('aria-checked',String(!!S.cube5));
+  $('c5Desc').textContent=S.cube5
+    ? '블랙 큐브를 다섯 벌 굴려 그중 하나를 고른다 · 비용 5배'
+    : '한 번에 다섯 벌을 굴려 하나 고른다 · 비용 5배 · 블랙 큐브에만 걸린다';
   const tk=shTicket();
   const pOn=(SF[it.star]||[])[2]>0, sOn=(SF[it.star]||[])[3]>0;
   $('starNote').innerHTML='<b>'+IGNAME[it.ig]+' 장비</b>라 별값에 <b>x'+igCost(it).toFixed(1)+
@@ -2892,6 +2921,17 @@ function spendCube(cb,only){
     after[only]=rollLine(slot,g);
   }
   else { after=[]; for(let i=0;i<pn;i++) after.push(rollLine(slot,g)); }
+  // 다섯 벌 모드 — 나머지 네 벌은 등급부터 따로 굴린다. 한 벌만 등급을 정하고
+  // 줄만 다섯 번 굴리면 '등급 올릴 기회도 다섯 번'이 아니게 된다.
+  let sets=null;
+  if(c5On(cb)&&only<0){
+    sets=[{g:g, lines:after}];
+    for(let n=1;n<C5N;n++){
+      const g2=nextGrade(it,cb.k), L=[];
+      for(let i=0;i<pn;i++) L.push(rollLine(slot,g2));
+      sets.push({g:g2, lines:L});
+    }
+  }
   const stops=[420,700,980,1260];
   for(let i=0;i<pn;i++){
     if(only>=0&&i!==only) continue;
@@ -2901,10 +2941,11 @@ function spendCube(cb,only){
       setTimeout(function(){ clearInterval(iv); el.innerHTML=lineHTML(after[idx]); }, stops[idx]);
     })(i);
   }
-  setTimeout(function(){ finishCube(cb,before,after,g); }, (only>=0?stops[only]:stops[pn-1])+40);
+  setTimeout(function(){ finishCube(cb,before,after,g,sets); }, (only>=0?stops[only]:stops[pn-1])+40);
 }
-function finishCube(cb,before,after,g){
+function finishCube(cb,before,after,g,sets){
   const gBefore=before.length?before[0].g:-1;
+  if(sets){ showPick(before,sets,gBefore,cb); return; }
   if(cb.k==='black'&&before.length){ showCompare(before,after,g,gBefore); return; }
   applyLines(after,g,gBefore,cb);
 }
@@ -2941,10 +2982,57 @@ function showCompare(before,after,g,gBefore){
       '<div class="clines">'+ls.map(function(l){ return '<div class="potline">'+lineHTML(l)+'</div>'; }).join('')+'</div>'+
       '<div class="cpow">기여 전투력 '+Math.round(SLOTS[S.sel||0].base*starMult(cur().star,cur().ig)*potMultOf(ls)).toLocaleString('ko-KR')+'</div></div>';
   };
-  $('cmpBody').innerHTML=side('이전',before,gBefore)+side('이후',after,g);
+  $('cmpBody').innerHTML=side('지금',before,gBefore)+side('새로 나온 것',after,g);
+  $('cmpBody').className='cmpbody';
   box.hidden=false;
-  $('keepOld').onclick=function(){ box.hidden=true; applyLines(before,gBefore,gBefore,{n:'블랙 큐브'}); log('블랙 큐브 — 이전 옵션을 유지했다',''); };
+  $('cmpTitle').textContent='블랙 큐브';
+  // '이전 유지' 를 단추에서 뺐다. 물릴 길까지 없애면 블랙이 레드보다 나쁜
+  // 물건이 되니, 창을 닫으면 지금 것이 그대로 남는다.
+  $('keepOld').textContent='한 번 더 ('+fmt(cubeCost(CUBES[1]))+')';
+  $('keepNew').textContent='이걸로 적용';
+  $('keepOld').onclick=function(){ box.hidden=true; again(CUBES[1]); };
   $('keepNew').onclick=function(){ box.hidden=true; applyLines(after,g,gBefore,{n:'블랙 큐브'}); };
+}
+// 한 번 더 — 값을 다시 내고 다시 굴린다. 지금 붙어 있는 잠재는 안 건드린다.
+function again(cb){
+  if(!freeCube(cb.k)&&S.meso<cubeCost(cb)){
+    log('메소가 모자라 다시 못 굴렸다 — 지금 옵션이 그대로 남는다','fail'); return; }
+  spendCube(cb,-1);
+}
+// 다섯 벌 중 하나 고르기
+function showPick(before,sets,gBefore,cb){
+  const box=$('compare'), slot=S.sel||0, it=cur();
+  const pw=ls=>Math.round(SLOTS[slot].base*starMult(it.star,it.ig)*potMultOf(ls));
+  const nowPw=before.length?pw(before):0;
+  let sel=0, best=0;
+  sets.forEach(function(s,i){ if(pw(s.lines)>pw(sets[best].lines)) best=i; });
+  const draw=function(){
+    let h='';
+    if(before.length) h+='<button class="c5 c5now" disabled><div class="h">'+
+      '<span class="no">지금</span><span class="gradetag '+GKEY[gBefore]+'">'+GNAME[gBefore]+'</span>'+
+      '<span class="pw">'+nowPw.toLocaleString('ko-KR')+'</span></div>'+
+      before.map(function(l){ return '<div class="potline">'+lineHTML(l)+'</div>'; }).join('')+'</button>';
+    sets.forEach(function(s,i){
+      h+='<button class="c5'+(i===best?' best':'')+'" data-i="'+i+'" aria-pressed="'+(i===sel)+'">'+
+        '<div class="h"><span class="no">'+(i+1)+'</span>'+
+        '<span class="gradetag '+GKEY[s.g]+'">'+GNAME[s.g]+'</span>'+
+        (i===best?'<span style="font-size:10px;font-weight:900;color:var(--ok)">가장 높다</span>':'')+
+        '<span class="pw">'+pw(s.lines).toLocaleString('ko-KR')+'</span></div>'+
+        s.lines.map(function(l){ return '<div class="potline">'+lineHTML(l)+'</div>'; }).join('')+'</button>';
+    });
+    const B=$('cmpBody');
+    B.className='c5grid'; B.innerHTML=h;
+    B.querySelectorAll('.c5[data-i]').forEach(function(el){
+      el.onclick=function(){ sel=+el.dataset.i; ac(); draw(); }; });
+  };
+  draw();
+  $('cmpTitle').textContent='블랙 큐브 다섯 벌 — 하나 고르기';
+  $('keepOld').textContent='다섯 벌 더 ('+fmt(cubeCost(cb))+')';
+  $('keepNew').textContent='이걸로 적용';
+  $('keepOld').onclick=function(){ box.hidden=true; again(cb); };
+  $('keepNew').onclick=function(){ box.hidden=true;
+    applyLines(sets[sel].lines,sets[sel].g,gBefore,{n:'블랙 큐브 ×'+C5N}); };
+  box.hidden=false;
 }
 
 /* ---------- 금빛 각인 ---------- */
@@ -5185,6 +5273,7 @@ $('swSafe').addEventListener('click',()=>{ S.useSafe=!S.useSafe; renderStarPane(
 [0,1,2,3].forEach(i=>$('p'+i).addEventListener('click',()=>pickLine(i)));
 $('swProt').addEventListener('click',()=>{ S.useProt=!S.useProt; renderStarPane(); save(); });
 $('swLuck').addEventListener('click',()=>{ S.useLuck=!S.useLuck; renderStarPane(); save(); });
+$('swC5').addEventListener('click',()=>{ S.cube5=!S.cube5; renderStarPane(); renderCubes(); save(); });
 $('fbSend').addEventListener('click',function(){ ac(); sendFeedback(); });
 $('fbText').addEventListener('input',fbCount);
 $('mastReset').addEventListener('click',function(){ const m=mastOf(S.sel||0); if(!mastUsed(S.sel||0)) return;
@@ -5231,6 +5320,10 @@ $('mAtt').addEventListener('click',function(){ $('menu').hidden=true; renderDail
 $('meltJunk').addEventListener('click',function(){ ac(); meltJunk(); });
 $('mJob').addEventListener('click',function(){ $('menu').hidden=true; openJobs('change'); });
 $('jobClose').addEventListener('click',function(){ $('jobPick').hidden=true; save(); });
+// 비교창은 바깥을 눌러 닫을 수 있다 — 그러면 지금 잠재가 그대로 남는다.
+$('compare').addEventListener('click',function(e){
+  if(e.target===$('compare')){ $('compare').hidden=true;
+    log('큐브 결과를 버렸다 — 지금 옵션이 그대로다',''); busy=false; renderAll(); } });
 $('pkClose').addEventListener('click',function(){ $('peek').hidden=true; });
 $('peek').addEventListener('click',function(e){ if(e.target===$('peek')) $('peek').hidden=true; });
 // 줄이 다시 그려져도 살아 있게 위에서 한 번만 잡는다
@@ -5266,7 +5359,7 @@ initOnline();
 
 // 균형 점검용 노출 (게임 동작에는 영향 없음)
 try{ window.__CFG={SF,MAXSTAR,starCost,SHIELD,SLOTS,OPT,POOL,GCAP,UPRATE,UPGRADE,CUBES,
-  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,skPct,SKMUL,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,lineHTML,potGradeOf,evenGrade,openPeek,gearRec,autoPost,canAuto,betterThanPosted,pkNew,pkGrade,critRate,critMult,CRIT,FOR,fStart,fGrow,fStep,fRng,fMeters,fPx,fT,fVal,fEnter,fEnd,fReward,fRun,fRec,renderForest,renderStat,statOf,sumOpt,mastSum,slotPow,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,navViews,viewIdx,swipeTarget,swipeBlocked,VIEWS,topBoss,bossLabel,myRec,DNAME,ACH,achStat,MAXLV,lvBonus,lvMult,LVK,SLOT_ART,WEAPON_ART,stash,bagStar,bagLines,bagP4,dropSlot,BTYPE,renderAll,CRCOL,passTime,offerOffline,OFF_CAP,OFF_RATE,TR,carryLines,showDrop,cost,protUse,safeUse,IGCOST,igCost,MAST,MPS,mpFor,mastOf,mastFree,mastMult,mastSum,trStar,renderMast,starMult,expMult,IGSTAR,engrave,ENG,renderShop,renderCubes,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
+  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,skPct,SKMUL,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,lineHTML,potGradeOf,evenGrade,c5On,C5N,showPick,again,openPeek,gearRec,autoPost,canAuto,betterThanPosted,pkNew,pkGrade,critRate,critMult,CRIT,FOR,fStart,fGrow,fStep,fRng,fMeters,fPx,fT,fVal,fEnter,fEnd,fReward,fRun,fRec,renderForest,renderStat,statOf,sumOpt,mastSum,slotPow,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,navViews,viewIdx,swipeTarget,swipeBlocked,VIEWS,topBoss,bossLabel,myRec,DNAME,ACH,achStat,MAXLV,lvBonus,lvMult,LVK,SLOT_ART,WEAPON_ART,stash,bagStar,bagLines,bagP4,dropSlot,BTYPE,renderAll,CRCOL,passTime,offerOffline,OFF_CAP,OFF_RATE,TR,carryLines,showDrop,cost,protUse,safeUse,IGCOST,igCost,MAST,MPS,mpFor,mastOf,mastFree,mastMult,mastSum,trStar,renderMast,starMult,expMult,IGSTAR,engrave,ENG,renderShop,renderCubes,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
   get state(){return S;}, cur, power, income, mesoMult, dropMult, starMult, potMultOf, POTG, odds, potGrade, topGrade, totalStars, sfBonus}; }catch(e){}
 })();
 </script>
