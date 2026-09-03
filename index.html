@@ -340,6 +340,12 @@ button:disabled{cursor:not-allowed;opacity:.45;}
 .sthead .p{font-family:'Bebas Neue',sans-serif;font-size:46px;line-height:1;color:var(--pow,#8FD9FF);
   text-shadow:0 0 24px #6BE3FF44;font-variant-numeric:tabular-nums;}
 .sthead .l{font-size:10px;font-weight:900;letter-spacing:.2em;color:var(--dimmer);margin-top:2px;}
+.sthead .tw{display:flex;justify-content:center;gap:18px;margin-top:9px;}
+.sthead .tw span{font-size:10px;font-weight:900;letter-spacing:.14em;color:var(--dimmer);
+  display:flex;flex-direction:column;align-items:center;gap:1px;}
+.sthead .tw b{font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:.02em;
+  font-variant-numeric:tabular-nums;}
+.stnote{margin:0 0 4px;font-size:11px;color:var(--dimmer);line-height:1.75;}
 .sthead .w{font-size:12.5px;color:var(--dim);font-weight:700;margin-top:7px;}
 .sthead .w b{color:var(--gold);}
 .stsec{font-size:10px;font-weight:900;letter-spacing:.18em;color:var(--dimmer);
@@ -1453,22 +1459,25 @@ const SLOTS=[
    수치와 출현 확률은 부위별 공식 표 그대로. [레어, 에픽, 유니크, 레전더리]
    cp 는 전투력 환산 — 내가 정한 규칙이다.
    ------------------------------------------------------- */
+// ax — 이 옵션이 어느 축인가. 'a' 공격(보스 HP 를 깎는다) · 's' 생존(버틴다).
+// 적지 않은 것(메소·드롭·경험치)은 전투에 안 들어간다.
+// 짝 옵션은 part 를 따라간다 — 보스공격력 몫은 공격, 나머지는 제 축으로.
 const OPT={
-  acc:{n:'명중률',       u:'%',v:[3,4.9,6,7.2],             cp:v=>v*0.25},
-  pdm:{n:'물리대미지',    u:'%',v:[5.9,13.7,18.2,20.7],     cp:v=>v*1.00},
-  mdm:{n:'마법대미지',    u:'%',v:[5.9,13.7,18.2,20.7],     cp:v=>v*1.00},
+  acc:{n:'명중률',       u:'%',v:[3,4.9,6,7.2],             cp:v=>v*0.25, ax:'a'},
+  pdm:{n:'물리대미지',    u:'%',v:[5.9,13.7,18.2,20.7],     cp:v=>v*1.00, ax:'a'},
+  mdm:{n:'마법대미지',    u:'%',v:[5.9,13.7,18.2,20.7],     cp:v=>v*1.00, ax:'a'},
   // cp 는 예전 그대로 0.70 이다. 여기에 치명타가 실제로 터지는 몫이
   // 더 붙으니, 치명타확률 줄은 예전보다 순수하게 좋아진 것이다.
-  crr:{n:'치명타확률',    u:'%',v:[4.1,6.3,8.5,10],         cp:v=>v*0.70},
-  bat:{n:'보스공격력',    u:'%',v:[4,12.1,16.2,18.7],       cp:v=>v*0.90},
-  bdf:{n:'보스방어력',    u:'%',v:[3.6,6.6,9,10.8],         cp:v=>v*0.20},
-  cre:{n:'치명타저항',    u:'%',v:[3.5,4.8,6.1,7.3],        cp:v=>v*0.15},
-  evd:{n:'회피율',       u:'%',v:[8.6,14,21.6,25.9],       cp:v=>v*0.20},
+  crr:{n:'치명타확률',    u:'%',v:[4.1,6.3,8.5,10],         cp:v=>v*0.70, ax:'a'},
+  bat:{n:'보스공격력',    u:'%',v:[4,12.1,16.2,18.7],       cp:v=>v*0.90, ax:'a'},
+  bdf:{n:'보스방어력',    u:'%',v:[3.6,6.6,9,10.8],         cp:v=>v*0.20, ax:'s'},
+  cre:{n:'치명타저항',    u:'%',v:[3.5,4.8,6.1,7.3],        cp:v=>v*0.15, ax:'s'},
+  evd:{n:'회피율',       u:'%',v:[8.6,14,21.6,25.9],       cp:v=>v*0.20, ax:'s'},
   exp:{n:'경험치획득량',  u:'%',v:[7.8,13,17.4,20.9],       cp:v=>v*0.10},
-  hp: {n:'최대HP',       u:'', v:[1872,6768,13824,16589],  cp:v=>v/1000*0.6},
-  mp: {n:'최대MP',       u:'', v:[1872,2808,4968,5962],    cp:v=>v/1000*0.4},
-  hpr:{n:'HP회복력',     u:'', v:[35,70,140,168],          cp:v=>v*0.03},
-  mpr:{n:'MP회복력',     u:'', v:[20,42,53,63],            cp:v=>v*0.05},
+  hp: {n:'최대HP',       u:'', v:[1872,6768,13824,16589],  cp:v=>v/1000*0.6, ax:'s'},
+  mp: {n:'최대MP',       u:'', v:[1872,2808,4968,5962],    cp:v=>v/1000*0.4, ax:'s'},
+  hpr:{n:'HP회복력',     u:'', v:[35,70,140,168],          cp:v=>v*0.03, ax:'s'},
+  mpr:{n:'MP회복력',     u:'', v:[20,42,53,63],            cp:v=>v*0.05, ax:'s'},
   mes:{n:'메소획득량',    u:'%',v:[6.1,8.2,12.2,14.7],      cp:v=>0, gold:1},
   drp:{n:'아이템 드롭률', u:'%',v:[6.1,8.2,12.2,14.7],      cp:v=>0, drop:1},
   // ---- 벨트 전용 ----
@@ -1634,28 +1643,28 @@ const mapOpen=i=>!!MAPS[i]&&(S.lv||1)>=MAPS[i].lv;
 //      안 그러면 상위 보스 보상이 전부 같아져 카링이 검마보다 싸진다.
 // 하드/카오스 배수는 드롭 성향에 따라 다르다. 큐브·성공권으로 받는 놈은 메소가 짜다.
 const BOSSES=[
-  {n:'발록',        cyc:'일간', cd: 3600, req:   40, hreq:   80, creq:    0, rew:   140000, hrew:  300000, crew:        0, t:'메소'},
-  {n:'자쿰',        cyc:'일간', cd: 3600, req:   90, hreq:  150, creq:    0, rew:  170000, hrew:  640000, crew:        0, t:'메소'},
-  {n:'혼테일',      cyc:'일간', cd: 3600, req:  140, hreq:  250, creq:    0, rew:  270000, hrew:  840000, crew:        0, t:'장비'},
-  {n:'파풀라투스',  cyc:'일간', cd: 3600, req:  220, hreq:  370, creq:    0, rew:  400000, hrew:  960000, crew:        0, t:'큐브'},
-  {n:'핑크빈',      cyc:'일간', cd: 3600, req:  290, hreq:  550, creq:    0, rew:  640000, hrew: 2600000, crew:        0, t:'메소'},
-  {n:'반 레온',     cyc:'일간', cd: 3600, req:  400, hreq:  750, creq:    0, rew:  800000, hrew: 2500000, crew:        0, t:'쉴드'},
-  {n:'힐라',        cyc:'일간', cd: 3600, req:  450, hreq:  950, creq:    0, rew:  1000000, hrew: 4000000, crew:        0, t:'메소'},
-  {n:'매그너스',    cyc:'주간', cd:10800, req:  520, hreq: 1200, creq: 1920, rew: 3300000, hrew: 9200000, crew:19000000, t:'장비'},
-  {n:'아카이럼',    cyc:'주간', cd:10800, req:  670, hreq: 1360, creq: 2160, rew: 4400000, hrew: 8800000, crew:18000000, t:'큐브'},
-  {n:'아칸',        cyc:'주간', cd:10800, req:  700, hreq: 1380, creq:    0, rew: 4400000, hrew: 16000000, crew:        0, t:'장비'},
-  {n:'스우',        cyc:'주간', cd:10800, req:  720, hreq: 1420, creq:    0, rew: 4800000, hrew: 12000000, crew:        0, t:'쉴드'},
-  {n:'데미안',      cyc:'주간', cd:10800, req:  770, hreq: 1460, creq:    0, rew: 4800000, hrew: 12000000, crew:        0, t:'장비'},
-  {n:'루시드',      cyc:'주간', cd:10800, req:  890, hreq: 1500, creq: 2400, rew: 5200000, hrew: 14000000, crew:34000000, t:'장비'},
-  {n:'더스크',      cyc:'주간', cd:10800, req: 1120, hreq: 1540, creq:    0, rew: 6000000, hrew: 11000000, crew:        0, t:'큐브'},
-  {n:'윌',          cyc:'주간', cd:10800, req: 1240, hreq: 1700, creq: 2720, rew: 6000000, hrew: 14000000, crew:26000000, t:'성공권'},
-  {n:'진 힐라',     cyc:'주간', cd:10800, req: 1340, hreq: 2000, creq:    0, rew: 7200000, hrew: 16000000, crew:        0, t:'큐브'},
-  {n:'아자젤',      cyc:'주간', cd:10800, req: 3240, hreq: 7100, creq:    0, rew: 7200000, hrew:22000000, crew:        0, t:'쉴드'},
-  {n:'듄켈',        cyc:'주간', cd:10800, req:11000, hreq:24200, creq:    0, rew: 8400000, hrew:23000000, crew:        0, t:'장비'},
-  {n:'선택받은 세렌',cyc:'주간', cd:10800, req:13300, hreq:29300, creq:    0, rew: 9200000, hrew:18000000, crew:        0, t:'큐브'},
-  {n:'검은 마법사', cyc:'월간', cd:43200, req:15500, hreq:34100, creq:    0, rew:36000000, hrew:107000000, crew:        0, t:'전부'},
-  {n:'감시자 칼로스',cyc:'주간', cd:10800, req:18500, hreq:40700, creq:    0, rew: 9200000, hrew:19000000, crew:        0, t:'성공권'},
-  {n:'카링',        cyc:'월간', cd:43200, req:28300, hreq:50800, creq:    0, rew:68000000, hrew:140000000, crew:        0, t:'전부'}
+  {n:'발록',        cyc:'일간', cd: 3600, req:  120, hreq:  160, creq:    0, rew:   140000, hrew:  300000, crew:        0, t:'메소'},
+  {n:'자쿰',        cyc:'일간', cd: 3600, req:  180, hreq:  230, creq:    0, rew:  170000, hrew:  640000, crew:        0, t:'메소'},
+  {n:'혼테일',      cyc:'일간', cd: 3600, req:  230, hreq:  330, creq:    0, rew:  270000, hrew:  840000, crew:        0, t:'장비'},
+  {n:'파풀라투스',  cyc:'일간', cd: 3600, req:  310, hreq:  420, creq:    0, rew:  400000, hrew:  960000, crew:        0, t:'큐브'},
+  {n:'핑크빈',      cyc:'일간', cd: 3600, req:  360, hreq:  550, creq:    0, rew:  640000, hrew: 2600000, crew:        0, t:'메소'},
+  {n:'반 레온',     cyc:'일간', cd: 3600, req:  440, hreq:  710, creq:    0, rew:  800000, hrew: 2500000, crew:        0, t:'쉴드'},
+  {n:'힐라',        cyc:'일간', cd: 3600, req:  480, hreq:  940, creq:    0, rew:  1000000, hrew: 4000000, crew:        0, t:'메소'},
+  {n:'매그너스',    cyc:'주간', cd:10800, req:  530, hreq: 1180, creq: 2000, rew: 3300000, hrew: 9200000, crew:19000000, t:'장비'},
+  {n:'아카이럼',    cyc:'주간', cd:10800, req:  620, hreq: 1340, creq: 2240, rew: 4400000, hrew: 8800000, crew:18000000, t:'큐브'},
+  {n:'아칸',        cyc:'주간', cd:10800, req:  650, hreq: 1360, creq:    0, rew: 4400000, hrew: 16000000, crew:        0, t:'장비'},
+  {n:'스우',        cyc:'주간', cd:10800, req:  690, hreq: 1420, creq:    0, rew: 4800000, hrew: 12000000, crew:        0, t:'쉴드'},
+  {n:'데미안',      cyc:'주간', cd:10800, req:  750, hreq: 1440, creq:    0, rew: 4800000, hrew: 12000000, crew:        0, t:'장비'},
+  {n:'루시드',      cyc:'주간', cd:10800, req:  880, hreq: 1500, creq: 2500, rew: 5200000, hrew: 14000000, crew:34000000, t:'장비'},
+  {n:'더스크',      cyc:'주간', cd:10800, req: 1100, hreq: 1540, creq:    0, rew: 6000000, hrew: 11000000, crew:        0, t:'큐브'},
+  {n:'윌',          cyc:'주간', cd:10800, req: 1220, hreq: 1740, creq: 2840, rew: 6000000, hrew: 14000000, crew:26000000, t:'성공권'},
+  {n:'진 힐라',     cyc:'주간', cd:10800, req: 1320, hreq: 2080, creq:    0, rew: 7200000, hrew: 16000000, crew:        0, t:'큐브'},
+  {n:'아자젤',      cyc:'주간', cd:10800, req: 3400, hreq: 6100, creq:    0, rew: 7200000, hrew:22000000, crew:        0, t:'쉴드'},
+  {n:'듄켈',        cyc:'주간', cd:10800, req: 9100, hreq:15300, creq:    0, rew: 8400000, hrew:23000000, crew:        0, t:'장비'},
+  {n:'선택받은 세렌',cyc:'주간', cd:10800, req:10700, hreq:18500, creq:    0, rew: 9200000, hrew:18000000, crew:        0, t:'큐브'},
+  {n:'검은 마법사', cyc:'월간', cd:43200, req:11700, hreq:21600, creq:    0, rew:36000000, hrew:107000000, crew:        0, t:'전부'},
+  {n:'감시자 칼로스',cyc:'주간', cd:10800, req:13000, hreq:25800, creq:    0, rew: 9200000, hrew:19000000, crew:        0, t:'성공권'},
+  {n:'카링',        cyc:'월간', cd:43200, req:17900, hreq:32200, creq:    0, rew:68000000, hrew:140000000, crew:        0, t:'전부'}
 ];
 const DNAME=['일반','하드','카오스'];
 const DCOL=['#8B84B8','#FF8A96','#B15CFF'];
@@ -1924,6 +1933,19 @@ const deadOpt=l=>cpOf(l)<3&&!earns(l);
 // 메소·드롭·경험치는 cp 가 0 이라 여기 안 걸린다 — 수익 옵션은 그대로다.
 const POTG=[1.0, 1.6, 2.5, 4.0];
 const potMultOf=lines=>1+lines.reduce((a,l)=>a+cpOf(l)*(POTG[l.g|0]||1),0)/100;
+// 축을 갈라 센다. cpOf 는 짝 옵션을 part 로 흩어 더하니, 여기서도 같은 길을 간다.
+function cpAx(l,ax){
+  const d=OPT[l.k]; if(!d) return 0;
+  if(!d.part) return (d.ax===ax)?d.cp(l.v)*jobW(l.k):0;
+  let c=0;
+  for(const k in d.part){ const p=OPT[k];
+    if(p&&p.ax===ax) c+=p.cp(l.v*d.part[k])*jobW(k); }
+  return c;
+}
+const potAx=(lines,ax)=>1+lines.reduce((a,l)=>a+cpAx(l,ax)*(POTG[l.g|0]||1),0)/100;
+// 마스터리는 넷 다 공격 쪽이다(주력 대미지·보스 공격력·경험치·메소).
+const slotAx=(i,ax)=>{ const it=S.items[i]; if(!it||it.broken) return 0;
+  return SLOTS[i].base*starMult(it.star,it.ig)*potAx(it.lines,ax)*(ax==='a'?mastMult(i):1); };
 const slotPow=i=>{ const it=S.items[i]; if(!it||it.broken) return 0;
   return SLOTS[i].base*starMult(it.star,it.ig)*potMultOf(it.lines)*mastMult(i); };
 const totalStars=()=>S.items.reduce((a,it)=>a+(it.broken?0:it.star),0);
@@ -1966,6 +1988,12 @@ const critRate=()=>{
 // 실제로 이길 확률이라는 게 유지된다 — 전투에서는 이 값으로 되나눈다.
 const critMult=()=>1+(CRIT.mul-1)*critRate()/100;
 const power=()=>Math.round(S.items.reduce((a,_,i)=>a+slotPow(i),0)*lvMult()*(1+sfBonus()/100)*(1+achStat().cp/100)*critMult());
+// 공격력 — 보스 HP 를 깎는 속도. 지금 전투력에서 딜 옵션만 남긴 것이라
+// 값이 거의 같다. 사냥터·랭킹·업적은 계속 power() 를 쓴다.
+const atkPow=()=>Math.round(S.items.reduce((a,_,i)=>a+slotAx(i,'a'),0)*lvMult()*(1+sfBonus()/100)*(1+achStat().cp/100)*critMult());
+// 생존력 — 보스 딜을 버티는 시간. 레벨·스타포스는 몸도 키우니 같이 곱한다.
+// 업적과 치명타는 순수하게 딜이라 여기엔 안 넣는다.
+const survPow=()=>Math.round(S.items.reduce((a,_,i)=>a+slotAx(i,'s'),0)*lvMult()*(1+sfBonus()/100));
 const xpRate=()=>{ const m=MAPS[S.map||0]; return m?m.xp*mapEff(S.map||0,power())*expMult():0; };
 // 첫 줄만 보면, 뒤에 더 높은 줄이 붙었을 때 태그가 낮게 거짓말을 한다.
 // (보스공격력만 레전더리인데 '유니크 잠재'라고 뜨던 것)
@@ -1979,27 +2007,53 @@ function mapEff(i,p){ const m=MAPS[i]; if(!m||!mapOpen(i)) return 0; if(!m.req) 
   const r=Math.min(1,(p||0)/m.req); return r*r; }
 function mapIncome(i,p){ const m=MAPS[i]; return m?Math.round(m.rate*mapEff(i,p)*mesoMult()):0; }
 function bestMap(p){ let b=0,v=-1; for(let i=0;i<MAPS.length;i++){ const x=mapIncome(i,p); if(x>v){v=x;b=i;} } return b; }
-// 전투는 진짜로 굴린다. 보스 HP 100 을 6합 안에 깎으면 이긴다.
-// 한 합 대미지 = 평균 x uniform(0.4,1.6), 6합 총합의 평균 = 100 x (전투력/요구치)/0.85.
-// 그래서 목록에 뜨는 클리어 %는 '연출용 숫자'가 아니라 실제로 이길 확률이다.
-// 아래 표는 그 시뮬레이션을 30만 번 돌려 뽑은 값 (r=0.50 부터 0.05 간격).
-// 50% 지점은 예전 곡선과 같은 r=0.85 라, 보스 사다리 위치는 그대로다.
-const CRT=[0,0,0.001,0.014,0.066,0.176,0.333,0.502,0.651,0.766,
-           0.851,0.908,0.945,0.968,0.982,0.990,0.994,0.997,0.998,0.999];
-const BROUNDS=6;
-const dmgMean=r=>100*(r/0.85)/BROUNDS;        // 한 합 평균 대미지
-const clearRate2=(i,d,p)=>{ const req=bossReqAt(i,d); if(!req) return 0;
-  const r=(p||0)/req; if(r<=0.5) return 0; if(r>=1.45) return 1;
-  const x=(r-0.5)/0.05, k=Math.floor(x);
-  return CRT[k]+(CRT[Math.min(CRT.length-1,k+1)]-CRT[k])*(x-k); };
-function clearRate(i,p){
-  const b=BOSSES[i]; if(!b) return 0;
-  const r=(p||0)/bossReq(i);
-  if(r<=0.5) return 0;
-  if(r>=1.45) return 1;
-  const x=(r-0.5)/0.05, k=Math.floor(x), f=x-k;
-  return CRT[k]+(CRT[Math.min(CRT.length-1,k+1)]-CRT[k])*f;
+// 전투는 진짜로 굴린다. 보스 HP 100, 내 HP 100. 같은 합에 서로 때리고
+// 내가 먼저 넘긴다. 한 합 대미지는 평균 x uniform(0.15,1.85) 로 흔들린다.
+//   내 한 합   = (100/4) x (공격력/요구공격) ... 보스 HP 를 깎는다
+//   보스 한 합 = (100/4) / (생존력/요구생존) ... 내 HP 를 깎는다
+// 축이 둘이라 닫힌 식이 없다. 아래 표는 (공격비, 생존비) 격자마다
+// 6만 번씩 굴려 뽑은 것이고, 사이는 네 귀퉁이로 이어 읽는다.
+// 치명타 확률은 표를 안 흔든다 — 8%/25%/45% 에서 63.4/63.1/63.2 로 같다.
+const BROUNDS=4, DMG_SPREAD=0.85;
+const CRT2LO=0.4, CRT2ST=0.1, CRT2N=17;
+const CRT2=[[0,0,0,0,0,0.001,0.001,0.003,0.007,0.014,0.023,0.04,0.063,0.092,0.137,0.186,0.237],
+  [0,0,0.001,0.002,0.005,0.011,0.022,0.041,0.066,0.105,0.153,0.212,0.279,0.358,0.44,0.519,0.597],
+  [0.001,0.002,0.006,0.015,0.03,0.056,0.094,0.146,0.212,0.291,0.374,0.464,0.549,0.634,0.705,0.774,0.832],
+  [0.003,0.01,0.025,0.053,0.092,0.147,0.221,0.306,0.399,0.495,0.59,0.675,0.749,0.811,0.86,0.9,0.932],
+  [0.012,0.031,0.064,0.118,0.188,0.276,0.374,0.471,0.573,0.667,0.745,0.812,0.864,0.906,0.937,0.957,0.973],
+  [0.031,0.068,0.125,0.204,0.3,0.404,0.515,0.617,0.711,0.785,0.848,0.892,0.931,0.954,0.97,0.981,0.989],
+  [0.058,0.118,0.2,0.302,0.416,0.528,0.633,0.728,0.803,0.862,0.909,0.941,0.962,0.975,0.986,0.991,0.995],
+  [0.094,0.176,0.283,0.398,0.519,0.632,0.728,0.807,0.869,0.912,0.944,0.965,0.979,0.986,0.993,0.996,0.998],
+  [0.141,0.242,0.365,0.492,0.613,0.717,0.799,0.863,0.911,0.943,0.965,0.979,0.989,0.993,0.996,0.998,0.999],
+  [0.195,0.313,0.443,0.574,0.688,0.78,0.85,0.9,0.938,0.963,0.978,0.987,0.993,0.996,0.998,0.999,1],
+  [0.25,0.384,0.514,0.64,0.747,0.829,0.886,0.93,0.958,0.976,0.985,0.993,0.996,0.998,0.999,0.999,1],
+  [0.307,0.45,0.577,0.7,0.795,0.867,0.916,0.948,0.971,0.983,0.991,0.995,0.998,0.999,0.999,1,1],
+  [0.358,0.506,0.631,0.743,0.833,0.896,0.935,0.961,0.978,0.988,0.994,0.997,0.999,0.999,1,1,1],
+  [0.41,0.563,0.681,0.784,0.865,0.92,0.949,0.97,0.985,0.992,0.995,0.998,0.999,0.999,1,1,1],
+  [0.455,0.614,0.724,0.816,0.887,0.937,0.96,0.978,0.989,0.994,0.997,0.999,0.999,1,1,1,1],
+  [0.494,0.658,0.76,0.842,0.906,0.947,0.971,0.984,0.991,0.996,0.998,0.999,0.999,1,1,1,1],
+  [0.54,0.699,0.789,0.865,0.924,0.959,0.975,0.988,0.993,0.997,0.999,0.999,1,1,1,1,1]];
+// 격자 밖은 양끝으로 눌러 읽는다.
+function crt2(ra,rs){
+  const cl=v=>Math.max(0,Math.min(CRT2N-1.0001,(v-CRT2LO)/CRT2ST));
+  const x=cl(ra), y=cl(rs);
+  const i=Math.floor(x), j=Math.floor(y), fx=x-i, fy=y-j;
+  const a=CRT2[i][j], b=CRT2[i][j+1], c=CRT2[i+1][j], d=CRT2[i+1][j+1];
+  return (a*(1-fx)+c*fx)*(1-fy)+(b*(1-fx)+d*fx)*fy;
 }
+// 보스가 요구하는 생존력. 공격 요구치에 비례해서 둔다 - 막 굴린 사람의
+// 생존/공격 이 0.82~1.04 로 나오니, 0.80 이면 평범한 빌드가 두 축을
+// 비슷하게 채운다. 딜만 챙기면 물러지고 몸만 키우면 느려진다.
+const SREQ_K=0.80;
+const bossSReq=(i,d)=>Math.round(bossReqAt(i,d)*SREQ_K);
+const clearRate2=(i,d,a,s)=>{
+  const req=bossReqAt(i,d); if(!req) return 0;
+  const A=(a===undefined)?atkPow():a, S2=(s===undefined)?survPow():s;
+  return crt2(A/req, S2/bossSReq(i,d));
+};
+// 옛 이름. 한 축이던 시절의 자리들이 아직 부른다 - 전투력을 받아도 무시하고
+// 지금 공격력·생존력으로 다시 잰다.
+function clearRate(i){ return clearRate2(i,dIdx()); }
 const bossReward=i=>Math.round(bossRewAt(i,dIdx())*mesoMult());
 const firstBonus=i=>{ const b=BOSSES[i]; return b?Math.round(b.rew*3*mesoMult()):0; };
 const income=()=>Math.max(30,mapIncome(S.map||0,power()));
@@ -2294,11 +2348,20 @@ function renderStat(){
   const num=n=>(Math.round(n*10)/10).toLocaleString('ko-KR');
   let h='<div class="sthead"><div class="p">'+p.toLocaleString('ko-KR')+'</div>'+
         '<div class="l">전투력</div>'+
+        '<div class="tw">'+
+          '<span><b style="color:#FF8FA3">'+atkPow().toLocaleString('ko-KR')+'</b>공격력</span>'+
+          '<span><b style="color:#8FE3B0">'+survPow().toLocaleString('ko-KR')+'</b>생존력</span>'+
+        '</div>'+
         '<div class="w">Lv <b>'+(S.lv||1)+'</b> '+curJob().n+' · 총 스타포스 <b>'+totalStars()+'</b>'+
         ' · 업적 <b>'+Object.keys(S.ach||{}).length+'</b>종</div></div>';
 
   // ---- 전투력이 어디서 오는가 ----
   const base=S.items.reduce(function(a,_,i){ return a+slotPow(i); },0);
+  h+='<div class="stsec">보스전은 두 축으로 갈린다</div>'+
+     '<p class="stnote">보스 HP 100 · 내 HP 100 을 같은 합에 서로 깎는다. 내가 먼저 넘긴다.<br>'+
+     '<b style="color:#FF8FA3">공격력</b>은 보스를 얼마나 빨리 죽이나 — 물리·마법대미지 · 보스공격력 · 치명타 · 명중률<br>'+
+     '<b style="color:#8FE3B0">생존력</b>은 얼마나 오래 버티나 — 최대HP·MP · 회피율 · 보스방어력 · 치명타저항 · 회복력<br>'+
+     '보스가 요구하는 생존력은 요구 공격력의 '+Math.round(SREQ_K*100)+'% 다. 딜만 챙기면 물러지고 몸만 키우면 느려진다.</p>';
   const chain=[['장비 여덟 부위',null,base],
                ['레벨',lvMult(),base*lvMult()],
                ['스타포스',1+sfBonus()/100,base*lvMult()*(1+sfBonus()/100)],
@@ -3698,17 +3761,21 @@ function bossBattle(i,done){
   $('myHp').style.width='100%'; $('foeHp').style.width='100%';
   $('battle').hidden=false;
 
-  // 기댓값은 전투력에 이미 들어 있으니 여기서 되나눈다. 평균은 그대로 두고
-  // 편차만 커진다 — 못 이길 상대에겐 유리하고 이미 이길 상대에겐 조금 불리하다.
-  // 30만 번 굴려 확인했더니 표와 최대 1.8%p 차이, 50% 지점은 r=0.85 그대로다.
-  const cRate=critRate(), m=dmgMean(power()/bossReq(i))/critMult();
+  // 표를 뽑을 때 쓴 식 그대로다. 치명타 기댓값은 공격력에 이미 들어 있어
+  // 여기서 되나눈다 - 평균은 그대로 두고 편차만 커진다.
+  const cRate=critRate();
+  const m=(100/BROUNDS)*(atkPow()/bossReq(i))/critMult();
+  const bd=(100/BROUNDS)/(survPow()/bossSReq(i,dIdx()));
+  const LOD=1-DMG_SPREAD, WD=DMG_SPREAD*2;
   const swing=()=>{ const c=Math.random()*100<cRate;
-    return {d:m*(0.4+Math.random()*1.2)*(c?CRIT.mul:1), c:c}; };
+    return {d:m*(LOD+Math.random()*WD)*(c?CRIT.mul:1), c:c}; };
+  const foeHit=()=>bd*(LOD+Math.random()*WD);
   let bhp=100, php=100, skUsed=-1, over=false, round=0;
   const at=function(ms,fn){ battleTimers.push(setTimeout(fn,ms)); };
   battleSkip=function(){
     if(over) return;
-    while(round<BROUNDS&&bhp>0){ round++; bhp-=swing().d; }
+    while(bhp>0&&php>0&&round<300){ round++; bhp-=swing().d;
+      if(bhp<=0) break; php-=foeHit(); }
     over=true;
     endBattle(bhp<=0, skUsed<0?0:SKILLS[skUsed].dmg);
   };
@@ -3757,15 +3824,16 @@ function bossBattle(i,done){
     if(sw.c) tone(1180,420,.11,'square',.05); else tone(520,760,.07,'square',.035);
     at(150,function(){ $('bMe').classList.remove('hit'); $('bFoe').classList.remove('dmg'); });
     if(bhp<=0){ at(240,function(){ finish(true); }); return; }
-    at(STEP,function(){                       // 보스 반격 — 남은 합을 체력으로 보여준다
+    at(STEP,function(){                       // 보스 반격 — 진짜로 내 체력을 깎는다
       if(over) return;
-      php=Math.max(0,100*(1-round/BROUNDS));
+      php=Math.max(0,php-foeHit());
       $('myHp').style.width=php+'%';
       $('bFoe').classList.add('hit'); $('bMe').classList.add('dmg');
-      bdmg('foe','-'+Math.round(100/BROUNDS*90+rnd(-40,40)),'#FFB0BC');
+      bdmg('foe','-'+Math.round(bd*260+rnd(-60,60)),'#FFB0BC');
       tone(220,140,.09,'sawtooth',.035);
       at(150,function(){ $('bFoe').classList.remove('hit'); $('bMe').classList.remove('dmg'); });
-      if(round>=BROUNDS){ at(300,function(){ finish(false); }); return; }
+      if(php<=0){ at(300,function(){ finish(false); }); return; }
+      if(round>=300){ at(300,function(){ finish(false); }); return; }
       at(STEP,tick);
     });
   }
@@ -4322,7 +4390,7 @@ function updateHunt(){
   });
   $('bossList').querySelectorAll('.btile').forEach(function(el,i){
     const cd=(S.bcd&&S.bcd[i])||0;
-    let top=-1; for(let d=2;d>=0;d--) if(bossHas(i,d)&&clearRate2(i,d,p)>0){ top=d; break; }
+    let top=-1; for(let d=2;d>=0;d--) if(bossHas(i,d)&&clearRate2(i,d)>0){ top=d; break; }
     let done=-1; for(let d=2;d>=0;d--) if(bossHas(i,d)&&killsOf(i,d)>0){ done=d; break; }
     el.disabled=top<0||fighting>=0;
     el.classList.toggle('cool',cd>0);
@@ -4369,7 +4437,9 @@ function renderBossPick(){
   const L=$('bpDiffs'); L.innerHTML='';
   [0,1,2].forEach(function(d){
     if(!bossHas(i,d)) return;
-    const req=bossReqAt(i,d), rate=clearRate2(i,d,p), cr=Math.round(rate*100), col=CRCOL(rate);
+    const req=bossReqAt(i,d), sreq=bossSReq(i,d);
+    const rate=clearRate2(i,d), cr=Math.round(rate*100), col=CRCOL(rate);
+    const ra=atkPow()/req, rs=survPow()/sreq;
     const el=document.createElement('button');
     el.className='bpd'; el.dataset.d=d;
     el.setAttribute('aria-current',String(dIdx()===d));
@@ -4377,14 +4447,14 @@ function renderBossPick(){
     const kills=killsOf(i,d);
     el.innerHTML='<span><span class="dn" style="color:'+DCOL[d]+'">'+DNAME[d]+
         (kills?'<span class="ok">'+kills+'회</span>':'')+'</span>'+
-        '<span class="dq">요구 '+req+'</span></span>'+
+        '<span class="dq">공격 '+req+' · 생존 '+sreq+'</span></span>'+
       '<span class="bpcr"><span class="pct" style="color:'+col+'">'+cr+'%</span>'+
         '<span class="trk"><i class="fil" style="width:'+crBar(rate)+'%;background:'+col+'"></i></span></span>'+
       '<span class="dr">'+fmt(Math.round(bossRewAt(i,d)*mesoMult()))+'</span>';
     el.addEventListener('click',function(){ if(rate<=0) return; ac(); S.diff=d; renderBossPick(); save(); });
     L.appendChild(el);
   });
-  const d=dIdx(), cr=clearRate2(i,d,p), first=killsOf(i,d)===0;
+  const d=dIdx(), cr=clearRate2(i,d), first=killsOf(i,d)===0;
   // 난이도를 고르면 그게 뭘 주는지 여기에 펼친다
   const base=Math.round(bossRewAt(i,d)*mesoMult());
   const lc=legChance(b,d);
@@ -4585,7 +4655,7 @@ function fightBoss(i){
   if(!bs||fighting>=0) return;
   if(!S.bcd||S.bcd.length!==BOSSES.length) S.bcd=BOSSES.map(function(){return 0;});
   if(!S.bk||S.bk.length!==BOSSES.length) S.bk=BOSSES.map(function(){return 0;});
-  const cr=clearRate(i,power());
+  const cr=clearRate2(i,dIdx());
   if(S.bcd[i]>0||cr<=0) return;
   fighting=i; updateHunt();
   if(S.anim===false){                      // 연출을 끈 경우엔 진행바만
@@ -5393,7 +5463,7 @@ initOnline();
 
 // 균형 점검용 노출 (게임 동작에는 영향 없음)
 try{ window.__CFG={SF,MAXSTAR,starCost,SHIELD,SLOTS,OPT,POOL,GCAP,UPRATE,UPGRADE,CUBES,
-  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,skPct,SKMUL,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,lineHTML,potGradeOf,evenGrade,c5On,C5N,showPick,again,openPeek,gearRec,autoPost,canAuto,betterThanPosted,pkNew,pkGrade,critRate,critMult,CRIT,FOR,fStart,fGrow,fStep,fRng,fMeters,fPx,fT,fVal,fEnter,fEnd,fReward,fRun,fRec,renderForest,renderStat,statOf,sumOpt,mastSum,slotPow,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,navViews,viewIdx,swipeTarget,swipeBlocked,VIEWS,topBoss,bossLabel,myRec,DNAME,ACH,achStat,MAXLV,lvBonus,lvMult,LVK,SLOT_ART,WEAPON_ART,stash,bagStar,bagLines,bagP4,dropSlot,BTYPE,renderAll,CRCOL,passTime,offerOffline,OFF_CAP,OFF_RATE,TR,carryLines,showDrop,cost,protUse,safeUse,IGCOST,igCost,MAST,MPS,mpFor,mastOf,mastFree,mastMult,mastSum,trStar,renderMast,starMult,expMult,IGSTAR,engrave,ENG,renderShop,renderCubes,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
+  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,skPct,SKMUL,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,cpAx,potAx,slotAx,atkPow,survPow,lineHTML,potGradeOf,evenGrade,c5On,C5N,showPick,again,openPeek,gearRec,autoPost,canAuto,betterThanPosted,pkNew,pkGrade,critRate,critMult,CRIT,FOR,fStart,fGrow,fStep,fRng,fMeters,fPx,fT,fVal,fEnter,fEnd,fReward,fRun,fRec,renderForest,renderStat,statOf,sumOpt,mastSum,slotPow,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,navViews,viewIdx,swipeTarget,swipeBlocked,VIEWS,topBoss,bossLabel,myRec,DNAME,ACH,achStat,MAXLV,lvBonus,lvMult,LVK,SLOT_ART,WEAPON_ART,stash,bagStar,bagLines,bagP4,dropSlot,BTYPE,renderAll,CRCOL,passTime,offerOffline,OFF_CAP,OFF_RATE,TR,carryLines,showDrop,cost,protUse,safeUse,IGCOST,igCost,MAST,MPS,mpFor,mastOf,mastFree,mastMult,mastSum,trStar,renderMast,starMult,expMult,IGSTAR,engrave,ENG,renderShop,renderCubes,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,crt2,bossSReq,SREQ_K,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
   get state(){return S;}, cur, power, income, mesoMult, dropMult, starMult, potMultOf, POTG, odds, potGrade, topGrade, totalStars, sfBonus}; }catch(e){}
 })();
 </script>
