@@ -2750,14 +2750,16 @@ function renderCubes(){
     const b=document.createElement('button');
     b.className='cube'+(choiceMode&&cb.k==='choice'?' armed':'');
     b.style.setProperty('--c',cb.c);
-    const fr=freeCube(cb.k);
+    const fr=haveCube(cb);
     const cc=cubeCost(cb);
     b.disabled=busy||it.broken||(!fr&&S.meso<cc);
     const gg=potGrade(), cap2=GCAP[it.ig], ur=upRate(cb.k,gg);
     const up=(gg>=0&&gg<cap2)
       ? (ur?' · <b>등급 상승 '+(ur*100).toFixed(1)+'%</b>':' · 등급 상승 없음') : '';
     b.innerHTML='<span class="ic">'+cb.ic+'</span><span><span class="nm">'+cb.n+'</span>'+
-      '<span class="rt">'+cb.d.replace('{N}',POTN(it)>3?'네 ':'세 ').replace('{M}',POTN(it)>3?'세 ':'두 ')+up+'</span></span><span class="pr">'+(fr?('보유 '+(S.inv[cb.k]|0)):fmt(cc))+'</span>';
+      '<span class="rt">'+cb.d.replace('{N}',POTN(it)>3?'네 ':'세 ').replace('{M}',POTN(it)>3?'세 ':'두 ')+up+
+      (c5On(cb)?' · <b>'+C5N+'개를 한꺼번에</b>':'')+'</span></span><span class="pr">'+
+      (fr?('보유 '+(S.inv[cb.k]|0)+(c5On(cb)?' → '+C5N+'개':'')):fmt(cc))+'</span>';
     b.addEventListener('click',function(){ useCube(cb); });
     L.appendChild(b);
   });
@@ -2883,10 +2885,14 @@ const lineHTML=function(l){
          '<span class="v" style="color:'+col+'">+'+l.v+d.u+'</span>';
 };
 let choiceMode=false;
-const freeCube=k=>!!(S.inv&&(S.inv[k]|0)>0);   // 가진 큐브가 있으면 메소를 안 쓴다
+// 다섯 벌 모드는 큐브를 다섯 개 쓴다. 예전엔 여기서 개수를 안 세어,
+// 가진 큐브로 굴리면 다섯 벌을 받으면서 큐브는 하나만 빠졌다.
+// 메소로 낼 때만 다섯 배였으니 가진 사람에게만 공짜였던 셈이다.
+const cubeNeed=cb=>c5On(cb)?C5N:1;
+const haveCube=cb=>!!(S.inv&&(S.inv[cb.k]|0)>=cubeNeed(cb));
 function useCube(cb){
   const it=cur();
-  if(busy||it.broken||(!freeCube(cb.k)&&S.meso<cubeCost(cb))) return;
+  if(busy||it.broken||(!haveCube(cb)&&S.meso<cubeCost(cb))) return;
   if(cb.k==='choice'&&!it.lines.length){ log('먼저 다른 큐브로 잠재능력을 부여하자',''); return; }
   if(cb.k==='choice'){
     choiceMode=!choiceMode;
@@ -2905,7 +2911,8 @@ function pickLine(i){
 }
 function spendCube(cb,only){
   const it=cur(), slot=S.sel||0;
-  if(freeCube(cb.k)){ S.inv[cb.k]--; log('가지고 있던 <b>'+cb.n+'</b>을(를) 썼다',''); }
+  if(haveCube(cb)){ const n=cubeNeed(cb); S.inv[cb.k]-=n;
+    log('가지고 있던 <b>'+cb.n+'</b>을(를) '+(n>1?n+'개 ':'')+'썼다',''); }
   else { const cc=cubeCost(cb); if(S.meso<cc) return; S.meso-=cc; S.st.spent+=cc; }
   S.st.cube++;
   busy=true; renderCubes(); renderStarPane();
@@ -2995,7 +3002,7 @@ function showCompare(before,after,g,gBefore){
 }
 // 한 번 더 — 값을 다시 내고 다시 굴린다. 지금 붙어 있는 잠재는 안 건드린다.
 function again(cb){
-  if(!freeCube(cb.k)&&S.meso<cubeCost(cb)){
+  if(!haveCube(cb)&&S.meso<cubeCost(cb)){
     log('메소가 모자라 다시 못 굴렸다 — 지금 옵션이 그대로 남는다','fail'); return; }
   spendCube(cb,-1);
 }
