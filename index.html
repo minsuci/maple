@@ -458,22 +458,31 @@ button:disabled{cursor:not-allowed;opacity:.45;}
   font-variant-numeric:tabular-nums;}
 .rsFill{white-space:nowrap;}
 .rswarn{margin:12px 0 0;font-size:11.5px;color:#FF8FA3;line-height:1.7;}
-/* 블랙 큐브 다섯 벌 */
-.c5grid{display:flex;flex-direction:column;gap:7px;}
-.c5{border:1px solid var(--edge);border-radius:11px;background:#15122C;padding:9px 11px;
+/* 블랙 큐브 다섯 벌 — 여섯 칸(지금 + 다섯)을 한 화면에 담는다.
+   스크롤을 내리면서 고르면 앞에 뭐가 있었는지 잊는다. 두 칸씩 세 줄. */
+.c5grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+.c5wrap .cmpcard{width:min(680px,100%);padding:14px;}
+.c5line{display:grid;grid-template-columns:5px 1fr auto;gap:5px;align-items:center;
+  font-size:10.5px;line-height:1.35;padding:2px 0;}
+.c5line i{width:5px;height:5px;border-radius:50%;}
+.c5line .n{color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.c5line .n.dead{color:var(--dimmer);}
+.c5line .v{font-family:'Bebas Neue',sans-serif;font-size:13px;letter-spacing:.02em;
+  font-variant-numeric:tabular-nums;}
+@media (max-width:360px){ .c5line{font-size:9.5px;} .c5line .v{font-size:12px;} }
+.c5{border:1px solid var(--edge);border-radius:10px;background:#15122C;padding:7px 9px;
   cursor:pointer;text-align:left;width:100%;font-family:inherit;color:inherit;}
 .c5:hover{border-color:var(--edge2);}
 .c5[aria-pressed="true"]{border-color:var(--gold);background:#241C05;box-shadow:0 0 0 1px var(--gold) inset;}
-.c5 .h{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
-.c5 .no{font-family:'Bebas Neue',sans-serif;font-size:17px;color:var(--dimmer);min-width:16px;}
+.c5 .h{display:flex;align-items:center;gap:5px;margin-bottom:4px;}
+.c5 .no{font-family:'Bebas Neue',sans-serif;font-size:15px;color:var(--dimmer);min-width:12px;}
 .c5[aria-pressed="true"] .no{color:var(--gold);}
-.c5 .pw{margin-left:auto;font-family:'Bebas Neue',sans-serif;font-size:16px;
+.c5 .pw{margin-left:auto;font-family:'Bebas Neue',sans-serif;font-size:15px;
   font-variant-numeric:tabular-nums;color:var(--dim);}
+.c5 .gradetag{font-size:9px;padding:1px 6px;}
 .c5.best .pw{color:var(--ok);}
-.c5 .potline{font-size:11.5px;padding:5px 8px;min-height:0;margin-bottom:3px;}
-.c5 .potline .v{font-size:14px;}
-.c5now{border-style:dashed;opacity:.75;cursor:default;}
-.c5now:hover{border-color:var(--edge);}
+
+.c5now{border-style:dashed;}
 .attnote{margin:12px 0 0;font-size:11.5px;color:var(--dimmer);text-align:center;line-height:1.6;}
 .attnote b{color:var(--gold);}
 .burger{position:relative;}
@@ -3012,35 +3021,51 @@ function again(cb){
 function showPick(before,sets,gBefore,cb){
   const box=$('compare'), slot=S.sel||0, it=cur();
   const pw=ls=>Math.round(SLOTS[slot].base*starMult(it.star,it.ig)*potMultOf(ls));
-  const nowPw=before.length?pw(before):0;
-  let sel=0, best=0;
-  sets.forEach(function(s,i){ if(pw(s.lines)>pw(sets[best].lines)) best=i; });
+  // 지금 것도 한 칸으로 세운다. 고를 수 있어야 '그냥 두기' 가 선택지가 된다 -
+  // 창을 닫아서 버리는 건 알기 어렵다.
+  const cards=[];
+  if(before.length) cards.push({now:1, g:gBefore, lines:before});
+  sets.forEach(function(s){ cards.push(s); });
+  let best=0;
+  cards.forEach(function(c,i){ if(pw(c.lines)>pw(cards[best].lines)) best=i; });
+  let sel=best;                              // 제일 높은 걸 미리 골라둔다
+  box.classList.add('c5wrap');
+  // 줄은 한 줄에 하나씩. potline 을 그대로 쓰면 칸이 커져서 여섯이 안 담긴다.
+  const line=function(l){
+    const d=OPT[l.k], col=GCOL[l.g];
+    return '<div class="c5line"><i style="background:'+col+'"></i>'+
+      '<span class="n'+(deadOpt(l)?' dead':'')+'">'+d.n+'</span>'+
+      '<span class="v" style="color:'+col+'">+'+l.v+d.u+'</span></div>';
+  };
   const draw=function(){
     let h='';
-    if(before.length) h+='<button class="c5 c5now" disabled><div class="h">'+
-      '<span class="no">지금</span><span class="gradetag '+GKEY[gBefore]+'">'+GNAME[gBefore]+'</span>'+
-      '<span class="pw">'+nowPw.toLocaleString('ko-KR')+'</span></div>'+
-      before.map(function(l){ return '<div class="potline">'+lineHTML(l)+'</div>'; }).join('')+'</button>';
-    sets.forEach(function(s,i){
-      h+='<button class="c5'+(i===best?' best':'')+'" data-i="'+i+'" aria-pressed="'+(i===sel)+'">'+
-        '<div class="h"><span class="no">'+(i+1)+'</span>'+
-        '<span class="gradetag '+GKEY[s.g]+'">'+GNAME[s.g]+'</span>'+
-        (i===best?'<span style="font-size:10px;font-weight:900;color:var(--ok)">가장 높다</span>':'')+
-        '<span class="pw">'+pw(s.lines).toLocaleString('ko-KR')+'</span></div>'+
-        s.lines.map(function(l){ return '<div class="potline">'+lineHTML(l)+'</div>'; }).join('')+'</button>';
+    cards.forEach(function(c,i){
+      h+='<button class="c5'+(c.now?' c5now':'')+(i===best?' best':'')+'" data-i="'+i+'" aria-pressed="'+(i===sel)+'">'+
+        '<div class="h"><span class="no">'+(c.now?'지금':i+(cards[0].now?0:1))+'</span>'+
+        '<span class="gradetag '+GKEY[c.g]+'">'+GNAME[c.g]+'</span>'+
+        '<span class="pw">'+pw(c.lines).toLocaleString('ko-KR')+'</span></div>'+
+        c.lines.map(line).join('')+'</button>';
     });
     const B=$('cmpBody');
     B.className='c5grid'; B.innerHTML=h;
-    B.querySelectorAll('.c5[data-i]').forEach(function(el){
-      el.onclick=function(){ sel=+el.dataset.i; ac(); draw(); }; });
+    B.querySelectorAll('.c5').forEach(function(el){
+      el.onclick=function(){ sel=+el.dataset.i; ac(); draw(); wire(); }; });
   };
-  draw();
-  $('cmpTitle').textContent='블랙 큐브 다섯 벌 — 하나 고르기';
-  $('keepOld').textContent='다섯 벌 더 ('+fmt(cubeCost(cb))+')';
-  $('keepNew').textContent='이걸로 적용';
-  $('keepOld').onclick=function(){ box.hidden=true; again(cb); };
-  $('keepNew').onclick=function(){ box.hidden=true;
-    applyLines(sets[sel].lines,sets[sel].g,gBefore,{n:'블랙 큐브 ×'+C5N}); };
+  const wire=function(){
+    const c=cards[sel];
+    $('keepNew').textContent=c.now?'지금 것 그대로':'이걸로 적용';
+  };
+  draw(); wire();
+  $('cmpTitle').textContent='블랙 큐브 '+C5N+'벌 — 하나 고르기';
+  $('keepOld').textContent=C5N+'벌 더 ('+fmt(cubeCost(cb))+')';
+  $('keepOld').onclick=function(){ box.hidden=true; box.classList.remove('c5wrap'); again(cb); };
+  $('keepNew').onclick=function(){
+    box.hidden=true; box.classList.remove('c5wrap');
+    const c=cards[sel];
+    if(c.now){ applyLines(before,gBefore,gBefore,{n:'블랙 큐브'});
+               log('블랙 큐브 '+C5N+'벌 — 지금 옵션을 그대로 뒀다',''); return; }
+    applyLines(c.lines,c.g,gBefore,{n:'블랙 큐브 x'+C5N});
+  };
   box.hidden=false;
 }
 
@@ -5331,7 +5356,7 @@ $('mJob').addEventListener('click',function(){ $('menu').hidden=true; openJobs('
 $('jobClose').addEventListener('click',function(){ $('jobPick').hidden=true; save(); });
 // 비교창은 바깥을 눌러 닫을 수 있다 — 그러면 지금 잠재가 그대로 남는다.
 $('compare').addEventListener('click',function(e){
-  if(e.target===$('compare')){ $('compare').hidden=true;
+  if(e.target===$('compare')){ $('compare').hidden=true; $('compare').classList.remove('c5wrap');
     log('큐브 결과를 버렸다 — 지금 옵션이 그대로다',''); busy=false; renderAll(); } });
 $('pkClose').addEventListener('click',function(){ $('peek').hidden=true; });
 $('peek').addEventListener('click',function(e){ if(e.target===$('peek')) $('peek').hidden=true; });
