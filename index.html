@@ -4596,9 +4596,22 @@ async function apiPost(payload){
 function absorb(j){                       // 서버 응답에서 랭킹을 흡수한다
   if(j&&Array.isArray(j.board)){ BOARD=mergeBoard(j.board); lsSet(LK.board,BOARD); renderRank(); }
 }
+const SAVE_MAX=20000;                  // 서버 MAX_SAVE(24000) 아래로 잡는다
 function saveBlob(){                   // 잘린 JSON 을 보내면 복구 불가라, 넘치면 아예 안 보낸다
   const j=JSON.stringify(S);
-  return j.length<=20000 ? j : undefined;
+  if(j.length<=SAVE_MAX) return j;
+  bigSave(j.length);
+  return undefined;
+}
+// 세이브가 커서 안 올라가는 건 조용히 지나가면 안 된다. 서버 세이브가
+// 그 자리에 멈춘 채로 다른 기기에서 들어가면 옛 기록이 복원된다.
+let bigWarn=0;
+function bigSave(n){
+  if(Date.now()-bigWarn<300000) return;
+  bigWarn=Date.now();
+  log('<b>세이브가 너무 커서 서버에 못 올렸다</b> ('+n.toLocaleString('ko-KR')+'자) — '+
+      '가방을 비우자. 이대로 다른 기기에서 들어가면 옛 기록이 뜬다','fail');
+  note('세이브가 서버 한도를 넘었다 — 가방을 정리하자');
 }
 async function pushSave(force){
   if(!SRV||!TOKEN||!USER) return;
@@ -4612,6 +4625,7 @@ async function pushSave(force){
     showResult('bad','서버 저장 실패 — 다시 로그인해야 기록이 남는다');
     TOKEN=null; return;
   }
+  if(j&&j.saved===false) bigSave(JSON.stringify(S).length);   // 서버가 못 받았다고 했다
   absorb(j);
 }
 const okId=v=>/^[가-힣A-Za-z0-9_]{2,10}$/.test(v);
@@ -4936,7 +4950,8 @@ async function postRank(quiet){
     if(!quiet){ note('등록 중…'); $('postBtn').disabled=true; }
     const {status,j}=await apiPost({action:'submit',id:USER,token:TOKEN,rec:myRec(),save:saveBlob()});
     if(status===200&&j&&j.ok){ absorb(j); setOnline('ok');
-      note(quiet?'기록이 저절로 올라간다 — 방금 갱신했다':'랭킹에 등록했다. 이 주소를 연 사람 모두에게 보인다.'); }
+      if(j.saved===false) bigSave(JSON.stringify(S).length);
+      else note(quiet?'기록이 저절로 올라간다 — 방금 갱신했다':'랭킹에 등록했다. 이 주소를 연 사람 모두에게 보인다.'); }
     else if(status===401){ TOKEN=null; setOnline('readonly'); note('로그인이 만료됐다. 아이디 변경에서 다시 들어가자.'); }
     else if(status===429){ autoLast=Date.now()/1000+120; note('요청이 너무 잦다. 잠시 뒤에 다시.'); }
     else note('서버에 연결하지 못했다. 기록은 이 브라우저에 저장됐다.');
@@ -5039,6 +5054,15 @@ function enter(raw,serverSave){
   let sv = (age(svS)>=age(svL)) ? (svS||svL) : (svL||svS);
   if(svS&&svL&&age(svS)!==age(svL))
     setTimeout(function(){ log('세이브 두 벌 중 '+(sv===svS?'서버':'이 기기')+' 것이 더 최신이라 그걸 불러왔다',''); },50);
+  // 이 기기에 아무것도 없어 서버본만 있는데 그게 오래됐으면, 그대로 놀다가
+  // 덮어써 버리기 전에 알려준다. 원래 쓰던 기기에 더 새 세이브가 있을 수 있다.
+  if(svS&&!svL){
+    const days=(Date.now()-age(svS))/86400000;
+    if(days>0.5) setTimeout(function(){
+      log('<b>서버에 있던 세이브가 '+(days>=1?Math.floor(days)+'일':Math.floor(days*24)+'시간')+' 전 것이다</b> — '+
+          '원래 쓰던 기기에 더 새 기록이 남아 있을 수 있다. 거기서 먼저 들어가 보자','fail');
+    },60);
+  }
   if(!sv){                                   // 아이디 붙이기 전에 하던 기록을 첫 아이디로 옮긴다
     const old=lsGet(OLD_KEY,null);
     if(old&&typeof old.meso==='number'){ sv=old; try{ localStorage.removeItem(OLD_KEY); }catch(e){} }

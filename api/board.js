@@ -11,7 +11,11 @@ const CONFIGURED = !!(URL_ENV && TOKEN_ENV);
 const HKEY = 'byeol:users';
 const FKEY = 'byeol:feedback';  // 피드백 리스트 (최신이 앞)
 const ID_RE = /^[가-힣A-Za-z0-9_]{2,10}$/;
-const MAX_SAVE = 6000;          // 세이브 JSON 최대 길이
+// 세이브 JSON 최대 길이. 6000 이었는데 클라이언트는 20000 까지 보내고 있었다 -
+// 가방(최대 30칸)이 스무 칸쯤 차면 6265 자가 되어 그때부터 서버가 조용히
+// 안 받았다. ok:true 를 돌려주니 아무도 몰랐고, 다른 기기에서 들어가면
+// 옛 세이브가 복원되어 장비가 초기화된 것처럼 보였다. 클라이언트 상한 위로 올린다.
+const MAX_SAVE = 24000;
 const RATE_MAX = 150;           // IP당 분당 요청
 const FB_MAX = 500;             // 피드백 한 편 최대 글자
 const FB_KEEP = 400;            // 서버에 남겨두는 편수
@@ -229,10 +233,16 @@ module.exports = async (req, res) => {
         if (better(rec, u.rec)) u.rec = rec;      // 기록은 더 좋을 때만 갱신
         if (u.rec) { u.rec.boss = keep.boss; u.rec.ach = keep.ach; u.rec.lv = keep.lv; }
       }
-      if (typeof body.save === 'string' && body.save.length <= MAX_SAVE) u.save = body.save;
+      // 못 받았으면 못 받았다고 말한다. 조용히 버리면 아무도 모른다.
+      let saved = null;
+      if (typeof body.save === 'string') {
+        if (body.save.length <= MAX_SAVE) { u.save = body.save; u.saveAt = Date.now(); saved = true; }
+        else saved = false;
+      }
       u.seen = Date.now();
       await writeUser(id, u);
-      return res.status(200).json({ ok: true, rec: u.rec, board: await board() });
+      return res.status(200).json({ ok: true, rec: u.rec, board: await board(),
+                                    saved: saved, saveMax: MAX_SAVE, saveAt: u.saveAt || 0 });
     }
 
     // ---- 피드백 보내기 ----
