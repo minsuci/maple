@@ -2239,263 +2239,199 @@ function flash(txt,sub,color){
 
 /* ---------- 부위별 장비 그림 ---------- */
 /* ---------- 장비 그림 ----------
-   앱솔랩스 아이콘의 픽셀을 세어 보고 색 규칙을 다시 잡았다 (그림은 우리 것이다).
-   그쪽 팔레트는 무채색이 72%, 금색이 2%, 빨강이 3%다. 검정 26% · 흰색 10% —
-   명도를 양 끝까지 쓴다. 우리는 반대였다. 금이 거의 모든 부위에 있었고,
-   강철은 #3E4874~#F4F8FF 사이에만 있어서 폭이 좁고 파랬다.
+   마왕님이 올린 앱솔랩스 아이콘 세트를 그대로 쓴다. 붙이면서 네 가지를 손봤다.
 
-   1) 강철을 중성 회색으로 넓혔다 — 흰색에서 거의 검정까지. 회색은 파랑이 아니라
-      살짝 따뜻한 쪽이다(저쪽 #CCCCBB · #888877).
-   2) 금을 걷어내고 자리마다 숯색을 넣었다. 금은 초점 하나에만 남긴다 —
-      검의 코등이, 지팡이의 발톱, 벨트의 버클.
-   3) 빨강을 강조색으로 새로 넣었다. 부위마다 딱 한 군데, 작게.
+   1) 아이콘마다 있던 카드 배경(rect 100x100 #18222d)을 뺐다. 우리 타일이 이미
+      배경을 가지고 있어서 카드 안에 카드가 생겼다. 그런데 이걸 빼니 한벌옷 ·
+      장갑 · 신발이 무너졌다 — 어두운 채움이 그 배경에 기대 실루엣을 내고 있었다.
+      우리 타일(#15122C)과 값이 비슷해 형태가 뭉개진다. 그래서 어두운 끝을 들어
+      올리고, 덩어리마다 왼쪽에 밝은 면을 얹었다. 그래도 이 셋은 안 읽혀서
+      (박쥐 · 양동이 · 덩어리로 보였다) 같은 화풍 안에서 형태만 다시 잡았다.
+   2) 이름표 text 를 뺐다. 28px 타일에서는 읽을 수 없는 크기고, UI 가 이미
+      이름을 따로 쓴다.
+   3) id 를 정리했다. 원본은 아이콘마다 gold · teal · glow 를 각자 정의하는데,
+      우리는 이 문자열을 타일마다 통째로 복사해 문서에 서른 벌씩 넣는다.
+      브라우저는 같은 id 중 처음 것만 쓰므로 여덟 개가 서로의 그러데이션을
+      집어 쓰게 된다. defs 를 하나로 합치고 이름을 유일하게 바꿨다.
+      (덤으로 defs 가 8벌에서 1벌로 줄었다)
+   4) 무기가 표창 하나뿐이라 전사의 칼과 마법사의 지팡이를 같은 화풍으로
+      새로 그렸다 — 짙은 남색 몸체, 청록 발광, 금 테두리, 시안 보석.
 
-   그 다음 디테일을 올렸다. 판을 나누는 선, 리벳, 긁힌 자국, 가죽 감김, 주름.
-   28px 타일에서는 이것들이 뭉개져 안 보이지만 손해는 아니다 — 뭉개진 결과가
-   그냥 회색이 아니라 얼룩덜룩한 금속이 된다. 104px 장비창에서 값을 한다.
-
-   재질별 그러데이션은 가운데에서 색이 뚝 끊긴다. 이 경계선 하나가 면이 꺾인
-   것처럼 보이게 한다 — 부드럽게 이으면 다시 납작해진다.
-   defs 는 타일마다 통째로 복사되어 문서에 서른 벌씩 들어간다. 브라우저는 같은
-   id 중 처음 것만 쓰니, 값이 모두 같아야 한다. */
+   그림은 100x100 자리에서 그린다. 우리 화면은 전부 viewBox 64 라
+   scale(.64) 로 감싼다 — 그리는 쪽을 원본 좌표에 두는 게 나중에 고치기 쉽다. */
 const ART_DEF='<defs>'+
-  '<linearGradient id="bl" x1=".15" y1="0" x2=".85" y2="1">'+
-    '<stop offset="0" stop-color="#FFFFFF"/><stop offset=".18" stop-color="#E4E4DE"/>'+
-    '<stop offset=".46" stop-color="#A6A69C"/><stop offset=".47" stop-color="#82827A"/>'+
-    '<stop offset=".78" stop-color="#4C4C50"/><stop offset="1" stop-color="#26262E"/>'+
+  '<linearGradient id="ad" x1="0" y1="0" x2="1" y2="1">'+
+    '<stop offset="0" stop-color="#40596F"/><stop offset="1" stop-color="#17212C"/>'+
   '</linearGradient>'+
-  '<linearGradient id="bl2" x1=".2" y1="0" x2=".8" y2="1">'+
-    '<stop offset="0" stop-color="#D6D6CE"/><stop offset=".5" stop-color="#83837C"/>'+
-    '<stop offset="1" stop-color="#33333A"/>'+
+  '<linearGradient id="ad2" x1="0" y1="0" x2="1" y2="1">'+
+    '<stop offset="0" stop-color="#56738D" stop-opacity="1"/><stop offset="1" stop-color="#26333F"/>'+
   '</linearGradient>'+
-  '<linearGradient id="mdk" x1=".2" y1="0" x2=".8" y2="1">'+
-    '<stop offset="0" stop-color="#5C5C66"/><stop offset=".46" stop-color="#2F2F38"/>'+
-    '<stop offset=".47" stop-color="#26262E"/><stop offset="1" stop-color="#101018"/>'+
+  '<linearGradient id="at" x1="0" y1="0" x2="1" y2="1">'+
+    '<stop offset="0" stop-color="#40E0D0"/><stop offset="1" stop-color="#008B8B"/>'+
   '</linearGradient>'+
-  '<linearGradient id="mgd" x1=".15" y1="0" x2=".85" y2="1">'+
-    '<stop offset="0" stop-color="#FFF6C0"/><stop offset=".3" stop-color="#FFCC55"/>'+
-    '<stop offset=".52" stop-color="#E8A00E"/><stop offset=".53" stop-color="#C8830A"/>'+
-    '<stop offset=".85" stop-color="#8A5606"/><stop offset="1" stop-color="#5E3A04"/>'+
+  '<linearGradient id="at2" x1="0" y1="0" x2="0" y2="1">'+
+    '<stop offset="0" stop-color="#00F2FE"/><stop offset="1" stop-color="#4FACFE"/>'+
   '</linearGradient>'+
-  '<linearGradient id="mlt" x1=".2" y1="0" x2=".8" y2="1">'+
-    '<stop offset="0" stop-color="#8A5C33"/><stop offset=".45" stop-color="#4E3220"/>'+
-    '<stop offset=".46" stop-color="#3B2413"/><stop offset="1" stop-color="#1A0F08"/>'+
+  '<linearGradient id="ag" x1="0" y1="0" x2="1" y2="1">'+
+    '<stop offset="0" stop-color="#FFE066"/><stop offset="1" stop-color="#D4AF37"/>'+
   '</linearGradient>'+
-  '<radialGradient id="mrd" cx=".34" cy=".28" r=".8">'+
-    '<stop offset="0" stop-color="#FFE8D8"/><stop offset=".2" stop-color="#FFA070"/>'+
-    '<stop offset=".58" stop-color="#EE4400"/><stop offset="1" stop-color="#6E0F04"/>'+
-  '</radialGradient>'+
-  '<radialGradient id="mgm" cx=".33" cy=".28" r=".8">'+
-    '<stop offset="0" stop-color="#FFFFFF"/><stop offset=".22" stop-color="#D8EEEE"/>'+
-    '<stop offset=".62" stop-color="#7FAEB4"/><stop offset="1" stop-color="#26414E"/>'+
-  '</radialGradient>'+
-  '<linearGradient id="mcl" x1=".1" y1="0" x2=".9" y2="1">'+
-    '<stop offset="0" stop-color="#E8E8E0"/><stop offset=".42" stop-color="#9A9A92"/>'+
-    '<stop offset=".43" stop-color="#77777A"/><stop offset="1" stop-color="#2C2C34"/>'+
+  '<linearGradient id="abl" x1="0" y1="0" x2="1" y2="1">'+
+    '<stop offset="0" stop-color="#00F2FE"/><stop offset=".5" stop-color="#4FACFE"/>'+
+    '<stop offset="1" stop-color="#0A1220"/>'+
   '</linearGradient>'+
+  '<linearGradient id="act" x1="0" y1="0" x2="0" y2="1">'+
+    '<stop offset="0" stop-color="#1BB394"/><stop offset=".5" stop-color="#0E6251"/>'+
+    '<stop offset="1" stop-color="#0B3C32"/>'+
+  '</linearGradient>'+
+  '<filter id="agl" x="-25%" y="-25%" width="150%" height="150%">'+
+    '<feGaussianBlur stdDeviation="2" result="b"/>'+
+    '<feComposite in="SourceGraphic" in2="b" operator="over"/>'+
+  '</filter>'+
 '</defs>';
-// 테두리는 순검정이 아니다. 타일 바탕이 #15122C 라 순검정이면 덩어리가 배경에
-// 녹아버린다. 배경보다 어둡되 살짝 푸른 검정으로 둔다.
-const AOUT='#0C0916';
+const AOUT='#0c141c';
+// 100 자리에서 그린 그림을 64 자리 화면에 앉힌다
+const A100=g=>ART_DEF+'<g transform="scale(.64)">'+g+'</g>';
 
 // 무기 그림도 직업을 따라간다 — 전사는 칼, 마법사는 지팡이, 도적은 표창
 const WEAPON_ART={
-  // 한손검 — 혈조를 판 날, 새김 넣은 금 코등이, 사선으로 감은 손잡이, 붉은 자루끝
-  war: ART_DEF+
-  '<path d="M32 3.5 L38.6 14 L38.6 37.5 L32 45 L25.4 37.5 L25.4 14 Z" fill="url(#bl)" stroke="'+AOUT+'" stroke-width="1.5" stroke-linejoin="round"/>'+
-  '<path d="M32 3.5 L25.4 14 L25.4 37.5 L32 45 Z" fill="#FFFFFF" opacity=".2"/>'+
-  '<path d="M32 3.5 L38.6 14 L32 16.4 L25.4 14 Z" fill="#FFFFFF" opacity=".24"/>'+
-  '<path d="M32 8 L32 40.6" stroke="#2B2B33" stroke-width="2.4" opacity=".55"/>'+
-  '<path d="M30.9 9 L30.9 39.6" stroke="#FFFFFF" stroke-width=".9" opacity=".7"/>'+
-  '<path d="M26.5 15 L26.5 37" stroke="#FFFFFF" stroke-width=".8" opacity=".4"/>'+
-  '<path d="M37.5 15 L37.5 37" stroke="'+AOUT+'" stroke-width=".9" opacity=".45"/>'+
-  '<path d="M27.6 20.4 L28.4 25.6 M27.4 29 L28 32" stroke="#FFFFFF" stroke-width=".6" opacity=".3"/>'+
-  '<path d="M36.4 23 L35.8 30 M36.6 32.6 L36.2 35.4" stroke="'+AOUT+'" stroke-width=".6" opacity=".35"/>'+
-  '<path d="M28.4 36.6 h7.2" stroke="'+AOUT+'" stroke-width="1" opacity=".45"/>'+
-  '<path d="M14 39 Q32 34.6 50 39 L50 45.4 Q32 41 14 45.4 Z" fill="url(#mgd)" stroke="'+AOUT+'" stroke-width="1.4" stroke-linejoin="round"/>'+
-  '<path d="M15.4 39.9 Q32 35.8 48.6 39.9 L48.6 41.6 Q32 37.5 15.4 41.6 Z" fill="#FFF6C0" opacity=".6"/>'+
-  '<path d="M21.6 37.9 L21.6 44.2 M42.4 37.9 L42.4 44.2" stroke="#5E3A04" stroke-width="1" opacity=".6"/>'+
-  '<circle cx="14.8" cy="42.2" r="2.3" fill="url(#mgd)" stroke="'+AOUT+'" stroke-width="1.1"/>'+
-  '<circle cx="49.2" cy="42.2" r="2.3" fill="url(#mgd)" stroke="'+AOUT+'" stroke-width="1.1"/>'+
-  '<path d="M28.4 44.6 h7.2 l-.5 12.4 h-6.2 Z" fill="url(#mdk)" stroke="'+AOUT+'" stroke-width="1.3" stroke-linejoin="round"/>'+
-  '<path d="M28.4 47.4 L35.6 46 M28.5 50.4 L35.5 49 M28.6 53.4 L35.4 52 M28.7 56.2 L35.3 54.8" stroke="'+AOUT+'" stroke-width="1.2" opacity=".8"/>'+
-  '<path d="M28.4 46.6 L35.6 45.2 M28.5 49.6 L35.5 48.2 M28.6 52.6 L35.4 51.2" stroke="#8E8E9A" stroke-width=".6" opacity=".5"/>'+
-  '<circle cx="32" cy="59.4" r="4.2" fill="url(#mdk)" stroke="'+AOUT+'" stroke-width="1.3"/>'+
-  '<path d="M29.2 57 A4.2 4.2 0 0 1 33.4 55.4" fill="none" stroke="#8E8E9A" stroke-width="1" opacity=".6" stroke-linecap="round"/>'+
-  '<circle cx="32" cy="59.4" r="2.2" fill="url(#mrd)"/>',
-  // 지팡이 — 발톱 넷에 물린 구슬, 금속 밴드를 두른 숯색 대, 감은 손잡이
-  mag: ART_DEF+
-  '<path d="M29.9 24 h4.2 l-.7 33 h-2.8 Z" fill="url(#mdk)" stroke="'+AOUT+'" stroke-width="1.3" stroke-linejoin="round"/>'+
-  '<path d="M30.9 26 L30.6 55" stroke="#8E8E9A" stroke-width=".9" opacity=".45"/>'+
-  '<rect x="29.5" y="32.4" width="5" height="2.6" rx=".8" fill="url(#mgd)" stroke="'+AOUT+'" stroke-width=".9"/>'+
-  '<rect x="29.4" y="41.6" width="5" height="2.6" rx=".8" fill="url(#mgd)" stroke="'+AOUT+'" stroke-width=".9"/>'+
-  '<path d="M30 47.6 L34 46.9 M30 50.4 L34 49.7 M29.9 53.2 L33.9 52.5" stroke="'+AOUT+'" stroke-width="1.1" opacity=".75"/>'+
-  '<path d="M20 27 Q17.6 10.6 32 6 Q46.4 10.6 44 27 Q38.6 19.6 32 19.6 Q25.4 19.6 20 27 Z" fill="url(#mgd)" stroke="'+AOUT+'" stroke-width="1.4" stroke-linejoin="round"/>'+
-  '<path d="M21.8 25 Q20.6 12.4 32 8.6 Q37.2 10.2 40 14.6" fill="none" stroke="#FFF6C0" stroke-width="1.5" opacity=".65" stroke-linecap="round"/>'+
-  '<path d="M26 9.6 Q25 18 24.4 23.4 M38 9.6 Q39 18 39.6 23.4" fill="none" stroke="#5E3A04" stroke-width=".9" opacity=".55"/>'+
-  '<circle cx="20.4" cy="26" r="1.7" fill="url(#mgd)" stroke="'+AOUT+'" stroke-width=".9"/>'+
-  '<circle cx="43.6" cy="26" r="1.7" fill="url(#mgd)" stroke="'+AOUT+'" stroke-width=".9"/>'+
-  '<circle cx="32" cy="20.4" r="8.4" fill="url(#mgm)" stroke="'+AOUT+'" stroke-width="1.5"/>'+
-  '<ellipse cx="28.8" cy="17" rx="3.1" ry="2.1" fill="#FFFFFF" opacity=".9" transform="rotate(-30 28.8 17)"/>'+
-  '<circle cx="35.4" cy="16.4" r="1" fill="#FFFFFF" opacity=".7"/>'+
-  '<path d="M25.4 25.4 Q32 30.2 38.6 25.4" fill="none" stroke="#EAFAFA" stroke-width="1.3" opacity=".6" stroke-linecap="round"/>'+
-  '<path d="M27.2 12.8 Q32 10.6 36.8 12.8" fill="none" stroke="#FFFFFF" stroke-width=".9" opacity=".4"/>'+
-  '<circle cx="32" cy="59.4" r="3.7" fill="url(#mdk)" stroke="'+AOUT+'" stroke-width="1.3"/>'+
-  '<path d="M29.6 57.4 A3.7 3.7 0 0 1 33.2 55.9" fill="none" stroke="#8E8E9A" stroke-width=".9" opacity=".6" stroke-linecap="round"/>'+
-  '<circle cx="32" cy="59.4" r="1.9" fill="url(#mrd)"/>',
-  // 표창 — 네 갈래. 날개마다 홈을 파고, 가운데 링에 리벳 넷
-  thf: ART_DEF+
-  '<path d="M32 3.5 L39.4 24.6 L60.5 32 L39.4 39.4 L32 60.5 L24.6 39.4 L3.5 32 L24.6 24.6 Z" fill="url(#bl)" stroke="'+AOUT+'" stroke-width="1.5" stroke-linejoin="round"/>'+
-  '<path d="M32 32 L39.4 24.6 L32 3.5 L24.6 24.6 Z" fill="#FFFFFF" opacity=".3"/>'+
-  '<path d="M32 32 L24.6 24.6 L3.5 32 L24.6 39.4 Z" fill="#FFFFFF" opacity=".12"/>'+
-  '<path d="M32 32 L39.4 39.4 L60.5 32 L39.4 24.6 Z" fill="'+AOUT+'" opacity=".28"/>'+
-  '<path d="M32 32 L24.6 39.4 L32 60.5 L39.4 39.4 Z" fill="'+AOUT+'" opacity=".4"/>'+
-  '<path d="M32 8 L32 27 M32 37 L32 56 M8 32 L27 32 M37 32 L56 32" stroke="'+AOUT+'" stroke-width="1.1" opacity=".35"/>'+
-  '<path d="M31.1 9 L31.1 26 M9 31.1 L26 31.1" stroke="#FFFFFF" stroke-width=".7" opacity=".45"/>'+
-  '<path d="M32 5.6 L38.4 24" stroke="#FFFFFF" stroke-width="1.2" opacity=".75" stroke-linecap="round"/>'+
-  '<path d="M24 25.6 L6.4 31.8" stroke="#FFFFFF" stroke-width="1.2" opacity=".5" stroke-linecap="round"/>'+
-  '<path d="M40 25.4 L58.6 31.7 M39.8 38.6 L58.6 32.4" stroke="'+AOUT+'" stroke-width=".9" opacity=".4"/>'+
-  '<circle cx="32" cy="32" r="7.6" fill="none" stroke="'+AOUT+'" stroke-width=".9" opacity=".35"/>'+
-  '<circle cx="32" cy="32" r="5.6" fill="url(#mdk)" stroke="'+AOUT+'" stroke-width="1.3"/>'+
-  '<circle cx="32" cy="27.8" r=".8" fill="#8E8E9A"/><circle cx="32" cy="36.2" r=".8" fill="#8E8E9A"/>'+
-  '<circle cx="27.8" cy="32" r=".8" fill="#8E8E9A"/><circle cx="36.2" cy="32" r=".8" fill="#8E8E9A"/>'+
-  '<circle cx="32" cy="32" r="2.9" fill="url(#mrd)"/>',
+  // 한손검 — 원본 세트에 없어서 같은 화풍으로 새로 그렸다.
+  // 날은 표창과 같은 abl 을 쓴다(빛나는 쪽에서 검게 떨어진다).
+  war: A100(
+  '<path d="M 50 8 L 58 23 L 57 56 L 50 66 L 43 56 L 42 23 Z" fill="url(#abl)" stroke="#00F2FE" stroke-width="1.6" filter="url(#agl)"/>'+
+  '<path d="M 50 8 L 42 23 L 43 56 L 50 66 Z" fill="#FFFFFF" opacity=".22"/>'+
+  '<path d="M 50 14 L 50 61" stroke="#FFFFFF" stroke-width="1.6" opacity=".55"/>'+
+  '<path d="M 24 60 Q 50 54 76 60 L 76 70 Q 50 64 24 70 Z" fill="url(#ad2)" stroke="'+AOUT+'" stroke-width="2"/>'+
+  '<path d="M 25.6 61.6 Q 50 55.8 74.4 61.6" fill="none" stroke="url(#ag)" stroke-width="2.6"/>'+
+  '<circle cx="24" cy="65" r="3.8" fill="url(#ag)" stroke="'+AOUT+'" stroke-width="1.4"/>'+
+  '<circle cx="76" cy="65" r="3.8" fill="url(#ag)" stroke="'+AOUT+'" stroke-width="1.4"/>'+
+  '<polygon points="50,59 55,65 50,71 45,65" fill="url(#at2)" filter="url(#agl)"/>'+
+  '<path d="M 45 70 L 55 70 L 54 88 L 46 88 Z" fill="url(#ad)" stroke="'+AOUT+'" stroke-width="2"/>'+
+  '<path d="M 45.3 75 L 54.7 75 M 45.4 80 L 54.6 80 M 45.5 85 L 54.5 85" stroke="'+AOUT+'" stroke-width="1.6" opacity=".85"/>'+
+  '<circle cx="50" cy="91" r="5.6" fill="url(#ad2)" stroke="'+AOUT+'" stroke-width="2"/>'+
+  '<circle cx="50" cy="91" r="2.8" fill="url(#at2)"/>'),
+  // 지팡이 — 이것도 새로 그렸다. 발톱 넷이 구슬을 문 형태
+  mag: A100(
+  '<path d="M 46 42 L 54 42 L 52 90 L 48 90 Z" fill="url(#ad)" stroke="'+AOUT+'" stroke-width="2"/>'+
+  '<path d="M 46 42 L 50 42 L 49 90 L 48 90 Z" fill="#FFFFFF" opacity=".12"/>'+
+  '<rect x="44.6" y="54" width="10.8" height="5.4" rx="1.8" fill="url(#ad2)" stroke="url(#ag)" stroke-width="1.5"/>'+
+  '<rect x="44.6" y="70" width="10.8" height="5.4" rx="1.8" fill="url(#ad2)" stroke="url(#ag)" stroke-width="1.5"/>'+
+  '<path d="M 30 47 C 24 22 40 8 50 8 C 60 8 76 22 70 47 C 62 33 50 31 50 31 C 50 31 38 33 30 47 Z" fill="url(#ad2)" stroke="'+AOUT+'" stroke-width="2"/>'+
+  '<path d="M 33.5 43 C 28.5 25 40 12.5 50 11.5" fill="none" stroke="url(#ag)" stroke-width="2.2"/>'+
+  '<path d="M 66.5 43 C 71.5 25 60 12.5 50 11.5" fill="none" stroke="url(#ag)" stroke-width="2.2"/>'+
+  '<circle cx="50" cy="32" r="14" fill="url(#at2)" filter="url(#agl)"/>'+
+  '<circle cx="50" cy="32" r="14" fill="none" stroke="'+AOUT+'" stroke-width="2"/>'+
+  '<ellipse cx="44.6" cy="26.6" rx="4.6" ry="3.2" fill="#FFFFFF" opacity=".8" transform="rotate(-30 44.6 26.6)"/>'+
+  '<path d="M 40 40 Q 50 46 60 40" fill="none" stroke="#FFFFFF" stroke-width="1.6" opacity=".4"/>'+
+  '<circle cx="30.6" cy="46" r="3.2" fill="url(#ag)" stroke="'+AOUT+'" stroke-width="1.4"/>'+
+  '<circle cx="69.4" cy="46" r="3.2" fill="url(#ag)" stroke="'+AOUT+'" stroke-width="1.4"/>'+
+  '<circle cx="50" cy="92" r="4.8" fill="url(#ad2)" stroke="'+AOUT+'" stroke-width="1.8"/>'+
+  '<circle cx="50" cy="92" r="2.3" fill="url(#at2)"/>'),
+  // 표창 — 원본 그대로. 여덟 갈래 중 넷은 날, 넷은 잔상이다
+  thf: A100(
+  '<g transform="translate(50,46)">'+
+  '<g filter="url(#agl)">'+
+  '<path d="M 0 0 C 5 -15 15 -30 5 -40 C -5 -30 0 -15 0 0 Z" fill="url(#abl)" stroke="#00F2FE" stroke-width="1"/>'+
+  '<path d="M 0 0 C 15 5 30 15 40 5 C 30 -5 15 0 0 0 Z" fill="url(#abl)" stroke="#00F2FE" stroke-width="1"/>'+
+  '<path d="M 0 0 C -5 15 -15 30 -5 40 C 5 30 0 15 0 0 Z" fill="url(#abl)" stroke="#00F2FE" stroke-width="1"/>'+
+  '<path d="M 0 0 C -15 -5 -30 -15 -40 -5 C -30 5 -15 0 0 0 Z" fill="url(#abl)" stroke="#00F2FE" stroke-width="1"/>'+
+  '</g>'+
+  '<path d="M 5 -40 C 25 -25 35 -10 40 5 C 20 -5 10 -20 5 -40 Z" fill="#00F2FE" opacity=".6"/>'+
+  '<path d="M 40 5 C 25 25 10 35 -5 40 C -5 20 -20 10 40 5 Z" fill="#00F2FE" opacity=".6"/>'+
+  '<path d="M -5 40 C -25 25 -35 10 -40 -5 C -20 5 -10 20 -5 40 Z" fill="#00F2FE" opacity=".6"/>'+
+  '<path d="M -40 -5 C -25 -25 -10 -35 5 -40 C 5 -20 20 -10 -40 -5 Z" fill="#00F2FE" opacity=".6"/>'+
+  '<circle cx="0" cy="0" r="10" fill="#111822" stroke="url(#ag)" stroke-width="2"/>'+
+  '<circle cx="0" cy="0" r="5" fill="#00F2FE" filter="url(#agl)"/>'+
+  '</g>')
 };
 const SLOT_ART=[
   // 무기 — 부위 그림은 검으로 둔다 (실제로 낀 무기는 직업 것을 그린다)
   WEAPON_ART.war,
-  // 한벌옷 — 갑주. 가슴판을 나누고 리벳을 박고, 아래는 스커트 판 셋
-  ART_DEF+
-  '<path d="M18 22 Q11.6 17 18 12.6 Q24.4 15 25.4 21 Z" fill="url(#bl2)" stroke="'+AOUT+'" stroke-width="1.3" stroke-linejoin="round"/>'+
-  '<path d="M46 22 Q52.4 17 46 12.6 Q39.6 15 38.6 21 Z" fill="url(#bl2)" stroke="'+AOUT+'" stroke-width="1.3" stroke-linejoin="round"/>'+
-  '<path d="M17.6 17.6 Q21 15.6 23.6 18.6 M46.4 17.6 Q43 15.6 40.4 18.6" fill="none" stroke="'+AOUT+'" stroke-width=".9" opacity=".45"/>'+
-  '<path d="M22 16 L32 10.6 L42 16 L46 25 L41 27 L41 52 Q32 57.4 23 52 L23 27 L18 25 Z" fill="url(#bl)" stroke="'+AOUT+'" stroke-width="1.5" stroke-linejoin="round"/>'+
-  '<path d="M22 16 L32 10.6 L32 55.6 Q27 55 23 52 L23 27 L18 25 Z" fill="#FFFFFF" opacity=".18"/>'+
-  '<path d="M27 16 L32 24.4 L37 16" fill="none" stroke="'+AOUT+'" stroke-width="1.5" stroke-linejoin="round"/>'+
-  '<path d="M23 27 L41 27" stroke="'+AOUT+'" stroke-width="1.1" opacity=".45"/>'+
-  '<path d="M32 24.4 L32 40" stroke="'+AOUT+'" stroke-width=".9" opacity=".35"/>'+
-  '<circle cx="25.4" cy="29.4" r=".9" fill="'+AOUT+'" opacity=".55"/>'+
-  '<circle cx="38.6" cy="29.4" r=".9" fill="'+AOUT+'" opacity=".55"/>'+
-  '<circle cx="25.4" cy="37" r=".9" fill="'+AOUT+'" opacity=".55"/>'+
-  '<circle cx="38.6" cy="37" r=".9" fill="'+AOUT+'" opacity=".55"/>'+
-  '<path d="M24.6 20.6 L26.4 24.4 M39.4 20.6 L37.6 24.4" stroke="#FFFFFF" stroke-width=".8" opacity=".35"/>'+
-  '<path d="M32 27.2 l3.6 5.4 -3.6 5.4 -3.6 -5.4 z" fill="url(#mrd)" stroke="'+AOUT+'" stroke-width="1"/>'+
-  '<path d="M23 40 Q32 43 41 40 L41 46 Q32 49 23 46 Z" fill="url(#mdk)" stroke="'+AOUT+'" stroke-width="1.3" stroke-linejoin="round"/>'+
-  '<path d="M23.4 41.4 Q32 44.3 40.6 41.4" fill="none" stroke="#FFCC55" stroke-width="1" opacity=".75"/>'+
-  '<path d="M27.4 42.6 L27.4 47.4 M36.6 42.6 L36.6 47.4" stroke="'+AOUT+'" stroke-width=".9" opacity=".5"/>'+
-  '<path d="M23.2 47.4 L23.6 53.4 M32 48.6 L32 56.4 M40.8 47.4 L40.4 53.4" stroke="'+AOUT+'" stroke-width="1" opacity=".4"/>'+
-  '<path d="M23 51.4 Q32 56.6 41 51.4" fill="none" stroke="'+AOUT+'" stroke-width="1.4" opacity=".45"/>',
-  // 모자 — 투구. 정수리 능선, 리벳 줄, 볼가리개, 이마의 붉은 다이아
-  ART_DEF+
-  '<path d="M32 12 L32 4.6" stroke="#2B2B33" stroke-width="2" stroke-linecap="round"/>'+
-  '<path d="M32 5.6 q8.4 -4.2 11.4 3.2 q-8.4 3.2 -11.4 -3.2 z" fill="#EE4400" stroke="'+AOUT+'" stroke-width="1.2" stroke-linejoin="round"/>'+
-  '<path d="M33.4 6.4 q6 -2 8.4 1.6" fill="none" stroke="#FFB08A" stroke-width="1.1" opacity=".8" stroke-linecap="round"/>'+
-  '<path d="M15 37 Q15 12.6 32 12.6 Q49 12.6 49 37 Z" fill="url(#bl)" stroke="'+AOUT+'" stroke-width="1.5" stroke-linejoin="round"/>'+
-  '<path d="M15 37 Q15 12.6 32 12.6 L32 37 Z" fill="#FFFFFF" opacity=".18"/>'+
-  '<path d="M32 12.6 L32 35.4" stroke="'+AOUT+'" stroke-width="1.1" opacity=".3"/>'+
-  '<path d="M19.6 30 Q19.6 16.6 30 15" fill="none" stroke="#FFFFFF" stroke-width="1.6" opacity=".5" stroke-linecap="round"/>'+
-  '<path d="M22.6 35.4 Q22.4 19 30.6 14" fill="none" stroke="'+AOUT+'" stroke-width=".9" opacity=".3"/>'+
-  '<path d="M41.4 35.4 Q41.6 19 33.4 14" fill="none" stroke="'+AOUT+'" stroke-width=".9" opacity=".3"/>'+
-  '<circle cx="18.4" cy="32.4" r=".9" fill="'+AOUT+'" opacity=".5"/>'+
-  '<circle cx="45.6" cy="32.4" r=".9" fill="'+AOUT+'" opacity=".5"/>'+
-  '<path d="M32 16.6 l2.8 4 -2.8 4 -2.8 -4 z" fill="url(#mrd)" stroke="'+AOUT+'" stroke-width=".9"/>'+
-  '<rect x="22.6" y="26.4" width="18.8" height="5" rx="2.5" fill="#100D1C" stroke="'+AOUT+'" stroke-width="1.2"/>'+
-  '<path d="M25 28.9 h4 M35 28.9 h4" stroke="#9A9A92" stroke-width="1.1" opacity=".6" stroke-linecap="round"/>'+
-  '<path d="M32 27 v3.8" stroke="#4C4C50" stroke-width=".9" opacity=".8"/>'+
-  '<rect x="11" y="35.8" width="42" height="7.2" rx="3.6" fill="url(#mdk)" stroke="'+AOUT+'" stroke-width="1.4"/>'+
-  '<rect x="12.6" y="37.2" width="38.8" height="1.4" rx=".7" fill="#FFCC55" opacity=".7"/>'+
-  '<circle cx="16.6" cy="41" r=".9" fill="#8E8E9A" opacity=".7"/>'+
-  '<circle cx="32" cy="41" r=".9" fill="#8E8E9A" opacity=".7"/>'+
-  '<circle cx="47.4" cy="41" r=".9" fill="#8E8E9A" opacity=".7"/>'+
-  '<path d="M22 46 q10 5 20 0" fill="none" stroke="'+AOUT+'" stroke-width="1.3" opacity=".45"/>',
-  // 신발 — 부츠. 정강이 판을 나누고 죔쇠 둘, 발등 판과 창 홈
-  ART_DEF+
-  '<path d="M23 14 L39 14 L39 38 L50 45 L50 50.6 L16 50.6 L16 42 L23 38 Z" fill="url(#bl)" stroke="'+AOUT+'" stroke-width="1.5" stroke-linejoin="round"/>'+
-  '<path d="M23 14 L31 14 L31 50.6 L16 50.6 L16 42 L23 38 Z" fill="#FFFFFF" opacity=".17"/>'+
-  '<rect x="20.6" y="8.6" width="20.8" height="7.2" rx="3.4" fill="url(#mdk)" stroke="'+AOUT+'" stroke-width="1.4"/>'+
-  '<rect x="22.2" y="10.6" width="17.6" height="1.6" rx=".8" fill="#EE4400" opacity=".85"/>'+
-  '<path d="M23 20.6 h16" stroke="'+AOUT+'" stroke-width="1.1" opacity=".45"/>'+
-  '<path d="M23 27.4 h16" stroke="'+AOUT+'" stroke-width="1.1" opacity=".45"/>'+
-  '<path d="M23 34.2 h16" stroke="'+AOUT+'" stroke-width="1.1" opacity=".45"/>'+
-  '<path d="M24.4 21.8 h13.2 M24.4 28.6 h13.2" stroke="#FFFFFF" stroke-width=".7" opacity=".35"/>'+
-  '<rect x="25.6" y="22.6" width="11" height="2.4" rx="1" fill="url(#mdk)" stroke="'+AOUT+'" stroke-width=".9"/>'+
-  '<rect x="25.6" y="29.4" width="11" height="2.4" rx="1" fill="url(#mdk)" stroke="'+AOUT+'" stroke-width=".9"/>'+
-  '<path d="M23 38 L39 38" stroke="'+AOUT+'" stroke-width="1.2" opacity=".5"/>'+
-  '<path d="M39 41.4 L47.6 46.6" stroke="'+AOUT+'" stroke-width="1" opacity=".4"/>'+
-  '<circle cx="31" cy="44" r="2.4" fill="url(#mrd)" stroke="'+AOUT+'" stroke-width="1"/>'+
-  '<path d="M17.6 44 L21.6 41.4" stroke="#FFFFFF" stroke-width=".8" opacity=".35"/>'+
-  '<rect x="14" y="48.8" width="38" height="6.4" rx="3.2" fill="url(#mlt)" stroke="'+AOUT+'" stroke-width="1.3"/>'+
-  '<path d="M16.6 50.4 h32.8" stroke="#8A5C33" stroke-width="1" opacity=".45"/>'+
-  '<path d="M20 52.6 v2 M26 52.6 v2 M32 52.6 v2 M38 52.6 v2 M44 52.6 v2" stroke="#1A0F08" stroke-width=".9" opacity=".6"/>',
-  // 장갑 — 건틀릿. 손가락 마디를 나누고 손등판에 리벳, 소맷단에 금 실선
-  ART_DEF+
-  '<rect x="21" y="14.6" width="6.4" height="10.4" rx="2.8" fill="url(#bl2)" stroke="'+AOUT+'" stroke-width="1.2"/>'+
-  '<rect x="29" y="11.6" width="6.4" height="13.4" rx="2.8" fill="url(#bl2)" stroke="'+AOUT+'" stroke-width="1.2"/>'+
-  '<rect x="37" y="13.6" width="6.4" height="11.4" rx="2.8" fill="url(#bl2)" stroke="'+AOUT+'" stroke-width="1.2"/>'+
-  '<path d="M21 19.6 h6.4 M29 17.4 h6.4 M37 18.8 h6.4" stroke="'+AOUT+'" stroke-width="1" opacity=".55"/>'+
-  '<path d="M22.4 16.4 v2.4 M30.4 13.4 v3 M38.4 15.4 v2.6" stroke="#FFFFFF" stroke-width="1.1" opacity=".5" stroke-linecap="round"/>'+
-  '<path d="M19 24 L45 21 L47 34 L45 49 Q32 55 19 49 L17 34 Z" fill="url(#bl)" stroke="'+AOUT+'" stroke-width="1.5" stroke-linejoin="round"/>'+
-  '<path d="M19 24 L32 22.5 L32 53.4 Q24.6 52.6 19 49 L17 34 Z" fill="#FFFFFF" opacity=".17"/>'+
-  '<path d="M17.6 28.6 L46.4 26" stroke="'+AOUT+'" stroke-width="1" opacity=".4"/>'+
-  '<path d="M17 34 L47 34" stroke="'+AOUT+'" stroke-width="1" opacity=".35"/>'+
-  '<circle cx="21.4" cy="30.4" r=".9" fill="'+AOUT+'" opacity=".5"/>'+
-  '<circle cx="42.6" cy="29.4" r=".9" fill="'+AOUT+'" opacity=".5"/>'+
-  '<circle cx="21.6" cy="42" r=".9" fill="'+AOUT+'" opacity=".5"/>'+
-  '<circle cx="42.4" cy="42" r=".9" fill="'+AOUT+'" opacity=".5"/>'+
-  '<path d="M26 33 l6 -4.8 6 4.8 -6 4.8 z" fill="url(#mrd)" stroke="'+AOUT+'" stroke-width="1"/>'+
-  '<path d="M19 44.6 Q32 48.4 45 44.6 L45 50.4 Q32 54.2 19 50.4 Z" fill="url(#mdk)" stroke="'+AOUT+'" stroke-width="1.4" stroke-linejoin="round"/>'+
-  '<path d="M19.4 46.2 Q32 50 44.6 46.2" fill="none" stroke="#FFCC55" stroke-width="1" opacity=".7"/>'+
-  '<path d="M25.6 47 L25.6 52 M38.4 47 L38.4 52" stroke="'+AOUT+'" stroke-width=".9" opacity=".5"/>',
-  // 벨트 — 가죽 띠와 버클. 박음질과 구멍을 넣고, 띠 끝에 쇠 물림
-  ART_DEF+
-  '<rect x="4" y="25.6" width="56" height="12.8" rx="1.8" fill="url(#mlt)" stroke="'+AOUT+'" stroke-width="1.5"/>'+
-  '<path d="M5 28.4 h54" stroke="#8A5C33" stroke-width="1" opacity=".4"/>'+
-  '<path d="M5 35.8 h54" stroke="'+AOUT+'" stroke-width="1" opacity=".6"/>'+
-  '<path d="M6 27.4 h2 M11 27.4 h2 M16 27.4 h2 M46 27.4 h2 M51 27.4 h2 M56 27.4 h2" stroke="#8A5C33" stroke-width=".8" opacity=".55"/>'+
-  '<path d="M6 36.8 h2 M11 36.8 h2 M16 36.8 h2 M46 36.8 h2 M51 36.8 h2 M56 36.8 h2" stroke="#8A5C33" stroke-width=".8" opacity=".4"/>'+
-  '<circle cx="13" cy="32" r="1.7" fill="'+AOUT+'"/><circle cx="20" cy="32" r="1.7" fill="'+AOUT+'"/>'+
-  '<circle cx="48" cy="32" r="1.7" fill="'+AOUT+'"/><circle cx="55" cy="32" r="1.7" fill="'+AOUT+'"/>'+
-  '<rect x="4.4" y="25.6" width="3.6" height="12.8" fill="url(#mdk)" stroke="'+AOUT+'" stroke-width="1.1"/>'+
-  '<rect x="56" y="25.6" width="3.6" height="12.8" fill="url(#mdk)" stroke="'+AOUT+'" stroke-width="1.1"/>'+
-  '<rect x="25.6" y="20.6" width="16.8" height="22.8" rx="3.6" fill="url(#mgd)" stroke="'+AOUT+'" stroke-width="1.6"/>'+
-  '<rect x="27.2" y="22" width="13.6" height="2.2" rx="1.1" fill="#FFF6C0" opacity=".6"/>'+
-  '<rect x="29.8" y="24.8" width="8.4" height="14.4" rx="2" fill="#100D1C" stroke="'+AOUT+'" stroke-width="1.2"/>'+
-  '<path d="M34 24.8 v14.4" stroke="#FFCC55" stroke-width="2.4"/>'+
-  '<path d="M34 24.8 v14.4" stroke="#FFF6C0" stroke-width=".8" opacity=".7"/>'+
-  '<path d="M27.4 41.6 h13.2" stroke="#5E3A04" stroke-width="1" opacity=".6"/>'+
-  '<path d="M30 20 l4 -5 l4 5 z" fill="url(#mrd)" stroke="'+AOUT+'" stroke-width="1.2" stroke-linejoin="round"/>',
-  // 어깨 — 견갑. 세 겹 판마다 리벳 줄, 위에 뿔 하나, 가운데 붉은 돌
-  ART_DEF+
-  '<path d="M46 10 L57 22 L52 30 L36 20 Z" fill="url(#bl2)" stroke="'+AOUT+'" stroke-width="1.4" stroke-linejoin="round"/>'+
-  '<path d="M46 12.6 L54.6 22.2" stroke="#FFFFFF" stroke-width="1.4" opacity=".55" stroke-linecap="round"/>'+
-  '<path d="M44 14.6 L51.4 23.6" stroke="'+AOUT+'" stroke-width=".9" opacity=".4"/>'+
-  '<path d="M8 30 Q10 13.6 30 11.6 Q48 12.6 52 28 L48 34 Q28 40 10 36 Z" fill="url(#bl)" stroke="'+AOUT+'" stroke-width="1.5" stroke-linejoin="round"/>'+
-  '<path d="M11.6 26.6 Q14.6 16 29 14.6" fill="none" stroke="#FFFFFF" stroke-width="1.8" opacity=".45" stroke-linecap="round"/>'+
-  '<path d="M17.6 13.6 Q16 24 16.6 34.6 M33 11.8 Q33.6 23 33.6 37" fill="none" stroke="'+AOUT+'" stroke-width=".9" opacity=".33"/>'+
-  '<path d="M9 38 Q28 44 49 37 L46 45 Q27 51 11 45 Z" fill="url(#bl2)" stroke="'+AOUT+'" stroke-width="1.4" stroke-linejoin="round"/>'+
-  '<circle cx="17" cy="41.6" r=".9" fill="'+AOUT+'" opacity=".55"/>'+
-  '<circle cx="28" cy="43.4" r=".9" fill="'+AOUT+'" opacity=".55"/>'+
-  '<circle cx="39" cy="41.6" r=".9" fill="'+AOUT+'" opacity=".55"/>'+
-  '<path d="M11 47 Q26 53 45 48 L43 55 Q26 60 13 54 Z" fill="url(#mdk)" stroke="'+AOUT+'" stroke-width="1.4" stroke-linejoin="round"/>'+
-  '<path d="M12 48.6 Q26 54.4 44 49.6" fill="none" stroke="#8E8E9A" stroke-width=".9" opacity=".45"/>'+
-  '<circle cx="27" cy="25" r="4.2" fill="url(#mrd)" stroke="'+AOUT+'" stroke-width="1.3"/>'+
-  '<circle cx="27" cy="25" r="6.4" fill="none" stroke="'+AOUT+'" stroke-width=".9" opacity=".35"/>',
-  // 망토 — 흰 겉감에 붉은 안감. 주름을 여러 겹, 아랫단은 물결
-  ART_DEF+
-  '<path d="M19 14 Q32 8.6 45 14 L53 53 Q42 59 32 55 Q22 59 11 53 Z" fill="url(#mcl)" stroke="'+AOUT+'" stroke-width="1.5" stroke-linejoin="round"/>'+
-  '<path d="M28.8 15.4 Q32 14.7 35.2 15.4 L36.9 54.4 Q32 56.1 27.1 54.4 Z" fill="url(#mrd)" opacity=".85"/>'+
-  '<path d="M29.7 16.7 Q32 16.2 34.3 16.7 L35.5 52.6 Q32 53.8 28.5 52.6 Z" fill="none" stroke="#6E0F04" stroke-width=".9" opacity=".5"/>'+
-  '<path d="M19 14 Q26 11 32 11.4 L32 55 Q22 59 11 53 Z" fill="#FFFFFF" opacity=".14"/>'+
-  '<path d="M23 17.4 L17.6 52.4 M41 17.4 L46.4 52.4" fill="none" stroke="'+AOUT+'" stroke-width="1.1" opacity=".42"/>'+
-  '<path d="M21 16.4 L14.6 52.6 M43 16.4 L49.4 52.6" fill="none" stroke="'+AOUT+'" stroke-width=".8" opacity=".28"/>'+
-  '<path d="M24.6 18 L20.6 51.6 M39.4 18 L43.4 51.6" fill="none" stroke="#FFFFFF" stroke-width=".8" opacity=".3"/>'+
-  '<path d="M11 53 q5.2 3.2 10.6 2.4 q5.4 -.8 10.4 1.6 q5 -2.4 10.4 -1.6 q5.4 .8 10.6 -2.4" fill="none" stroke="#FFFFFF" stroke-width="1.3" opacity=".55"/>'+
-  '<rect x="16.6" y="8.6" width="30.8" height="7.4" rx="3.6" fill="url(#mdk)" stroke="'+AOUT+'" stroke-width="1.4"/>'+
-  '<rect x="18.4" y="10" width="27.2" height="1.6" rx=".8" fill="#FFCC55" opacity=".65"/>'+
-  '<circle cx="20.6" cy="13.6" r=".9" fill="#8E8E9A" opacity=".7"/>'+
-  '<circle cx="43.4" cy="13.6" r=".9" fill="#8E8E9A" opacity=".7"/>'+
-  '<circle cx="32" cy="12.4" r="3.8" fill="url(#mrd)" stroke="'+AOUT+'" stroke-width="1.3"/>'+
-  '<circle cx="32" cy="12.4" r="5.8" fill="none" stroke="'+AOUT+'" stroke-width=".9" opacity=".4"/>'
+  // 한벌옷 — 원본은 어깨가 뿔처럼 보이고 몸통이 안 읽혔다. 흉갑을 세우고
+  // 어깨를 견갑으로 눕혔다. 보석 · 금 인레이 · 아래 V 발광은 원본 그대로
+  A100(
+  '<path d="M 14 41 C 14 26 26 19 34 24 L 36 43 Z" fill="url(#ad2)" stroke="'+AOUT+'" stroke-width="2"/>'+
+  '<path d="M 86 41 C 86 26 74 19 66 24 L 64 43 Z" fill="url(#ad2)" stroke="'+AOUT+'" stroke-width="2"/>'+
+  '<path d="M 17.5 37 C 19.5 27 27 23 32 25.5" fill="none" stroke="url(#ag)" stroke-width="2"/>'+
+  '<path d="M 82.5 37 C 80.5 27 73 23 68 25.5" fill="none" stroke="url(#ag)" stroke-width="2"/>'+
+  '<path d="M 34 22 L 66 22 L 70 34 L 68 62 C 68 74 60 82 50 84 C 40 82 32 74 32 62 L 30 34 Z" fill="url(#ad)" stroke="'+AOUT+'" stroke-width="2"/>'+
+  '<path d="M 34 22 L 50 22 L 50 84 C 40 82 32 74 32 62 L 30 34 Z" fill="#FFFFFF" opacity=".09"/>'+
+  '<path d="M 40 22 L 50 34 L 60 22" fill="none" stroke="'+AOUT+'" stroke-width="2"/>'+
+  '<path d="M 36 30 L 42 40 L 36 52" fill="none" stroke="url(#ag)" stroke-width="2"/>'+
+  '<path d="M 64 30 L 58 40 L 64 52" fill="none" stroke="url(#ag)" stroke-width="2"/>'+
+  '<polygon points="50,37 58,47 50,57 42,47" fill="url(#at2)" filter="url(#agl)"/>'+
+  '<polygon points="50,41 54,47 50,53 46,47" fill="#FFFFFF" opacity=".55"/>'+
+  '<path d="M 33 61 Q 50 67 67 61 L 66 70 Q 50 76 34 70 Z" fill="url(#ad2)" stroke="'+AOUT+'" stroke-width="2"/>'+
+  '<path d="M 34.6 62.8 Q 50 68.6 65.4 62.8" fill="none" stroke="url(#ag)" stroke-width="1.8"/>'+
+  '<path d="M 42 74 L 50 82 L 58 74" fill="none" stroke="url(#at2)" stroke-width="2"/>'),
+  // 모자 — 원본 그대로. 청록 날개 · 금 이마띠 · 발광 바이저 · 시안 보석
+  A100(
+  '<path d="M 22 45 C 10 35 12 15 30 25 C 25 35 28 42 35 45 Z" fill="url(#at)" stroke="'+AOUT+'" stroke-width="2"/>'+
+  '<path d="M 78 45 C 90 35 88 15 70 25 C 75 35 72 42 65 45 Z" fill="url(#at)" stroke="'+AOUT+'" stroke-width="2"/>'+
+  '<path d="M 30 40 C 30 20 70 20 70 40 L 75 65 C 75 75 65 82 50 82 C 35 82 25 75 25 65 Z" fill="url(#ad)" stroke="'+AOUT+'" stroke-width="2"/>'+
+  '<path d="M 31 40 C 31 22 50 21 50 21 L 50 82 C 35 82 25 75 25 65 Z" fill="#FFFFFF" opacity=".08"/>'+
+  '<path d="M 32 40 Q 50 30 68 40 Q 50 48 32 40 Z" fill="url(#ag)"/>'+
+  '<path d="M 35 52 Q 50 58 65 52 Q 50 62 35 52 Z" fill="#00FFFF" filter="url(#agl)"/>'+
+  '<polygon points="50,22 55,28 50,34 45,28" fill="#00FFFF" stroke="#008B8B" stroke-width="1"/>'),
+  // 신발 — 원본은 형태가 뭉개져 덩어리로 보였다. 정강이 · 발 · 밑창을
+  // 갈라 세우고 죔쇠 둘을 넣었다. 금 발등선과 보석은 원본에서 왔다
+  A100(
+  '<path d="M 34 14 L 66 14 L 64 52 L 36 52 Z" fill="url(#ad)" stroke="'+AOUT+'" stroke-width="2"/>'+
+  '<path d="M 34 14 L 50 14 L 50 52 L 36 52 Z" fill="#FFFFFF" opacity=".09"/>'+
+  '<rect x="31" y="9" width="38" height="10.5" rx="4" fill="url(#ad2)" stroke="'+AOUT+'" stroke-width="2"/>'+
+  '<path d="M 33.5 12.6 L 66.5 12.6" stroke="url(#ag)" stroke-width="2.6"/>'+
+  '<rect x="36.5" y="25" width="27" height="6.4" rx="2.6" fill="url(#ad2)" stroke="'+AOUT+'" stroke-width="1.6"/>'+
+  '<rect x="36.5" y="37" width="27" height="6.4" rx="2.6" fill="url(#ad2)" stroke="'+AOUT+'" stroke-width="1.6"/>'+
+  '<path d="M 39 28.2 L 61 28.2 M 39 40.2 L 61 40.2" stroke="url(#at)" stroke-width="1.7"/>'+
+  '<path d="M 36 52 L 64 52 L 80 70 C 84 76 80 82 72 82 L 26 82 C 20 82 20 74 24 70 Z" fill="url(#ad)" stroke="'+AOUT+'" stroke-width="2"/>'+
+  '<path d="M 36 52 L 50 52 L 50 82 L 26 82 C 20 82 20 74 24 70 Z" fill="#FFFFFF" opacity=".08"/>'+
+  '<path d="M 62 56 C 70 60 76 68 77.5 76" fill="none" stroke="url(#ag)" stroke-width="1.8"/>'+
+  '<circle cx="43" cy="66" r="4.6" fill="url(#at2)" filter="url(#agl)"/>'+
+  '<path d="M 20 79.5 L 82 79.5 C 87 79.5 87 88 82 88 L 20 88 C 15 88 15 79.5 20 79.5 Z" fill="#0A0F14" stroke="'+AOUT+'" stroke-width="1.6"/>'+
+  '<path d="M 25 84 L 77 84" stroke="#2B3B4C" stroke-width="1.6"/>'),
+  // 장갑 — 원본은 손가락이 없어 양동이로 보였다. 손가락 셋을 세우고
+  // 너클 플레이트를 올렸다. 보석 · 소맷단 금선 · 에너지 선은 원본 것
+  A100(
+  '<rect x="33.5" y="16" width="9.5" height="19" rx="4.4" fill="url(#ad2)" stroke="'+AOUT+'" stroke-width="2"/>'+
+  '<rect x="45" y="12" width="9.5" height="23" rx="4.4" fill="url(#ad2)" stroke="'+AOUT+'" stroke-width="2"/>'+
+  '<rect x="56.5" y="15" width="9.5" height="20" rx="4.4" fill="url(#ad2)" stroke="'+AOUT+'" stroke-width="2"/>'+
+  '<path d="M 34.5 25 L 42 25 M 46 21.5 L 53.5 21.5 M 57.5 24 L 65 24" stroke="'+AOUT+'" stroke-width="1.5" opacity=".8"/>'+
+  '<path d="M 28 32 L 72 30 L 74 52 L 70 70 C 60 76 42 76 32 70 L 27 52 Z" fill="url(#ad)" stroke="'+AOUT+'" stroke-width="2"/>'+
+  '<path d="M 28 32 L 50 31 L 50 74.5 C 42 74 36 72.6 32 70 L 27 52 Z" fill="#FFFFFF" opacity=".09"/>'+
+  '<rect x="36" y="36" width="28" height="11" rx="4" fill="url(#ad2)" stroke="url(#ag)" stroke-width="1.8"/>'+
+  '<circle cx="50" cy="57" r="6" fill="url(#at2)" filter="url(#agl)"/>'+
+  '<circle cx="47.8" cy="54.8" r="2" fill="#FFFFFF" opacity=".6"/>'+
+  '<path d="M 30 69 Q 50 77 70 69 L 72 81 Q 50 89 28 81 Z" fill="url(#ad2)" stroke="'+AOUT+'" stroke-width="2"/>'+
+  '<path d="M 31.4 71.4 Q 50 78.8 68.6 71.4" fill="none" stroke="url(#ag)" stroke-width="2"/>'+
+  '<path d="M 36 83 L 40 88 M 48 85 L 52 90 M 60 83 L 64 88" stroke="url(#at2)" stroke-width="2"/>'),
+  // 벨트 — 원본 그대로
+  A100(
+  '<path d="M 12 40 Q 50 50 88 40 L 88 56 Q 50 66 12 56 Z" fill="url(#ad)" stroke="'+AOUT+'" stroke-width="2"/>'+
+  '<path d="M 12 40 Q 31 45 50 47.6 L 50 63.4 Q 31 61 12 56 Z" fill="#FFFFFF" opacity=".08"/>'+
+  '<path d="M 12 42 Q 50 52 88 42" stroke="url(#ag)" stroke-width="1" fill="none"/>'+
+  '<path d="M 12 54 Q 50 64 88 54" stroke="url(#ag)" stroke-width="1" fill="none"/>'+
+  '<rect x="36" y="38" width="28" height="24" rx="4" fill="url(#ad2)" stroke="url(#ag)" stroke-width="2.5"/>'+
+  '<polygon points="50,42 57,50 50,58 43,50" fill="#00F2FE" filter="url(#agl)"/>'+
+  '<circle cx="24" cy="47" r="2" fill="url(#ag)"/>'+
+  '<circle cx="76" cy="47" r="2" fill="url(#ag)"/>'),
+  // 어깨 — 원본 그대로
+  A100(
+  '<path d="M 20 40 C 20 20 80 20 80 40 C 85 60 70 75 50 78 C 30 75 15 60 20 40 Z" fill="url(#ad)" stroke="'+AOUT+'" stroke-width="2"/>'+
+  '<path d="M 20 40 C 20 20 50 20 50 20 L 50 78 C 30 75 15 60 20 40 Z" fill="#FFFFFF" opacity=".08"/>'+
+  '<path d="M 20 40 C 20 20 80 20 80 40" stroke="url(#ag)" stroke-width="3" fill="none"/>'+
+  '<path d="M 30 42 C 30 28 70 28 70 42 C 72 55 62 65 50 68 C 38 65 28 55 30 42 Z" fill="#18222D" stroke="url(#ag)" stroke-width="1.5"/>'+
+  '<polygon points="50,32 60,45 50,58 40,45" fill="#00F2FE" filter="url(#agl)"/>'+
+  '<polygon points="50,36 55,45 50,54 45,45" fill="#FFFFFF" opacity=".6"/>'),
+  // 망토 — 원본 그대로. 천은 강철이 아니니 결도 색도 따로 둔다
+  A100(
+  '<path d="M 35 22 L 65 22 L 75 32 L 25 32 Z" fill="url(#ad2)" stroke="'+AOUT+'" stroke-width="2"/>'+
+  '<circle cx="50" cy="27" r="4" fill="#00F2FE" filter="url(#agl)"/>'+
+  '<path d="M 26 32 L 74 32 C 80 55 85 75 88 82 C 72 78 60 85 50 80 C 40 85 28 78 12 82 C 15 75 20 55 26 32 Z" fill="url(#act)" stroke="'+AOUT+'" stroke-width="2"/>'+
+  '<path d="M 26 32 L 50 32 L 50 80 C 40 85 28 78 12 82 C 15 75 20 55 26 32 Z" fill="#FFFFFF" opacity=".07"/>'+
+  '<path d="M 26 32 C 20 55 15 75 12 82" stroke="url(#ag)" stroke-width="2" fill="none"/>'+
+  '<path d="M 74 32 C 80 55 85 75 88 82" stroke="url(#ag)" stroke-width="2" fill="none"/>'+
+  '<path d="M 12 82 C 28 78 40 85 50 80 C 60 85 72 78 88 82" stroke="url(#ag)" stroke-width="2" fill="none"/>'+
+  '<path d="M 38 42 Q 50 48 62 42" stroke="#00F2FE" stroke-width="1.5" fill="none" opacity=".8"/>'+
+  '<path d="M 34 58 Q 50 65 66 58" stroke="#00F2FE" stroke-width="1.5" fill="none" opacity=".8"/>')
 ];
 
 /* ---------- 그리기 ---------- */
@@ -2550,7 +2486,9 @@ function renderItem(){
   $('starV').textContent=it.star;
   const art=$('itemArt'), si=String(S.sel||0)+'/'+jobKey();   // 직업을 바꾸면 무기도 다시 그린다
   if(art.dataset.slot!==si){
-    const sc=[1,1.1,1.05,1.05,1.2,1.15,1.1,1.05][S.sel||0]||1;   // 검 기준으로 다른 부위 크기를 맞춘다
+    // 새 그림 세트는 부위마다 같은 100 자리 틀에 맞춰 그려져 있어서,
+    // 예전처럼 부위별로 크기를 맞춰 줄 일이 없다. 벨트만 납작해서 조금 키운다.
+    const sc=[1,1,1,1,1,1.12,1,1][S.sel||0]||1;
     const g=(S.sel||0)===0?(WEAPON_ART[jobKey()]||WEAPON_ART.war):SLOT_ART[S.sel||0];
     art.innerHTML='<g transform="translate(32,32) scale('+sc+') translate(-32,-32)">'+g+'</g>';
     art.dataset.slot=si;
