@@ -967,6 +967,8 @@ td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
 .rempty{color:var(--dimmer);font-weight:500;padding:20px 4px;text-align:center;}
 @media (max-width:719px){ .rankwrap{display:none;} .rlist{display:flex;} }
 /* 랭킹 탭 */
+.rtab b{font-family:'Bebas Neue',sans-serif;font-size:14px;margin-left:5px;color:var(--dimmer);}
+.rtab[aria-selected="true"] b{color:var(--gold);}
 .rtabs{display:flex;gap:6px;margin-bottom:13px;}
 .rtab{padding:8px 15px;border-radius:10px;border:1px solid var(--edge);background:transparent;
   color:var(--dim);font-weight:900;font-size:13px;font-family:inherit;cursor:pointer;}
@@ -1201,25 +1203,35 @@ td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
   <div class="view" id="viewInv" hidden>
   <section class="card">
     <h2>가방</h2>
-    <h3>소지품 — 가지고 있으면 메소보다 먼저 쓴다</h3>
-    <div class="baglist" id="bagItems"></div>
-    <p class="attnote" id="bagNote"></p>
-    <h3>착용 중 — 눌러서 그 부위로, ×로 벗는다</h3>
-    <div class="ggrid" id="bagGear"></div>
-    <p class="attnote" id="gearNote" style="text-align:left"></p>
-    <h3>보관함 — 보스가 떨군 장비 <span class="bagcount" id="bagCount">0 / 30</span></h3>
-    <div class="gbar">
-      <select id="bagSort">
-        <option value="up">이득 큰 순</option>
-        <option value="slot">부위 순</option>
-        <option value="star">성수치 순</option>
-        <option value="new">새로 들어온 순</option>
-      </select>
-      <button class="btn" id="meltJunk" hidden>정리</button>
-      <span class="sp" id="bagSp"></span>
+    <div class="rtabs">
+      <button class="rtab" id="btGear" aria-selected="true">장비</button>
+      <button class="rtab" id="btUse" aria-selected="false">소모품 <b id="btUseN"></b></button>
     </div>
-    <div class="ggrid" id="bagDrops"></div>
-    <p class="attnote" id="dropNote"></p>
+
+    <div id="bagPaneGear">
+      <h3>착용 중 — 눌러서 그 부위로, ×로 벗는다</h3>
+      <div class="ggrid" id="bagGear"></div>
+      <p class="attnote" id="gearNote" style="text-align:left"></p>
+      <h3>보관함 — 보스가 떨군 장비 <span class="bagcount" id="bagCount">0 / 30</span></h3>
+      <div class="gbar">
+        <select id="bagSort">
+          <option value="up">이득 큰 순</option>
+          <option value="slot">부위 순</option>
+          <option value="star">성수치 순</option>
+          <option value="new">새로 들어온 순</option>
+        </select>
+        <button class="btn" id="meltJunk" hidden>정리</button>
+        <span class="sp" id="bagSp"></span>
+      </div>
+      <div class="ggrid" id="bagDrops"></div>
+      <p class="attnote" id="dropNote"></p>
+    </div>
+
+    <div id="bagPaneUse" hidden>
+      <h3>소모품 — 가지고 있으면 메소보다 먼저 쓴다</h3>
+      <div class="baglist" id="bagItems"></div>
+      <p class="attnote" id="bagNote"></p>
+    </div>
   </section>
   </div>
 
@@ -4192,8 +4204,18 @@ const BAG=[
 ];
 const BAGTOK={n:'토벌 증표', ic:'◈', c:'#7CFFB0', d:'상점의 토벌 교환소에서 쓴다'};
 const bagVal=k=>{ const c=CUBES.find(function(x){return x.k===k;}); return c?c.cost:0; };
+// 가방은 두 탭이다. 장비와 소모품은 생긴 것도 하는 일도 달라서,
+// 한 화면에 세로로 쌓으니 장비를 보려고 소모품을 지나쳐야 했다.
+let bagTab='gear';
 function renderBag(){
   if(!S.inv) S.inv=defInv();
+  $('bagPaneGear').hidden=bagTab!=='gear';
+  $('bagPaneUse').hidden=bagTab!=='use';
+  $('btGear').setAttribute('aria-selected',String(bagTab==='gear'));
+  $('btUse').setAttribute('aria-selected',String(bagTab==='use'));
+  // 소모품 탭에 몇 개 있는지는 열지 않아도 보여야 한다.
+  const useN=BAG.reduce(function(a,b){ return a+(S.inv[b.k]|0); },0)+(S.tok|0);
+  $('btUseN').textContent=useN?useN:'';
   const L=$('bagItems'); L.innerHTML='';
   let none=true;
   BAG.forEach(function(b){
@@ -5604,6 +5626,8 @@ $('burger').addEventListener('click',function(){ $('menu').hidden=false; });
 $('mAtt').addEventListener('click',function(){ $('menu').hidden=true; renderDaily(); $('attend').hidden=false; });
 $('meltJunk').addEventListener('click',function(){ ac(); meltJunk(); });
 $('bagSort').addEventListener('change',function(){ renderBag(); save(); });
+$('btGear').addEventListener('click',function(){ ac(); bagTab='gear'; renderBag(); });
+$('btUse').addEventListener('click',function(){ ac(); bagTab='use'; renderBag(); });
 $('mJob').addEventListener('click',function(){ $('menu').hidden=true; openJobs('change'); });
 $('jobClose').addEventListener('click',function(){ $('jobPick').hidden=true; save(); });
 // 비교창은 바깥을 눌러 닫을 수 있다 — 그러면 지금 잠재가 그대로 남는다.
@@ -5645,7 +5669,7 @@ initOnline();
 
 // 균형 점검용 노출 (게임 동작에는 영향 없음)
 try{ window.__CFG={SF,MAXSTAR,starCost,SHIELD,SLOTS,OPT,POOL,GCAP,UPRATE,UPGRADE,CUBES,
-  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,skPct,SKMUL,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,cpAx,potAx,slotAx,atkPow,survPow,lineHTML,potGradeOf,evenGrade,c5On,C5N,showPick,again,openPeek,gearRec,forestRows,unequip,canOff,swapGain,deltaHTML,renderForestRank,autoPost,canAuto,betterThanPosted,pkNew,pkGrade,critRate,critMult,CRIT,FOR,fStart,fGrow,fStep,fRng,fMeters,fPx,fT,fVal,fEnter,fEnd,fReward,fRun,fRec,renderForest,renderStat,statOf,sumOpt,mastSum,slotPow,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,navViews,viewIdx,swipeTarget,swipeBlocked,VIEWS,topBoss,bossLabel,myRec,DNAME,ACH,achStat,MAXLV,lvBonus,lvMult,LVK,SLOT_ART,WEAPON_ART,stash,bagStar,bagLines,bagP4,dropSlot,BTYPE,renderAll,CRCOL,passTime,offerOffline,OFF_CAP,OFF_RATE,TR,carryLines,showDrop,cost,protUse,safeUse,IGCOST,igCost,MAST,MPS,mpFor,mastOf,mastFree,mastMult,mastSum,trStar,renderMast,starMult,expMult,IGSTAR,engrave,ENG,renderShop,renderCubes,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,crt2,bossSReq,SREQ_K,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
+  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,skPct,SKMUL,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,cpAx,potAx,slotAx,atkPow,survPow,lineHTML,potGradeOf,evenGrade,c5On,C5N,showPick,again,openPeek,gearRec,forestRows,unequip,canOff,swapGain,deltaHTML,renderBag,renderForestRank,autoPost,canAuto,betterThanPosted,pkNew,pkGrade,critRate,critMult,CRIT,FOR,fStart,fGrow,fStep,fRng,fMeters,fPx,fT,fVal,fEnter,fEnd,fReward,fRun,fRec,renderForest,renderStat,statOf,sumOpt,mastSum,slotPow,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,navViews,viewIdx,swipeTarget,swipeBlocked,VIEWS,topBoss,bossLabel,myRec,DNAME,ACH,achStat,MAXLV,lvBonus,lvMult,LVK,SLOT_ART,WEAPON_ART,stash,bagStar,bagLines,bagP4,dropSlot,BTYPE,renderAll,CRCOL,passTime,offerOffline,OFF_CAP,OFF_RATE,TR,carryLines,showDrop,cost,protUse,safeUse,IGCOST,igCost,MAST,MPS,mpFor,mastOf,mastFree,mastMult,mastSum,trStar,renderMast,starMult,expMult,IGSTAR,engrave,ENG,renderShop,renderCubes,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,crt2,bossSReq,SREQ_K,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
   get state(){return S;}, cur, power, income, mesoMult, dropMult, starMult, potMultOf, POTG, odds, potGrade, topGrade, totalStars, sfBonus}; }catch(e){}
 })();
 </script>
