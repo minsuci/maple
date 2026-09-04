@@ -194,6 +194,13 @@ button:disabled{cursor:not-allowed;opacity:.45;}
 .clines .potline .v{font-size:15px;}
 .cpow{margin-top:9px;font-family:'Gothic A1',sans-serif;font-weight:900;font-size:13px;color:var(--gold);}
 .cmpbtns{display:flex;gap:10px;margin-top:14px;}
+.cmpbtns .btn{white-space:nowrap;padding-left:10px;padding-right:10px;}
+.askrow{display:flex;justify-content:space-between;align-items:baseline;gap:10px;
+  background:#15122C;border:1px solid var(--edge);border-radius:9px;
+  padding:8px 11px;margin-bottom:5px;font-size:12.5px;}
+.askrow span{color:var(--dim);}
+.askrow b{font-family:'Bebas Neue',sans-serif;font-size:17px;letter-spacing:.02em;
+  color:var(--gold);font-variant-numeric:tabular-nums;}
 .cmpbtns .btn{flex:1;}
 .odd{background:#15122C;border:1px solid var(--edge);border-radius:10px;padding:9px 10px;text-align:center;}
 .odd dt{font-size:10px;letter-spacing:.16em;font-weight:900;color:var(--dimmer);}
@@ -3374,10 +3381,11 @@ function showDrop(slot,g,fromName,bagIdx){
   const trKeep=Math.max(nStar,trStar(it.star)), trHave=(S.inv.tr|0);
   const trMp=Math.round(mpFor(it.star,trKeep)*igCost(it));   // 비싸게 박은 별일수록 많이 돌려준다
   const trLines=carryLines(it,g);
-  wear.textContent='그대로 착용 ('+nStar+'★'+(nLines.length?' · 잠재 '+nLines.length+'줄':'')+')';
-  melt.textContent='분해 (+'+fmt(meltValue(g))+')';
-  tr.textContent='전수 — 주문서 '+trHave+'장 ('+trKeep+'★'+
-    (trLines.length?' · 잠재 '+trLines.length+'줄':'')+(trMp?' · 마스터리 +'+trMp:'')+')';
+  // 단추에 결과를 다 적으니 글씨가 대여섯 줄로 접히고, 그 높이에 맞춰
+  // 나머지 둘까지 늘어났다. 이름만 남기고 자세한 건 눌렀을 때 보여준다.
+  wear.textContent='그대로 착용';
+  melt.textContent='분해';
+  tr.textContent='전수'+(trHave?'':' (주문서 없음)');
   tr.disabled=trHave<1||(it.star<1&&!trLines.length);
   const drophere=function(){ if(bagIdx>=0&&S.bag) S.bag.splice(bagIdx,1); };
   // keep=true 면 쓰던 장비를 가방에 남긴다. 전수는 쓰던 걸 태워 넣는 거라 남기지 않는다.
@@ -3393,13 +3401,34 @@ function showDrop(slot,g,fromName,bagIdx){
     log('<b>'+IGNAME[g]+' '+SLOTS[slot].n+'</b>으로 갈아탔다 — '+star+'★'+(ln||', 잠재 초기화'),'up');
     S.sel=slot; renderAll(); save();
   };
-  wear.onclick=function(){ take(nStar,nLines,nP4,true); };
+  wear.onclick=function(){
+    // 이건 되돌릴 수 있다(쓰던 건 가방에 남는다). 묻지 않고 바로 간다.
+    take(nStar,nLines,nP4,true);
+  };
   tr.onclick=function(){
     if((S.inv.tr|0)<1) return;
+    box.hidden=true;
+    ask('전수',
+      '<div class="askrow"><span>새 장비 성수치</span>'+
+        '<b>'+trKeep+'\u2605</b></div>'+
+      '<div class="askrow"><span>따라가는 잠재</span>'+
+        '<b>'+(trLines.length?(trLines.length+'줄'):'없음')+'</b></div>'+
+      (trMp?('<div class="askrow"><span>'+SLOTS[slot].n+' 마스터리</span>'+
+        '<b style="color:#8FE3B0">+'+trMp+'</b></div>'):'')+
+      '<div class="askrow"><span>전수 주문서</span>'+
+        '<b>'+trHave+'장 \u2192 '+(trHave-1)+'장</b></div>'+
+      '<p class="asknote">쓰던 '+IGNAME[it.ig]+' '+SLOTS[slot].n+'('+it.star+'\u2605)를 <b>태워 넣는다</b> — '+
+        '가방에 남지 않는다.'+
+        (trLines.length<((it.lines&&it.lines.length)||0)
+          ? ('<br>지금 잠재 '+it.lines.length+'줄 중 <b>'+trLines.length+'줄만</b> 따라간다 — 새 장비는 아직 각인이 없다.')
+          : '')+'</p>',
+      '전수한다',
+      function(){
     S.inv.tr--;
     if(trMp){ mastOf(slot).p+=trMp; }
     take(trKeep,trLines.length?trLines:nLines,false,false);
     if(trMp) flash('마스터리 +'+trMp,SLOTS[slot].n+'에 쌓였다 — 강화대에서 찍는다','#7CFFB0');
+      });
   };
   melt.onclick=function(){
     const m=meltValue(g);
@@ -3412,12 +3441,10 @@ function showDrop(slot,g,fromName,bagIdx){
         log(IGNAME[g]+' '+SLOTS[slot].n+'을(를) 분해했다 — <b>+'+fmt(m)+'</b> 메소','');
         SND.coin(); renderAll(); save(); });
   };
-  $('dropNote').innerHTML='<b>전수</b>는 별을 <b>절반</b>으로 내주고 <b>잠재</b>를 옮긴다. '+
-    '버린 별에 들어갔던 돈은 <b>마스터리 포인트</b>로 돌아온다 — 부위에 남아 갈아타도 사라지지 않는다.<br>'+
-    '주문서는 상점에서 '+fmt(TR.cost)+'.'+
-    (trLines.length<((it.lines&&it.lines.length)||0)
-      ? '<br><b style="color:var(--bad)">지금 잠재 '+it.lines.length+'줄 중 '+trLines.length+'줄만 따라간다</b> — 새 장비는 아직 각인이 없다.'
-      : '');
+  // 자세한 건 단추를 누르면 나온다. 여기는 무엇을 고르는 자리인지만.
+  $('dropNote').innerHTML=
+    '<b>그대로 착용</b>은 쓰던 것을 가방에 남긴다 · '+
+    '<b>전수</b>는 쓰던 것을 태워 별 절반과 잠재를 옮긴다 (주문서 '+trHave+'장)';
   box.hidden=false;
 }
 
