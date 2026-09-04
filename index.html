@@ -559,26 +559,37 @@ td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
 /* ---------- 가방 ---------- */
 /* 가방 격자 — 줄 목록은 한 화면에 넷이 안 들어간다. 서른 칸을 훑으려면
    아이콘 격자여야 하고, 대신 무엇이 얼마나 오르는지를 타일에 얹는다. */
-.ggrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(78px,1fr));gap:7px;margin-bottom:10px;}
-.gt{position:relative;border:1px solid var(--edge);border-radius:11px;background:#15122C;
-  padding:6px 5px 5px;cursor:pointer;font-family:inherit;color:inherit;
-  display:flex;flex-direction:column;align-items:center;gap:2px;}
+/* 확인창 */
+.askitem{display:grid;grid-template-columns:44px 1fr;gap:11px;align-items:center;
+  background:#15122C;border:1px solid var(--edge);border-radius:10px;padding:9px 11px;margin-bottom:6px;}
+.askitem svg{width:44px;height:44px;overflow:visible;filter:drop-shadow(0 2px 3px #000A);}
+.askitem .t{font-size:13px;font-weight:900;}
+.askitem .t b{font-family:'Bebas Neue',sans-serif;font-size:16px;color:var(--gold);}
+.askitem .s{font-size:11px;color:var(--dimmer);margin-top:2px;line-height:1.5;}
+.asknote{margin:11px 0 0;font-size:12px;color:var(--dim);line-height:1.7;text-align:center;}
+.asknote b{color:var(--bad);}
+/* 타일이 컸다. 서른 칸을 훑는 자리라 한 화면에 더 들어가는 게 낫다 -
+   78px 넉 줄이던 것을 62px 로 줄여 좁은 폰에서도 다섯 칸이 선다. */
+.ggrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(62px,1fr));gap:5px;margin-bottom:10px;}
+.gt{position:relative;border:1px solid var(--edge);border-radius:9px;background:#15122C;
+  padding:4px 3px 3px;cursor:pointer;font-family:inherit;color:inherit;
+  display:flex;flex-direction:column;align-items:center;gap:1px;}
 .gt:hover{border-color:var(--edge2);}
 .gt.on{border-color:var(--gold);background:#241C05;}
 .gt.broken{border-color:var(--bad);}
 .gt.up{border-color:var(--ok);background:#0E2418;}
 .gt.empty{opacity:.4;}
-.gt svg{width:40px;height:40px;overflow:visible;filter:drop-shadow(0 2px 3px #000A);}
-.gt .gg{position:absolute;top:4px;left:5px;font-size:9px;font-weight:900;line-height:1;
-  padding:2px 4px;border-radius:5px;background:#0B0A14CC;}
-.gt .gs{position:absolute;top:4px;right:5px;font-family:'Bebas Neue',sans-serif;font-size:13px;
-  line-height:1;color:var(--gold);background:#0B0A14CC;padding:2px 4px;border-radius:5px;}
-.gt .gn{font-size:10px;color:var(--dim);font-weight:700;max-width:100%;
+.gt svg{width:32px;height:32px;overflow:visible;filter:drop-shadow(0 2px 3px #000A);}
+.gt .gg{position:absolute;top:2px;left:3px;font-size:8px;font-weight:900;line-height:1;
+  padding:2px 3px;border-radius:4px;background:#0B0A14CC;}
+.gt .gs{position:absolute;top:2px;right:3px;font-family:'Bebas Neue',sans-serif;font-size:11px;
+  line-height:1;color:var(--gold);background:#0B0A14CC;padding:2px 3px;border-radius:4px;}
+.gt .gn{font-size:9px;color:var(--dim);font-weight:700;max-width:100%;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .gt .gd{display:flex;flex-direction:column;gap:0;align-items:center;line-height:1.25;}
-.gt .gd i{font-style:normal;font-family:'Bebas Neue',sans-serif;font-size:12.5px;
+.gt .gd i{font-style:normal;font-family:'Bebas Neue',sans-serif;font-size:11px;
   letter-spacing:.02em;font-variant-numeric:tabular-nums;}
-.gt .gx{position:absolute;bottom:4px;right:4px;width:19px;height:19px;border-radius:50%;
+.gt .gx{position:absolute;bottom:2px;right:2px;width:17px;height:17px;border-radius:50%;
   border:1px solid var(--edge2);background:#0B0A14;color:var(--dim);font-size:11px;
   line-height:1;display:grid;place-items:center;padding:0;}
 .gt .gx:hover:not(:disabled){border-color:var(--bad);color:var(--bad);}
@@ -587,8 +598,8 @@ td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
 .gbar select{padding:7px 9px;border-radius:9px;border:1px solid var(--edge2);
   background:#0F0C22;color:var(--text);font-family:inherit;font-size:12px;font-weight:700;}
 .gbar .sp{margin-left:auto;font-size:11px;color:var(--dimmer);}
-@media (max-width:400px){ .ggrid{grid-template-columns:repeat(auto-fill,minmax(70px,1fr));}
-  .gt svg{width:34px;height:34px;} }
+@media (max-width:400px){ .ggrid{grid-template-columns:repeat(auto-fill,minmax(56px,1fr));}
+  .gt svg{width:28px;height:28px;} .gt .gd i{font-size:10px;} }
 .baglist{display:flex;flex-direction:column;gap:6px;margin-bottom:12px;}
 .bagrow{display:grid;grid-template-columns:34px 1fr auto auto;gap:11px;align-items:center;text-align:left;
   background:#15122C;border:1px solid var(--edge);border-radius:10px;padding:9px 12px;width:100%;}
@@ -1355,6 +1366,17 @@ td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
 </div>
 
 <div class="swipehint" id="swipeHint" hidden></div>
+
+<div class="compare" id="ask" hidden>
+  <div class="cmpcard" style="width:min(380px,100%)">
+    <h2 id="askTitle">확인</h2>
+    <div id="askBody"></div>
+    <div class="cmpbtns">
+      <button class="btn" id="askNo">그만두기</button>
+      <button class="btn gold" id="askYes">그렇게 한다</button>
+    </div>
+  </div>
+</div>
 
 <div class="compare" id="peek" hidden>
   <div class="cmpcard">
@@ -3379,9 +3401,17 @@ function showDrop(slot,g,fromName,bagIdx){
     take(trKeep,trLines.length?trLines:nLines,false,false);
     if(trMp) flash('마스터리 +'+trMp,SLOTS[slot].n+'에 쌓였다 — 강화대에서 찍는다','#7CFFB0');
   };
-  melt.onclick=function(){ const m=meltValue(g); S.meso+=m; drophere(); box.hidden=true;
-    log(IGNAME[g]+' '+SLOTS[slot].n+'을(를) 분해했다 — <b>+'+fmt(m)+'</b> 메소','');
-    renderAll(); save(); };
+  melt.onclick=function(){
+    const m=meltValue(g);
+    box.hidden=true;
+    ask('분해',
+      meltCard(slot,g,nStar,nLines,drop?drop.name:'')+
+      '<p class="asknote">없애고 <b>'+fmt(m)+'</b> 메소를 받는다. <b>되돌릴 수 없다.</b></p>',
+      '분해한다',
+      function(){ S.meso+=m; drophere();
+        log(IGNAME[g]+' '+SLOTS[slot].n+'을(를) 분해했다 — <b>+'+fmt(m)+'</b> 메소','');
+        SND.coin(); renderAll(); save(); });
+  };
   $('dropNote').innerHTML='<b>전수</b>는 별을 <b>절반</b>으로 내주고 <b>잠재</b>를 옮긴다. '+
     '버린 별에 들어갔던 돈은 <b>마스터리 포인트</b>로 돌아온다 — 부위에 남아 갈아타도 사라지지 않는다.<br>'+
     '주문서는 상점에서 '+fmt(TR.cost)+'.'+
@@ -4181,17 +4211,54 @@ function openJobs(mode){ jobMode=mode||'change'; renderJobs(); $('jobPick').hidd
 
 function meltJunk(){
   if(!Array.isArray(S.bag)) return;
-  let m=0, n=0;
-  S.bag=S.bag.filter(function(b){
-    if(b.ig>S.items[b.slot].ig) return true;
-    m+=meltValue(b.ig); n++; return false;
-  });
-  if(!n) return;
-  S.meso+=m; SND.coin();
-  log('가방의 <b>'+n+'개</b>를 분해했다 — <b>+'+fmt(m)+'</b> 메소','ok');
-  renderAll(); save();
+  // 무엇이 없어지는지 먼저 세어 보여준다. 한 번에 스물몇 개가 날아가는
+  // 단추라, 누르자마자 지우면 되돌릴 방법이 없다.
+  const doomed=S.bag.filter(function(b){ return b.ig<=S.items[b.slot].ig; });
+  if(!doomed.length) return;
+  const m=doomed.reduce(function(a,b){ return a+meltValue(b.ig); },0);
+  const top=doomed.slice().sort(function(x,y){ return bagStar(y)-bagStar(x); }).slice(0,4);
+  ask('가방 정리',
+    '<p class="asknote" style="margin-top:0">지금 낀 것보다 <b>등급이 낮은</b> '+doomed.length+'개를 없앤다.</p>'+
+    top.map(function(b){ return meltCard(b.slot,b.ig,bagStar(b),bagLines(b),b.name); }).join('')+
+    (doomed.length>top.length?('<p class="asknote">그 밖에 '+(doomed.length-top.length)+'개 더</p>'):'')+
+    '<p class="asknote">모두 합쳐 <b>'+fmt(m)+'</b> 메소를 받는다. <b>되돌릴 수 없다.</b></p>',
+    doomed.length+'개 분해한다',
+    function(){
+      let n=0;
+      S.bag=S.bag.filter(function(b){
+        if(b.ig>S.items[b.slot].ig) return true;
+        n++; return false;
+      });
+      S.meso+=m; SND.coin();
+      log('가방의 <b>'+n+'개</b>를 분해했다 — <b>+'+fmt(m)+'</b> 메소','ok');
+      renderAll(); save();
+    });
 }
 
+/* ---------- 되돌릴 수 없는 것은 한 번 묻는다 ---------- */
+// 분해는 물릴 수가 없다. 36성 레전더리를 잘못 누르면 그걸로 끝이라,
+// 무엇을 얼마에 없애는지 적어 보여주고 확인을 받는다.
+let askYes=null;
+function ask(title,body,yes,onOk){
+  $('askTitle').textContent=title;
+  $('askBody').innerHTML=body;
+  $('askYes').textContent=yes||'그렇게 한다';
+  askYes=onOk;
+  $('ask').hidden=false;
+}
+function askClose(){ $('ask').hidden=true; askYes=null; }
+// 분해할 장비 한 장을 그대로 보여준다 - 이름만 적으면 무엇을 없애는지 모른다.
+function meltCard(slot,ig,star,lines,name){
+  return '<div class="askitem">'+
+    '<svg viewBox="0 0 64 64" aria-hidden="true">'+
+      (slot===0?(WEAPON_ART[jobKey()]||WEAPON_ART.war):SLOT_ART[slot])+'</svg>'+
+    '<div><div class="t">'+SLOTS[slot].n+' <span class="gradetag '+GKEY[ig]+'">'+IGNAME[ig]+'</span>'+
+      (star?' <b>'+star+'\u2605</b>':'')+'</div>'+
+    '<div class="s">'+esc(name||'')+'</div>'+
+    ((lines&&lines.length)?('<div class="s">'+lines.map(function(l){
+      return '<b style="color:'+GCOL[l.g]+'">'+OPT[l.k].n+' +'+l.v+OPT[l.k].u+'</b>'; }).join(' · ')+'</div>'):'')+
+    '</div></div>';
+}
 /* ---------- 가방 ---------- */
 const BAG=[
   {k:'red',    n:'레드 큐브',   ic:'◆', c:'#FF5E6C', d:'세 줄 전부 재설정 · 결과 그대로'},
@@ -5635,6 +5702,9 @@ $('compare').addEventListener('click',function(e){
   if(e.target===$('compare')){ $('compare').hidden=true; $('compare').classList.remove('c5wrap');
     log('큐브 결과를 버렸다 — 지금 옵션이 그대로다',''); busy=false; renderAll(); } });
 $('pkClose').addEventListener('click',function(){ $('peek').hidden=true; });
+$('askNo').addEventListener('click',function(){ ac(); askClose(); });
+$('askYes').addEventListener('click',function(){ const f=askYes; ac(); askClose(); if(f) f(); });
+$('ask').addEventListener('click',function(e){ if(e.target===$('ask')) askClose(); });
 $('peek').addEventListener('click',function(e){ if(e.target===$('peek')) $('peek').hidden=true; });
 // 줄이 다시 그려져도 살아 있게 위에서 한 번만 잡는다
 ['rankList','rankBody'].forEach(function(k){
@@ -5669,7 +5739,7 @@ initOnline();
 
 // 균형 점검용 노출 (게임 동작에는 영향 없음)
 try{ window.__CFG={SF,MAXSTAR,starCost,SHIELD,SLOTS,OPT,POOL,GCAP,UPRATE,UPGRADE,CUBES,
-  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,skPct,SKMUL,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,cpAx,potAx,slotAx,atkPow,survPow,lineHTML,potGradeOf,evenGrade,c5On,C5N,showPick,again,openPeek,gearRec,forestRows,unequip,canOff,swapGain,deltaHTML,renderBag,renderForestRank,autoPost,canAuto,betterThanPosted,pkNew,pkGrade,critRate,critMult,CRIT,FOR,fStart,fGrow,fStep,fRng,fMeters,fPx,fT,fVal,fEnter,fEnd,fReward,fRun,fRec,renderForest,renderStat,statOf,sumOpt,mastSum,slotPow,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,navViews,viewIdx,swipeTarget,swipeBlocked,VIEWS,topBoss,bossLabel,myRec,DNAME,ACH,achStat,MAXLV,lvBonus,lvMult,LVK,SLOT_ART,WEAPON_ART,stash,bagStar,bagLines,bagP4,dropSlot,BTYPE,renderAll,CRCOL,passTime,offerOffline,OFF_CAP,OFF_RATE,TR,carryLines,showDrop,cost,protUse,safeUse,IGCOST,igCost,MAST,MPS,mpFor,mastOf,mastFree,mastMult,mastSum,trStar,renderMast,starMult,expMult,IGSTAR,engrave,ENG,renderShop,renderCubes,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,crt2,bossSReq,SREQ_K,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
+  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,skPct,SKMUL,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,cpAx,potAx,slotAx,atkPow,survPow,lineHTML,potGradeOf,evenGrade,c5On,C5N,showPick,again,openPeek,gearRec,forestRows,unequip,canOff,swapGain,deltaHTML,renderBag,ask,askClose,meltJunk,renderForestRank,autoPost,canAuto,betterThanPosted,pkNew,pkGrade,critRate,critMult,CRIT,FOR,fStart,fGrow,fStep,fRng,fMeters,fPx,fT,fVal,fEnter,fEnd,fReward,fRun,fRec,renderForest,renderStat,statOf,sumOpt,mastSum,slotPow,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,navViews,viewIdx,swipeTarget,swipeBlocked,VIEWS,topBoss,bossLabel,myRec,DNAME,ACH,achStat,MAXLV,lvBonus,lvMult,LVK,SLOT_ART,WEAPON_ART,stash,bagStar,bagLines,bagP4,dropSlot,BTYPE,renderAll,CRCOL,passTime,offerOffline,OFF_CAP,OFF_RATE,TR,carryLines,showDrop,cost,protUse,safeUse,IGCOST,igCost,MAST,MPS,mpFor,mastOf,mastFree,mastMult,mastSum,trStar,renderMast,starMult,expMult,IGSTAR,engrave,ENG,renderShop,renderCubes,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,crt2,bossSReq,SREQ_K,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
   get state(){return S;}, cur, power, income, mesoMult, dropMult, starMult, potMultOf, POTG, odds, potGrade, topGrade, totalStars, sfBonus}; }catch(e){}
 })();
 </script>
