@@ -193,6 +193,13 @@ button:disabled{cursor:not-allowed;opacity:.45;}
 .clines .potline{font-size:12px;padding:7px 9px;min-height:0;}
 .clines .potline .v{font-size:15px;}
 .cpow{margin-top:9px;font-family:'Gothic A1',sans-serif;font-weight:900;font-size:13px;color:var(--gold);}
+/* 창을 닫는 x. 장비 창에는 닫을 길이 아예 없어서, 잘못 열면 셋 중
+   하나를 고르는 수밖에 없었다. */
+.cmpcard{position:relative;}
+.cmpx{position:absolute;top:10px;right:12px;width:30px;height:30px;border-radius:50%;
+  border:1px solid var(--edge);background:#15122C;color:var(--dim);
+  font-size:19px;line-height:1;display:grid;place-items:center;padding:0;z-index:2;}
+.cmpx:hover{border-color:var(--edge2);color:var(--text);}
 .cmpbtns{display:flex;gap:10px;margin-top:14px;}
 .cmpbtns .btn{white-space:nowrap;padding-left:10px;padding-right:10px;}
 .askrow{display:flex;justify-content:space-between;align-items:baseline;gap:10px;
@@ -1348,6 +1355,7 @@ td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
 
 <div class="compare" id="drop" hidden>
   <div class="cmpcard">
+    <button class="cmpx" id="dropX" aria-label="닫기">&times;</button>
     <h2 id="dropTitle">장비 드롭</h2>
     <div class="cmpbody" id="dropBody"></div>
     <div class="cmpbtns" style="flex-wrap:wrap">
@@ -5733,6 +5741,20 @@ $('askNo').addEventListener('click',function(){ ac(); askClose(); });
 $('askYes').addEventListener('click',function(){ const f=askYes; ac(); askClose(); if(f) f(); });
 $('ask').addEventListener('click',function(e){ if(e.target===$('ask')) askClose(); });
 $('peek').addEventListener('click',function(e){ if(e.target===$('peek')) $('peek').hidden=true; });
+$('dropX').addEventListener('click',function(){ ac(); $('drop').hidden=true; });
+$('drop').addEventListener('click',function(e){ if(e.target===$('drop')) $('drop').hidden=true; });
+// ESC 는 맨 위에 떠 있는 창 하나만 닫는다. 창마다 따로 달면 하나를
+// 빠뜨렸을 때 또 갇힌다 - 여기서 한 번에 본다.
+addEventListener('keydown',function(e){
+  if(e.key!=='Escape') return;
+  const open=[...document.querySelectorAll('.compare:not([hidden])')];
+  if(!open.length){ if(!$('menu').hidden) $('menu').hidden=true; return; }
+  const top=open[open.length-1];
+  top.hidden=true; top.classList.remove('c5wrap');
+  if(top.id==='ask') askClose();
+  if(top.id==='compare') busy=false;
+  renderAll();
+});
 // 줄이 다시 그려져도 살아 있게 위에서 한 번만 잡는다
 ['rankList','rankBody'].forEach(function(k){
   const el=$(k); if(!el) return;
