@@ -3141,7 +3141,7 @@ function engrave(){
   S.inv.eng--;
   busy=true; renderCubes();
   setTimeout(function(){
-    if(Math.random()*100<ENG.p){
+    if(god()||Math.random()*100<ENG.p){         // 무료 모드는 각인도 반드시 붙는다
       it.p4=true;
       const g=potGradeOf(it);
       if(g>=0){ it.lines.push(rollLine(S.sel||0,g)); evenGrade(it.lines); }
@@ -4566,9 +4566,14 @@ function renderMake(){
       '</div>'+
       '<div class="chips" id="mkAdd" style="margin-top:9px">'+
         pool.map(function(k){
-          const v=OPT[k].v[mkG];
+          const v=OPT[k].v[mkG], d=OPT[k];
+          // 두 축이 생겼으니 이 줄이 어디로 가는지 보여야 고를 수 있다.
+          const ax=d.ax==='a'?'<i style="color:#FF8FA3">공</i>'
+                  :d.ax==='s'?'<i style="color:#8FE3B0">생</i>'
+                  :(d.part?'<i style="color:#FFC94A">짝</i>'
+                          :'<i style="color:var(--dimmer)">벌이</i>');
           return '<button class="chip add" data-add="'+k+'"'+(it.lines.length>=n?' disabled':'')+'>'+
-            OPT[k].n+' <b>+'+v+OPT[k].u+'</b></button>';
+            ax+' '+d.n+' <b>+'+v+d.u+'</b></button>';
         }).join('')+
       '</div>'+
       '<div class="chips" style="margin-top:8px">'+
@@ -4588,15 +4593,28 @@ function renderMake(){
         '<button class="chip" data-give="mast">이 부위 마스터리 +160</button>'+
         '<button class="chip" data-give="inv">큐브·주문서 +99</button>'+
         '<button class="chip" data-give="ach">업적 전부</button>'+
+        '<button class="chip" data-give="bag">가방 레전더리로 채우기</button>'+
+      '</div>'+
+      '<div class="chips" style="margin-top:8px">'+
+        '<button class="chip" data-give="boss">보스 전부 격파 기록</button>'+
+        '<button class="chip" data-give="bosscd">보스 쿨 전부 초기화</button>'+
+        '<button class="chip" data-give="forest">시련의 숲 기록 +100m</button>'+
+        '<button class="chip" data-give="buf">버프 전부 10분</button>'+
       '</div>'+
       '<p class="fbmsg" id="mkHave"></p></div>'+
 
-    '<div class="chips"><button class="btn gold" data-act="all">여덟 부위 전부 레전더리 36★ 최고옵</button></div>'+
+    '<div class="chips"><button class="btn gold" data-act="all">전부 최고로 — 36★ 레전더리 · lv'+MAXLV+' · 마스터리 · 업적</button></div>'+
   '</div>';
 
-  $('mkHave').innerHTML='메소 <b>'+fmt(S.meso)+'</b> · 증표 <b>'+(S.tok|0)+'</b> · 마스터리 <b>'+
+  $('mkHave').innerHTML=
+    '전투력 <b>'+power().toLocaleString('ko-KR')+'</b> · '+
+    '공격력 <b style="color:#FF8FA3">'+atkPow().toLocaleString('ko-KR')+'</b> · '+
+    '생존력 <b style="color:#8FE3B0">'+survPow().toLocaleString('ko-KR')+'</b> · '+
+    '치명타 <b>'+critRate()+'%</b><br>'+
+    '메소 <b>'+fmt(S.meso)+'</b> · 증표 <b>'+(S.tok|0)+'</b> · 마스터리 <b>'+
     (mastOf(i).p|0)+'</b> · 큐브 <b>'+((S.inv.red|0)+'/'+(S.inv.black|0)+'/'+(S.inv.choice|0))+
-    '</b> · 각인 <b>'+(S.inv.eng|0)+'</b> · 전수권 <b>'+(S.inv.tr|0)+'</b>';
+    '</b> · 각인 <b>'+(S.inv.eng|0)+'</b> · 전수권 <b>'+(S.inv.tr|0)+'</b> · '+
+    '가방 <b>'+((S.bag||[]).length)+'/'+BAG_MAX+'</b> · 숲 <b>'+(S.fbest|0)+'m</b>';
 
   if(!B.dataset.bound){                    // 한 번만 단다. once 로 달면 빈 곳을 눌러도 핸들러가 죽는다.
   B.dataset.bound='1';
@@ -4631,6 +4649,19 @@ function renderMake(){
       if(d.give==='mast') mastOf(S.sel||0).p=(mastOf(S.sel||0).p|0)+160;
       if(d.give==='inv')  ['red','black','choice','sh','sure','eng','tr'].forEach(function(k){ S.inv[k]=(S.inv[k]|0)+99; });
       if(d.give==='ach')  ACH.forEach(function(a){ S.ach[a[0]]=1; });
+      if(d.give==='bag'){                      // 가방을 레전더리 36성으로 채운다
+        S.bag=[];
+        for(let q=0;q<BAG_MAX;q++){ const sl=q%SLOTS.length, b=bestLine(sl);
+          S.bag.push({slot:sl, ig:3, star:36, p4:true, broken:false,
+                      name:(sl===0?WNAMES[jobKey()]:NAMES[sl])[3],
+                      lines:[0,1,2,3].map(function(){ return Object.assign({},b); })}); } }
+      if(d.give==='boss'){                     // 모든 보스를 난이도별로 한 번씩 잡은 것으로
+        S.bk=BOSSES.map(function(b,q){ return bossHas(q,0)?1:0; });
+        S.bkh=BOSSES.map(function(b,q){ return bossHas(q,1)?1:0; });
+        S.bkc=BOSSES.map(function(b,q){ return bossHas(q,2)?1:0; }); }
+      if(d.give==='bosscd') S.bcd=BOSSES.map(function(){ return 0; });
+      if(d.give==='forest') S.fbest=(S.fbest|0)+100;
+      if(d.give==='buf'){ S.buf=S.buf||{}; for(const k in BUFFS) S.buf[k]=600; }
       return mkDone(); }
     if(d.act==='best'){ ac(); const b=bestLine(i); const m=POTN(it);
       it.lines=[]; for(let q=0;q<m;q++) it.lines.push(Object.assign({},b)); return mkDone(); }
@@ -4640,8 +4671,13 @@ function renderMake(){
         x.ig=3; x.star=36; x.broken=false; x.p4=true;
         const b=bestLine(k); x.lines=[0,1,2,3].map(function(){ return Object.assign({},b); });
       });
-      S.st.max=36; mkDone();
-      flash('전부 레전더리','여덟 부위 36★ · 잠재 네 줄','#FFC94A'); return; }
+      S.st.max=36;
+      S.lv=MAXLV;
+      S.items.forEach(function(x,k){ mastOf(k).p=160; });
+      ACH.forEach(function(a){ S.ach[a[0]]=1; });
+      S.bcd=BOSSES.map(function(){ return 0; });
+      mkDone();
+      flash('전부 레전더리','여덟 부위 36★ · 잠재 네 줄 · lv'+MAXLV+' · 마스터리 · 업적','#FFC94A'); return; }
   });
   }
 
