@@ -389,6 +389,20 @@ button:disabled{cursor:not-allowed;opacity:.45;}
 .fcard .fbest{font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold);
   font-variant-numeric:tabular-nums;}
 .fcard .fsub{font-size:11px;color:var(--dimmer);}
+/* 숲 순위 */
+.frank{margin:20px 0 10px;font-size:12px;letter-spacing:.18em;color:var(--dimmer);font-weight:900;}
+.flist{display:flex;flex-direction:column;gap:5px;}
+.frow2{display:grid;grid-template-columns:26px 1fr auto auto;gap:9px;align-items:center;
+  background:#15122C;border:1px solid var(--edge);border-radius:10px;padding:9px 12px;}
+.frow2.me{border-color:var(--gold);background:#241C4D;}
+.frow2 .no{font-family:'Bebas Neue',sans-serif;font-size:19px;color:var(--dimmer);}
+.frow2.me .no{color:var(--gold);}
+.frow2 .who{font-weight:900;font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.frow2 .who small{font-weight:500;color:var(--dimmer);margin-left:6px;font-size:10.5px;}
+.frow2 .m{font-family:'Bebas Neue',sans-serif;font-size:20px;color:#8FE3B0;
+  font-variant-numeric:tabular-nums;}
+.frow2 .g{font-size:10.5px;color:var(--dimmer);min-width:56px;text-align:right;}
+.fempty{font-size:11.5px;color:var(--dimmer);padding:14px 2px;text-align:center;line-height:1.7;}
 .fgame{position:fixed;inset:0;z-index:90;background:#070B12;display:flex;flex-direction:column;
   touch-action:none;user-select:none;-webkit-user-select:none;}
 .fgame canvas{flex:1;width:100%;min-height:0;display:block;}
@@ -1052,6 +1066,8 @@ td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
         <span class="fsub" id="fSub"></span>
       </div>
     </div>
+    <h3 class="frank">누가 얼마나 올랐나</h3>
+    <div class="flist" id="fRank"></div>
   </section>
   </div>
 
@@ -1216,10 +1232,6 @@ td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
   <div class="view" id="viewRank" hidden>
   <section class="card">
     <h2>랭킹</h2>
-    <div class="rtabs">
-      <button class="rtab" id="rtBoss" aria-selected="true">보스</button>
-      <button class="rtab" id="rtForest" aria-selected="false">시련의 숲</button>
-    </div>
     <div class="rankwrap">
       <table class="rank">
         <thead id="rankHead"></thead>
@@ -2354,6 +2366,23 @@ function statOf(k){
   return {tot:+(pot+mst+ach).toFixed(1), src:[['잠재',pot],['마스터리',mst],['업적',ach]]};
 }
 
+// 숲 순위. 오른 사람만 세운다 - 0m 가 줄줄이 서는 건 순위가 아니다.
+function renderForestRank(){
+  const L=$('fRank'); if(!L) return;
+  const rows=forestRows();
+  if(!rows.length){
+    L.innerHTML='<div class="fempty">아직 아무도 안 올랐다. 처음이 되어보자.</div>';
+    return;
+  }
+  L.innerHTML=rows.map(function(e,i){
+    return '<div class="frow2 '+(e.id===USER?'me':'')+'">'+
+      '<span class="no">'+(i+1)+'</span>'+
+      '<span class="who">'+esc(e.id)+'<small>'+((JOBS[e.job|0]||JOBS[0]).n)+' \u00B7 Lv'+(e.lv||1)+'</small></span>'+
+      '<span class="m">'+(e.fbest|0)+'m</span>'+
+      '<span class="g">'+ago(e.seen||e.ts)+'</span></div>';
+  }).join('');
+}
+
 function renderStat(){
   const p=power(), ko=KEYOPT();
   const num=n=>(Math.round(n*10)/10).toLocaleString('ko-KR');
@@ -2672,6 +2701,7 @@ function fEnd(){
   renderAll(); updateHunt(); save();
 }
 function renderForest(){
+  renderForestRank();
   const b=$('fStart'), best=S.fbest|0;
   b.textContent=best>0?'다시 오른다':'숲에 들어간다';
   $('fBest').innerHTML=best+'<small style="font-size:13px">m</small>';
@@ -5033,22 +5063,18 @@ function openPeek(id){
   $('peek').hidden=false;
 }
 
-// 랭킹은 두 벌이다. 정렬 기준이 다르니 표 머리와 줄 내용도 갈린다.
-let rankTab='boss';
-const rankRows=()=>rankTab==='forest'
-  ? BOARD.filter(function(e){ return (e.fbest|0)>0; })
-         .sort(function(a,b){ return (b.fbest|0)-(a.fbest|0) || (b.power|0)-(a.power|0); })
-  : BOARD;
+// 숲 순위는 숲 화면에서 본다. 정렬 기준도 볼 자리도 달라서, 랭킹 화면에
+// 탭으로 끼워 넣으니 둘 다 어정쩡했다.
+const forestRows=()=>BOARD.filter(function(e){ return (e.fbest|0)>0; })
+  .sort(function(a,b){ return (b.fbest|0)-(a.fbest|0) || (b.power|0)-(a.power|0); });
 function renderRankCards(){
   const L=$('rankList'); if(!L) return;
-  if(!rankRows().length){
-    L.innerHTML='<div class="rempty">'+(rankTab==='forest'
-      ?'아직 숲을 오른 사람이 없다.<br>메뉴의 <b>시련의 숲</b>에서 한 번 올라보자.'
-      :'아직 등록된 기록이 없다.<br>별을 올리고 아래 버튼으로 등록해보자.')+'</div>';
+  if(!BOARD.length){
+    L.innerHTML='<div class="rempty">아직 등록된 기록이 없다.<br>별을 올리고 아래 버튼으로 등록해보자.</div>';
     return;
   }
-  const F=rankTab==='forest';
-  L.innerHTML=rankRows().map(function(e,i){
+  const F=false;
+  L.innerHTML=BOARD.map(function(e,i){
     return '<div class="rcard '+(F?'fr ':'')+(e.id===USER?'me':'')+'" data-id="'+esc(e.id)+'">'+
       '<div class="rtop"><b class="rno">'+(i+1)+'</b>'+
         '<span class="rid">'+esc(e.id)+'</span>'+
@@ -5069,12 +5095,10 @@ function renderRankCards(){
 }
 
 function renderRank(){
-  const body=$('rankBody'), F=rankTab==='forest', rows=rankRows();
+  const body=$('rankBody'), F=false, rows=BOARD;
   const cols=F?['','아이디','직업','최고 높이','받는 값','레벨','최고 전투력','최고 보스','마지막 접속']
              :['','아이디','직업','최고 성수치','잠재','레벨','최고 전투력','최고 보스','업적','파괴','강화 시도','마지막 접속'];
   $('rankHead').innerHTML='<tr>'+cols.map(function(c){ return '<th>'+c+'</th>'; }).join('')+'</tr>';
-  $('rtBoss').setAttribute('aria-selected',String(!F));
-  $('rtForest').setAttribute('aria-selected',String(F));
   if(!rows.length){
     body.innerHTML='<tr><td class="empty" colspan="'+cols.length+'">'+
       (F?'아직 숲을 오른 사람이 없다.':'아직 등록된 기록이 없다. 별을 올리고 아래 버튼으로 등록해보자.')+'</td></tr>';
@@ -5097,8 +5121,6 @@ function renderRank(){
   }
   renderRankCards();
   const btn=$('postBtn');
-  if(rankTab==='forest'&&USER){
-    note('숲 기록은 그만둘 때 저절로 올라간다 — 따로 누를 것 없다.'); }
   if(!USER){ btn.disabled=true; return; }
   const mine=BOARD.find(e=>e.id===USER), cur=myRec();
   const better=!mine||cmpRec(cur,mine)<0;
@@ -5500,8 +5522,6 @@ $('compare').addEventListener('click',function(e){
   if(e.target===$('compare')){ $('compare').hidden=true; $('compare').classList.remove('c5wrap');
     log('큐브 결과를 버렸다 — 지금 옵션이 그대로다',''); busy=false; renderAll(); } });
 $('pkClose').addEventListener('click',function(){ $('peek').hidden=true; });
-$('rtBoss').addEventListener('click',function(){ ac(); rankTab='boss'; renderRank(); });
-$('rtForest').addEventListener('click',function(){ ac(); rankTab='forest'; renderRank(); });
 $('peek').addEventListener('click',function(e){ if(e.target===$('peek')) $('peek').hidden=true; });
 // 줄이 다시 그려져도 살아 있게 위에서 한 번만 잡는다
 ['rankList','rankBody'].forEach(function(k){
@@ -5536,7 +5556,7 @@ initOnline();
 
 // 균형 점검용 노출 (게임 동작에는 영향 없음)
 try{ window.__CFG={SF,MAXSTAR,starCost,SHIELD,SLOTS,OPT,POOL,GCAP,UPRATE,UPGRADE,CUBES,
-  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,skPct,SKMUL,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,cpAx,potAx,slotAx,atkPow,survPow,lineHTML,potGradeOf,evenGrade,c5On,C5N,showPick,again,openPeek,gearRec,rankRows,autoPost,canAuto,betterThanPosted,pkNew,pkGrade,critRate,critMult,CRIT,FOR,fStart,fGrow,fStep,fRng,fMeters,fPx,fT,fVal,fEnter,fEnd,fReward,fRun,fRec,renderForest,renderStat,statOf,sumOpt,mastSum,slotPow,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,navViews,viewIdx,swipeTarget,swipeBlocked,VIEWS,topBoss,bossLabel,myRec,DNAME,ACH,achStat,MAXLV,lvBonus,lvMult,LVK,SLOT_ART,WEAPON_ART,stash,bagStar,bagLines,bagP4,dropSlot,BTYPE,renderAll,CRCOL,passTime,offerOffline,OFF_CAP,OFF_RATE,TR,carryLines,showDrop,cost,protUse,safeUse,IGCOST,igCost,MAST,MPS,mpFor,mastOf,mastFree,mastMult,mastSum,trStar,renderMast,starMult,expMult,IGSTAR,engrave,ENG,renderShop,renderCubes,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,crt2,bossSReq,SREQ_K,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
+  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,skPct,SKMUL,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,cpAx,potAx,slotAx,atkPow,survPow,lineHTML,potGradeOf,evenGrade,c5On,C5N,showPick,again,openPeek,gearRec,forestRows,renderForestRank,autoPost,canAuto,betterThanPosted,pkNew,pkGrade,critRate,critMult,CRIT,FOR,fStart,fGrow,fStep,fRng,fMeters,fPx,fT,fVal,fEnter,fEnd,fReward,fRun,fRec,renderForest,renderStat,statOf,sumOpt,mastSum,slotPow,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,navViews,viewIdx,swipeTarget,swipeBlocked,VIEWS,topBoss,bossLabel,myRec,DNAME,ACH,achStat,MAXLV,lvBonus,lvMult,LVK,SLOT_ART,WEAPON_ART,stash,bagStar,bagLines,bagP4,dropSlot,BTYPE,renderAll,CRCOL,passTime,offerOffline,OFF_CAP,OFF_RATE,TR,carryLines,showDrop,cost,protUse,safeUse,IGCOST,igCost,MAST,MPS,mpFor,mastOf,mastFree,mastMult,mastSum,trStar,renderMast,starMult,expMult,IGSTAR,engrave,ENG,renderShop,renderCubes,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,crt2,bossSReq,SREQ_K,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
   get state(){return S;}, cur, power, income, mesoMult, dropMult, starMult, potMultOf, POTG, odds, potGrade, topGrade, totalStars, sfBonus}; }catch(e){}
 })();
 </script>
