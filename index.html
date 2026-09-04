@@ -1189,8 +1189,9 @@ td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
     <div class="baglist" id="bagDrops"></div>
     <p class="attnote" id="dropNote"></p>
     <div class="btnrow"><button class="btn" id="meltJunk" hidden>정리</button></div>
-    <h3>장비 — 눌러서 그 부위로 간다</h3>
+    <h3>착용 중 — 눌러서 그 부위로, 벗으면 가방으로</h3>
     <div class="baglist" id="bagGear"></div>
+    <p class="attnote" id="gearNote" style="text-align:left"></p>
   </section>
   </div>
 
@@ -4230,8 +4231,10 @@ function renderBag(){
     : '보스를 잡으면 여기로 들어온다. 그 자리에서 고를 필요 없이 <b>모아뒀다 결정하면 된다.</b>';
 
   const G=$('bagGear'); G.innerHTML='';
+  // 예전엔 줄 전체가 button 이었다. 벗기 단추를 안에 넣으려면 그럴 수 없어
+  // div 로 바꾸고, 줄을 누르는 것과 단추를 누르는 것을 갈랐다.
   S.items.forEach(function(it,i){
-    const el=document.createElement('button');
+    const el=document.createElement('div');
     el.className='bagrow gear'+(it.broken?' broken':'')+((S.sel||0)===i?' on':'');
     el.innerHTML='<svg class="bgi" viewBox="0 0 64 64" aria-hidden="true">'+
         (i===0?(WEAPON_ART[jobKey()]||WEAPON_ART.war):SLOT_ART[i])+'</svg>'+
@@ -4241,10 +4244,46 @@ function renderBag(){
           return '<b style="color:'+GCOL[l.g]+'">'+OPT[l.k].n+' +'+l.v+OPT[l.k].u+'</b>';}).join(' · '):' · 잠재능력 없음')+
       '</span></span>'+
       '<span class="bq">'+it.star+'<small>★</small></span>'+
-      '<span class="bv">'+Math.round(slotPow(i)).toLocaleString('ko-KR')+'</span>';
-    el.addEventListener('click',function(){ ac(); S.sel=i; showView('up'); renderAll(); save(); });
+      '<span class="bv">'+Math.round(slotPow(i)).toLocaleString('ko-KR')+'</span>'+
+      '<span class="bbtns"><button class="mini off"'+(canOff(i)?'':' disabled')+'>벗기</button></span>';
+    el.addEventListener('click',function(e){
+      if(e.target.closest('.off')) return;          // 단추는 제 일을 한다
+      ac(); S.sel=i; showView('up'); renderAll(); save(); });
+    el.querySelector('.off').addEventListener('click',function(e){
+      e.stopPropagation(); ac(); unequip(i); });
     G.appendChild(el);
   });
+  $('gearNote').innerHTML=(S.bag.length>=BAG_MAX)
+    ? '<b>가방이 꽉 찼다.</b> 벗으려면 먼저 비워야 한다.'
+    : '줄을 누르면 그 부위를 강화한다 · <b>벗기</b>는 장비를 가방으로 옮긴다 — 그 자리는 맨몸이 된다.';
+}
+
+// 벗을 게 있나. 맨몸(0성·잠재 없음·레어)은 가방에 넣어봐야 자리만 먹는다.
+function canOff(i){
+  const it=S.items[i];
+  if(!it||it.broken) return false;
+  if(!it.star&&!it.lines.length&&!it.ig) return false;
+  return (S.bag||[]).length<BAG_MAX;
+}
+// 벗기 — 가방으로 옮기고 그 자리는 새 맨몸으로. 마스터리는 부위에 붙어 있어
+// 장비를 벗어도 남는다(mastOf 는 부위 번호로 잡는다).
+function unequip(i){
+  const it=S.items[i];
+  if(!it) return;
+  if(it.broken){ log('부서진 장비는 벗을 게 없다 — 먼저 복구하자','fail'); return; }
+  if(!it.star&&!it.lines.length&&!it.ig){ log(SLOTS[i].n+'은(는) 이미 맨몸이다',''); return; }
+  if(!Array.isArray(S.bag)) S.bag=[];
+  if(S.bag.length>=BAG_MAX){ log('<b>가방이 꽉 찼다</b> — 먼저 비워야 벗을 수 있다','fail'); return; }
+  // 그 부위의 기여분(slotPow)만 적으면 거짓말이 된다. 성수치가 빠지면서
+  // 스타포스 티어까지 무너지니 실제로는 그보다 훨씬 크게 준다.
+  const p0=power();
+  stash(it,i,'off');
+  S.items[i]=newItem(i);
+  const gap=p0-power();
+  log('<b>'+SLOTS[i].n+'</b>을(를) 벗어 가방에 넣었다 — 전투력 '+
+      p0.toLocaleString('ko-KR')+' → '+power().toLocaleString('ko-KR')+
+      ' (<b>-'+gap.toLocaleString('ko-KR')+'</b>)','');
+  renderAll(); save();
 }
 
 /* ---------- 화면 넘기기 — 스와이프 ---------- */
@@ -5556,7 +5595,7 @@ initOnline();
 
 // 균형 점검용 노출 (게임 동작에는 영향 없음)
 try{ window.__CFG={SF,MAXSTAR,starCost,SHIELD,SLOTS,OPT,POOL,GCAP,UPRATE,UPGRADE,CUBES,
-  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,skPct,SKMUL,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,cpAx,potAx,slotAx,atkPow,survPow,lineHTML,potGradeOf,evenGrade,c5On,C5N,showPick,again,openPeek,gearRec,forestRows,renderForestRank,autoPost,canAuto,betterThanPosted,pkNew,pkGrade,critRate,critMult,CRIT,FOR,fStart,fGrow,fStep,fRng,fMeters,fPx,fT,fVal,fEnter,fEnd,fReward,fRun,fRec,renderForest,renderStat,statOf,sumOpt,mastSum,slotPow,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,navViews,viewIdx,swipeTarget,swipeBlocked,VIEWS,topBoss,bossLabel,myRec,DNAME,ACH,achStat,MAXLV,lvBonus,lvMult,LVK,SLOT_ART,WEAPON_ART,stash,bagStar,bagLines,bagP4,dropSlot,BTYPE,renderAll,CRCOL,passTime,offerOffline,OFF_CAP,OFF_RATE,TR,carryLines,showDrop,cost,protUse,safeUse,IGCOST,igCost,MAST,MPS,mpFor,mastOf,mastFree,mastMult,mastSum,trStar,renderMast,starMult,expMult,IGSTAR,engrave,ENG,renderShop,renderCubes,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,crt2,bossSReq,SREQ_K,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
+  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,skPct,SKMUL,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,cpAx,potAx,slotAx,atkPow,survPow,lineHTML,potGradeOf,evenGrade,c5On,C5N,showPick,again,openPeek,gearRec,forestRows,unequip,canOff,renderForestRank,autoPost,canAuto,betterThanPosted,pkNew,pkGrade,critRate,critMult,CRIT,FOR,fStart,fGrow,fStep,fRng,fMeters,fPx,fT,fVal,fEnter,fEnd,fReward,fRun,fRec,renderForest,renderStat,statOf,sumOpt,mastSum,slotPow,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,navViews,viewIdx,swipeTarget,swipeBlocked,VIEWS,topBoss,bossLabel,myRec,DNAME,ACH,achStat,MAXLV,lvBonus,lvMult,LVK,SLOT_ART,WEAPON_ART,stash,bagStar,bagLines,bagP4,dropSlot,BTYPE,renderAll,CRCOL,passTime,offerOffline,OFF_CAP,OFF_RATE,TR,carryLines,showDrop,cost,protUse,safeUse,IGCOST,igCost,MAST,MPS,mpFor,mastOf,mastFree,mastMult,mastSum,trStar,renderMast,starMult,expMult,IGSTAR,engrave,ENG,renderShop,renderCubes,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,crt2,bossSReq,SREQ_K,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
   get state(){return S;}, cur, power, income, mesoMult, dropMult, starMult, potMultOf, POTG, odds, potGrade, topGrade, totalStars, sfBonus}; }catch(e){}
 })();
 </script>
