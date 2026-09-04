@@ -924,6 +924,13 @@ td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
 .rsub{font-size:11px;color:var(--dimmer);display:flex;justify-content:space-between;gap:10px;}
 .rempty{color:var(--dimmer);font-weight:500;padding:20px 4px;text-align:center;}
 @media (max-width:719px){ .rankwrap{display:none;} .rlist{display:flex;} }
+/* 랭킹 탭 */
+.rtabs{display:flex;gap:6px;margin-bottom:13px;}
+.rtab{padding:8px 15px;border-radius:10px;border:1px solid var(--edge);background:transparent;
+  color:var(--dim);font-weight:900;font-size:13px;font-family:inherit;cursor:pointer;}
+.rtab[aria-selected="true"]{border-color:var(--gold);background:#2A2208;color:var(--gold);}
+.fr .rpw{color:#8FE3B0;}
+.fr .rgear{color:var(--dimmer);}
 .rankwrap{overflow-x:auto;}
 .rank{width:100%;border-collapse:collapse;font-size:13px;white-space:nowrap;}
 .rank th{font-size:10px;letter-spacing:.14em;color:var(--dimmer);font-weight:900;text-align:left;padding:0 9px 9px;}
@@ -1209,9 +1216,13 @@ td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
   <div class="view" id="viewRank" hidden>
   <section class="card">
     <h2>랭킹</h2>
+    <div class="rtabs">
+      <button class="rtab" id="rtBoss" aria-selected="true">보스</button>
+      <button class="rtab" id="rtForest" aria-selected="false">시련의 숲</button>
+    </div>
     <div class="rankwrap">
       <table class="rank">
-        <thead><tr><th></th><th>아이디</th><th>직업</th><th>최고 성수치</th><th>잠재</th><th>레벨</th><th>최고 전투력</th><th>최고 보스</th><th>업적</th><th>파괴</th><th>강화 시도</th><th>마지막 접속</th></tr></thead>
+        <thead id="rankHead"></thead>
         <tbody id="rankBody"></tbody>
       </table>
     </div>
@@ -5022,48 +5033,72 @@ function openPeek(id){
   $('peek').hidden=false;
 }
 
+// 랭킹은 두 벌이다. 정렬 기준이 다르니 표 머리와 줄 내용도 갈린다.
+let rankTab='boss';
+const rankRows=()=>rankTab==='forest'
+  ? BOARD.filter(function(e){ return (e.fbest|0)>0; })
+         .sort(function(a,b){ return (b.fbest|0)-(a.fbest|0) || (b.power|0)-(a.power|0); })
+  : BOARD;
 function renderRankCards(){
   const L=$('rankList'); if(!L) return;
-  if(!BOARD.length){
-    L.innerHTML='<div class="rempty">아직 등록된 기록이 없다.<br>별을 올리고 아래 버튼으로 등록해보자.</div>';
+  if(!rankRows().length){
+    L.innerHTML='<div class="rempty">'+(rankTab==='forest'
+      ?'아직 숲을 오른 사람이 없다.<br>메뉴의 <b>시련의 숲</b>에서 한 번 올라보자.'
+      :'아직 등록된 기록이 없다.<br>별을 올리고 아래 버튼으로 등록해보자.')+'</div>';
     return;
   }
-  L.innerHTML=BOARD.map(function(e,i){
-    return '<div class="rcard '+(e.id===USER?'me':'')+'" data-id="'+esc(e.id)+'">'+
+  const F=rankTab==='forest';
+  L.innerHTML=rankRows().map(function(e,i){
+    return '<div class="rcard '+(F?'fr ':'')+(e.id===USER?'me':'')+'" data-id="'+esc(e.id)+'">'+
       '<div class="rtop"><b class="rno">'+(i+1)+'</b>'+
         '<span class="rid">'+esc(e.id)+'</span>'+
         '<span class="rjob">'+((JOBS[e.job|0]||JOBS[0]).n)+'</span></div>'+
-      '<div class="rmid"><span class="rpw">'+e.power.toLocaleString('ko-KR')+'</span>'+
-        '<span class="rlbl">전투력</span>'+
-        '<span class="rgear"><b>'+e.star+'\u2605</b> '+GNAME[e.grade]+' \u00B7 Lv'+(e.lv||1)+'</span></div>'+
-      '<div class="rboss"><span class="rlbl">최고 보스</span>'+esc(bossLabel(e.boss))+'</div>'+
-      '<div class="rsub"><span>업적 '+(e.ach||0)+' \u00B7 파괴 '+e.des+' \u00B7 강화 '+e.tries+'</span>'+
+      (F
+        ? '<div class="rmid"><span class="rpw">'+(e.fbest|0)+'m</span>'+
+          '<span class="rlbl">최고 높이</span>'+
+          '<span class="rgear">전투력 '+(e.power|0).toLocaleString('ko-KR')+' \u00B7 Lv'+(e.lv||1)+'</span></div>'
+        : '<div class="rmid"><span class="rpw">'+e.power.toLocaleString('ko-KR')+'</span>'+
+          '<span class="rlbl">전투력</span>'+
+          '<span class="rgear"><b>'+e.star+'\u2605</b> '+GNAME[e.grade]+' \u00B7 Lv'+(e.lv||1)+'</span></div>')+
+      (F ? '' : '<div class="rboss"><span class="rlbl">최고 보스</span>'+esc(bossLabel(e.boss))+'</div>')+
+      '<div class="rsub"><span>'+(F
+          ? ('받는 값 '+fmt(Math.round(income()*FOR.RUNK*fVal(e.fbest|0)))+' \u00B7 최고 보스 '+esc(bossLabel(e.boss)))
+          : ('업적 '+(e.ach||0)+' \u00B7 파괴 '+e.des+' \u00B7 강화 '+e.tries))+'</span>'+
         '<span>'+ago(e.seen||e.ts)+'</span></div></div>';
   }).join('');
 }
 
 function renderRank(){
-  const body=$('rankBody');
-  if(!BOARD.length){
-    body.innerHTML='<tr><td class="empty" colspan="12">아직 등록된 기록이 없다. 별을 올리고 아래 버튼으로 등록해보자.</td></tr>';
+  const body=$('rankBody'), F=rankTab==='forest', rows=rankRows();
+  const cols=F?['','아이디','직업','최고 높이','받는 값','레벨','최고 전투력','최고 보스','마지막 접속']
+             :['','아이디','직업','최고 성수치','잠재','레벨','최고 전투력','최고 보스','업적','파괴','강화 시도','마지막 접속'];
+  $('rankHead').innerHTML='<tr>'+cols.map(function(c){ return '<th>'+c+'</th>'; }).join('')+'</tr>';
+  $('rtBoss').setAttribute('aria-selected',String(!F));
+  $('rtForest').setAttribute('aria-selected',String(F));
+  if(!rows.length){
+    body.innerHTML='<tr><td class="empty" colspan="'+cols.length+'">'+
+      (F?'아직 숲을 오른 사람이 없다.':'아직 등록된 기록이 없다. 별을 올리고 아래 버튼으로 등록해보자.')+'</td></tr>';
   } else {
-    body.innerHTML=BOARD.map((e,i)=>
+    body.innerHTML=rows.map((e,i)=>
       '<tr class="'+(e.id===USER?'me':'')+'" data-id="'+esc(e.id)+'">'+
       '<td class="no">'+(i+1)+'</td>'+
       '<td>'+esc(e.id)+'</td>'+
       '<td>'+((JOBS[e.job|0]||JOBS[0]).n)+'</td>'+
-      '<td class="num sv">'+e.star+'★</td>'+
-      '<td>'+GNAME[e.grade]+'</td>'+
+      (F ? '<td class="num sv" style="color:#8FE3B0">'+(e.fbest|0)+'m</td>'+
+           '<td class="num">'+fmt(Math.round(income()*FOR.RUNK*fVal(e.fbest|0)))+'</td>'
+         : '<td class="num sv">'+e.star+'★</td><td>'+GNAME[e.grade]+'</td>')+
       '<td class="num">'+(e.lv||1)+'</td>'+
       '<td class="num">'+e.power.toLocaleString('ko-KR')+'</td>'+
       '<td>'+esc(bossLabel(e.boss))+'</td>'+
-      '<td class="num">'+(e.ach||0)+'</td>'+
-      '<td class="num">'+e.des+'</td>'+
-      '<td class="num">'+e.tries+'</td>'+
+      (F ? '' : '<td class="num">'+(e.ach||0)+'</td>'+
+           '<td class="num">'+e.des+'</td>'+
+           '<td class="num">'+e.tries+'</td>')+
       '<td class="num seen">'+ago(e.seen||e.ts)+'</td></tr>').join('');
   }
   renderRankCards();
   const btn=$('postBtn');
+  if(rankTab==='forest'&&USER){
+    note('숲 기록은 그만둘 때 저절로 올라간다 — 따로 누를 것 없다.'); }
   if(!USER){ btn.disabled=true; return; }
   const mine=BOARD.find(e=>e.id===USER), cur=myRec();
   const better=!mine||cmpRec(cur,mine)<0;
@@ -5465,6 +5500,8 @@ $('compare').addEventListener('click',function(e){
   if(e.target===$('compare')){ $('compare').hidden=true; $('compare').classList.remove('c5wrap');
     log('큐브 결과를 버렸다 — 지금 옵션이 그대로다',''); busy=false; renderAll(); } });
 $('pkClose').addEventListener('click',function(){ $('peek').hidden=true; });
+$('rtBoss').addEventListener('click',function(){ ac(); rankTab='boss'; renderRank(); });
+$('rtForest').addEventListener('click',function(){ ac(); rankTab='forest'; renderRank(); });
 $('peek').addEventListener('click',function(e){ if(e.target===$('peek')) $('peek').hidden=true; });
 // 줄이 다시 그려져도 살아 있게 위에서 한 번만 잡는다
 ['rankList','rankBody'].forEach(function(k){
@@ -5499,7 +5536,7 @@ initOnline();
 
 // 균형 점검용 노출 (게임 동작에는 영향 없음)
 try{ window.__CFG={SF,MAXSTAR,starCost,SHIELD,SLOTS,OPT,POOL,GCAP,UPRATE,UPGRADE,CUBES,
-  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,skPct,SKMUL,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,cpAx,potAx,slotAx,atkPow,survPow,lineHTML,potGradeOf,evenGrade,c5On,C5N,showPick,again,openPeek,gearRec,autoPost,canAuto,betterThanPosted,pkNew,pkGrade,critRate,critMult,CRIT,FOR,fStart,fGrow,fStep,fRng,fMeters,fPx,fT,fVal,fEnter,fEnd,fReward,fRun,fRec,renderForest,renderStat,statOf,sumOpt,mastSum,slotPow,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,navViews,viewIdx,swipeTarget,swipeBlocked,VIEWS,topBoss,bossLabel,myRec,DNAME,ACH,achStat,MAXLV,lvBonus,lvMult,LVK,SLOT_ART,WEAPON_ART,stash,bagStar,bagLines,bagP4,dropSlot,BTYPE,renderAll,CRCOL,passTime,offerOffline,OFF_CAP,OFF_RATE,TR,carryLines,showDrop,cost,protUse,safeUse,IGCOST,igCost,MAST,MPS,mpFor,mastOf,mastFree,mastMult,mastSum,trStar,renderMast,starMult,expMult,IGSTAR,engrave,ENG,renderShop,renderCubes,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,crt2,bossSReq,SREQ_K,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
+  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,skPct,SKMUL,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,cpAx,potAx,slotAx,atkPow,survPow,lineHTML,potGradeOf,evenGrade,c5On,C5N,showPick,again,openPeek,gearRec,rankRows,autoPost,canAuto,betterThanPosted,pkNew,pkGrade,critRate,critMult,CRIT,FOR,fStart,fGrow,fStep,fRng,fMeters,fPx,fT,fVal,fEnter,fEnd,fReward,fRun,fRec,renderForest,renderStat,statOf,sumOpt,mastSum,slotPow,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,navViews,viewIdx,swipeTarget,swipeBlocked,VIEWS,topBoss,bossLabel,myRec,DNAME,ACH,achStat,MAXLV,lvBonus,lvMult,LVK,SLOT_ART,WEAPON_ART,stash,bagStar,bagLines,bagP4,dropSlot,BTYPE,renderAll,CRCOL,passTime,offerOffline,OFF_CAP,OFF_RATE,TR,carryLines,showDrop,cost,protUse,safeUse,IGCOST,igCost,MAST,MPS,mpFor,mastOf,mastFree,mastMult,mastSum,trStar,renderMast,starMult,expMult,IGSTAR,engrave,ENG,renderShop,renderCubes,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,crt2,bossSReq,SREQ_K,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
   get state(){return S;}, cur, power, income, mesoMult, dropMult, starMult, potMultOf, POTG, odds, potGrade, topGrade, totalStars, sfBonus}; }catch(e){}
 })();
 </script>

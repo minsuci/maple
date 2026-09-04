@@ -123,14 +123,23 @@ const writeUser = (id, u) => redis(['HSET', HKEY, id, JSON.stringify(u)]);
 
 async function board() {
   const all = await readAll();
-  return Object.keys(all)
+  const rows = Object.keys(all)
     .map(id => publicRow(id, all[id]))
     .filter(r => r.ts && (r.star > 0 || r.tries > 0 || r.boss > 0))   // 아직 아무것도 안 한 계정은 랭킹에 안 띄운다
-    .filter(r => !isAdmin(r.id))                                     // 마스터는 뭐든 만들 수 있으니 순위에서 뺀다
-    .sort((a, b) =>
+    .filter(r => !isAdmin(r.id));                                    // 마스터는 뭐든 만들 수 있으니 순위에서 뺀다
+  const main = rows.slice().sort((a, b) =>
       (b.boss - a.boss) || (b.star - a.star) || (b.grade - a.grade) ||
-      (b.power - a.power) || (a.ts - b.ts))
-    .slice(0, 50);
+      (b.power - a.power) || (a.ts - b.ts)).slice(0, 50);
+  // 시련의 숲 순위는 정렬 기준이 달라서, 보스 상위 50 만 보내면 숲만 잘하는
+  // 사람이 통째로 잘린다. 숲 상위 30 을 합집합으로 얹는다.
+  const forest = rows.slice().sort((a, b) => (b.fbest | 0) - (a.fbest | 0))
+    .filter(r => (r.fbest | 0) > 0).slice(0, 30);
+  const seen = {};
+  const out = [];
+  main.concat(forest).forEach(function (r) {
+    if (seen[r.id]) return; seen[r.id] = 1; out.push(r);
+  });
+  return out;
 }
 
 async function rateLimited(req) {
