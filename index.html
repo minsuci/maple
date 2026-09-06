@@ -1404,6 +1404,7 @@ td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
         <h3>보스 — 눌러서 난이도를 고른다</h3>
         <div class="skills" id="skillBar"></div>
         <p class="sknote" id="skillNote"></p>
+        <p class="sknote" id="legNote"></p>
 
         <div class="bgrid" id="bossList"></div>
       </div>
@@ -1945,12 +1946,22 @@ const dropGrade=req=>req<160?0:req<640?1:2;
 // 레전더리 장비는 승급대로도 승급권으로도 못 만든다. 윗보스가 아주 가끔
 // 떨구는 게 유일한 길이다 — 요구 640 위(매그너스부터), 난이도가 높을수록 잘 나온다.
 // 주간 하드 기준 한 판에 0.8%. 여섯 부위를 다 채우려면 몇 달은 걸린다.
-const LEG_MIN=640;
+// 640 이었다. 매그너스(530)·아카이럼(620)이 걸려서, 그 둘밖에 못 잡는
+// 중반에는 레전더리가 아예 안 나왔다. 500 으로 내려 그 둘을 넣는다.
+const LEG_MIN=500;
 // 장비 드랍과 따로 굴린다. 예전엔 장비 드랍(6~20%)을 먼저 통과해야 해서
 // 상세창에 적힌 값의 1/5 밖에 안 나왔다 — 적힌 게 곧 실제가 되게 고쳤다.
 // 장비를 주는 보스는 반 배 더 준다.
+// 0.35% 였다. 중반에 다섯 마리를 하루 한 바퀴 도는 사람 기준으로 첫 하나에
+// 중앙값 34일이 걸렸다 — 0.60% 로 올리면 15일.
 const legChance=(bs,d)=>bs.req<LEG_MIN?0:
-  0.0035*(1+d)*(bs.cyc==='월간'?3:1)*((bs.t==='장비'||bs.t==='전부')?1.5:1);
+  0.0060*(1+d)*(bs.cyc==='월간'?3:1)*((bs.t==='장비'||bs.t==='전부')?1.5:1);
+// 천장. 진짜 문제는 중앙값이 아니라 운 없는 쪽이었다 — 같은 조건에서
+// 하위 10% 는 117일이 걸렸다. 요구치를 넘는 보스를 이만큼 잡는 동안
+// 하나도 안 나왔으면 확정으로 준다. 하위 10% 가 20일로 내려온다.
+// 최고 스펙 구간에서는 랜덤이 먼저 터져 천장이 거의 안 걸린다 -
+// 그래서 잘 풀리는 사람의 속도는 그대로고 불운한 사람만 구제된다.
+const LEG_PITY=120;
 // 떨어질 부위 — 레전더리는 아직 없는 자리로 간다. 여섯 번째가 안 나와서
 // 같은 부위만 쌓이는 일이 없도록.
 function dropSlot(leg){
@@ -3631,7 +3642,16 @@ function rollDrop(i,bs){
     log(bossName(i)+' — <b>확정 성공권</b>을 떨궜다 (강화 1회 무조건 성공 · '+SURE_MAX+'★까지)','ok');
     flash('확정 성공권',bossName(i)+'이(가) 떨궜다','#5CE68A');
   }
-  const leg=Math.random()<legChance(bs,dIdx())*dropMult();
+  // 요구치를 넘는 보스를 잡을 때만 천장이 찬다
+  const lc=legChance(bs,dIdx());
+  let leg=false, byPity=false;
+  if(lc>0){
+    S.legc=(S.legc|0)+1;
+    leg=Math.random()<lc*dropMult();
+    if(!leg&&S.legc>=LEG_PITY){ leg=true; byPity=true; }
+    if(leg) S.legc=0;
+  }
+  if(byPity) log('<b>레전더리 천장</b>에 닿았다 — '+LEG_PITY+'번 만에 확정으로 하나','up');
   if(!leg && (!T.eq||Math.random()>=T.eq*dropMult())) return;
   const g=leg?3:Math.min(2,dropGrade(bs.req)+dIdx()), slot=dropSlot(leg);
   // 떨어진 장비는 그 자리에서 결정하지 않고 가방에 쌓인다. 급할 게 없다.
@@ -4959,6 +4979,13 @@ function updateHunt(){
     if(i===best&&!tag) nm.insertAdjacentHTML('beforeend','<span class="best">추천</span>');
     if(i!==best&&tag) tag.remove();
   });
+  // 천장이 보이지 않으면 있어도 없는 것과 같다. 몇 번 남았는지 적어둔다.
+  const ln=$('legNote');
+  if(ln){
+    const n=S.legc|0, left=Math.max(0,LEG_PITY-n);
+    ln.innerHTML='레전더리 천장 <b>'+n+' / '+LEG_PITY+'</b> — 요구 '+LEG_MIN+' 위 보스를 '+
+      '<b>'+left+'번</b> 더 잡는 동안 안 나오면 확정으로 하나 떨어진다';
+  }
   $('bossList').querySelectorAll('.btile').forEach(function(el,i){
     const cd=(S.bcd&&S.bcd[i])||0;
     let top=-1; for(let d=2;d>=0;d--) if(bossHas(i,d)&&clearRate2(i,d)>0){ top=d; break; }
@@ -6222,7 +6249,7 @@ initOnline();
 
 // 균형 점검용 노출 (게임 동작에는 영향 없음)
 try{ window.__CFG={SF,MAXSTAR,starCost,SHIELD,SLOTS,OPT,POOL,GCAP,UPRATE,UPGRADE,CUBES,
-  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,skPct,SKMUL,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,cpAx,potAx,slotAx,atkPow,survPow,lineHTML,potGradeOf,evenGrade,c5On,C5N,showPick,again,openPeek,gearRec,forestRows,unequip,canOff,swapGain,deltaHTML,renderBag,ask,askClose,meltJunk,markPickable,cubeQClose,unionPct,unionMult,basePow,unionCall,unionAdd,unionDrop,renderForestRank,autoPost,canAuto,betterThanPosted,pkNew,pkGrade,critRate,critMult,CRIT,FOR,fStart,fGrow,fStep,fRng,fMeters,fPx,fT,fVal,fEnter,fEnd,fReward,fRun,fRec,renderForest,renderStat,statOf,sumOpt,mastSum,slotPow,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,navViews,viewIdx,swipeTarget,swipeBlocked,VIEWS,topBoss,bossLabel,myRec,DNAME,ACH,achStat,MAXLV,lvBonus,lvMult,LVK,SLOT_ART,WEAPON_ART,stash,bagStar,bagLines,bagP4,dropSlot,BTYPE,renderAll,CRCOL,passTime,offerOffline,OFF_CAP,OFF_RATE,TR,carryLines,showDrop,cost,protUse,safeUse,IGCOST,igCost,MAST,MPS,mpFor,mastOf,mastFree,mastMult,mastSum,trStar,renderMast,starMult,expMult,IGSTAR,engrave,ENG,renderShop,renderCubes,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,crt2,bossSReq,SREQ_K,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
+  LEG_PITY,MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,skPct,SKMUL,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,cpAx,potAx,slotAx,atkPow,survPow,lineHTML,potGradeOf,evenGrade,c5On,C5N,showPick,again,openPeek,gearRec,forestRows,unequip,canOff,swapGain,deltaHTML,renderBag,ask,askClose,meltJunk,markPickable,cubeQClose,unionPct,unionMult,basePow,unionCall,unionAdd,unionDrop,renderForestRank,autoPost,canAuto,betterThanPosted,pkNew,pkGrade,critRate,critMult,CRIT,FOR,fStart,fGrow,fStep,fRng,fMeters,fPx,fT,fVal,fEnter,fEnd,fReward,fRun,fRec,renderForest,renderStat,statOf,sumOpt,mastSum,slotPow,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,navViews,viewIdx,swipeTarget,swipeBlocked,VIEWS,topBoss,bossLabel,myRec,DNAME,ACH,achStat,MAXLV,lvBonus,lvMult,LVK,SLOT_ART,WEAPON_ART,stash,bagStar,bagLines,bagP4,dropSlot,BTYPE,renderAll,CRCOL,passTime,offerOffline,OFF_CAP,OFF_RATE,TR,carryLines,showDrop,cost,protUse,safeUse,IGCOST,igCost,MAST,MPS,mpFor,mastOf,mastFree,mastMult,mastSum,trStar,renderMast,starMult,expMult,IGSTAR,engrave,ENG,renderShop,renderCubes,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,crt2,bossSReq,SREQ_K,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
   get state(){return S;}, cur, power, income, mesoMult, dropMult, starMult, potMultOf, POTG, odds, potGrade, topGrade, totalStars, sfBonus}; }catch(e){}
 })();
 </script>
