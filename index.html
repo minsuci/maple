@@ -245,6 +245,33 @@ button:disabled{cursor:not-allowed;opacity:.45;}
   font-size:11px;font-weight:900;letter-spacing:.2em;color:var(--dimmer);}
 
 /* 큐브 */
+/* 큐브 판 — 값과 단추를 나란히.
+   큐브 목록이 판 아래에 있어서, 굴리고 나면 결과가 뜨는 잠재 줄이 화면 위로
+   밀려 안 보였다(줄은 y=1001 에서 끝나는데 단추는 1235 에서 시작했다).
+   왼쪽에 잠재 줄 사본을 두고 큐브를 오른쪽으로 보낸다. 사본은 스크롤을
+   따라오니 목록 아래쪽 큐브를 눌러도 값이 계속 보인다. */
+.cubewrap{display:grid;grid-template-columns:minmax(112px,.78fr) 1.22fr;gap:9px;align-items:start;}
+.cubenow{position:sticky;top:96px;}
+.cubenow h4{margin:0 0 6px;font-size:10px;letter-spacing:.14em;color:var(--dimmer);font-weight:900;}
+/* 좁은 칸이라 이름과 값을 한 줄에 두면 360px 에서 '최대HP' 가 두 줄로 접힌다.
+   이름 위 · 값 아래로 세운다 - 어떤 옵션 이름이 와도 안 깨진다. */
+.cubenow .potline{flex-direction:column;align-items:flex-start;gap:1px;padding:6px 9px 7px;}
+.cubenow .potline .dot{display:none;}
+.cubenow .potline .v{margin-left:0;font-size:17px;line-height:1;}
+.cubenow .potline .t{font-size:11px;line-height:1.35;}
+/* 좁은 칸에 들어가니 큐브 단추도 두 줄로 접는다 — 값은 글 아래로 */
+.cubewrap .cube{grid-template-columns:auto 1fr;gap:8px;padding:9px 10px;}
+.cubewrap .cube .ic{width:26px;height:26px;border-radius:7px;font-size:14px;}
+.cubewrap .cube .nm{font-size:12.5px;}
+.cubewrap .cube .rt{font-size:10px;margin-top:3px;}
+.cubewrap .cube .pr{grid-column:2;font-size:16px;justify-self:start;margin-top:3px;}
+.cubewrap .cubes{gap:7px;}
+.c5opt{margin-bottom:9px;}
+/* 아주 좁은 폰에서는 두 칸이 서로를 조른다. 값 사본을 위로 올린다. */
+@media (max-width:340px){
+  .cubewrap{grid-template-columns:1fr;}
+  .cubenow{position:static;}
+}
 .cubes{display:flex;flex-direction:column;gap:8px;}
 .cube{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;
   background:#15122C;border:1px solid var(--edge);border-radius:11px;padding:11px 13px;text-align:left;
@@ -252,8 +279,10 @@ button:disabled{cursor:not-allowed;opacity:.45;}
 .cube:hover:not(:disabled){border-color:var(--c);background:#1B1638;}
 .cube .ic{width:34px;height:34px;border-radius:9px;background:linear-gradient(145deg,var(--c),#0000);
   border:1px solid var(--c);display:grid;place-items:center;font-size:17px;}
-.cube .nm{font-weight:900;font-size:14px;}
-.cube .rt{font-size:11px;color:var(--dimmer);font-weight:500;margin-top:2px;}
+/* span 이라 이름과 설명이 한 줄로 붙어 나온다. 넓을 땐 어차피 줄바꿈이
+   일어나 티가 안 났는데, 큐브를 좁은 칸으로 옮기니 드러났다. */
+.cube .nm{display:block;font-weight:900;font-size:14px;}
+.cube .rt{display:block;font-size:11px;color:var(--dimmer);font-weight:500;margin-top:2px;}
 .cube .pr{font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--meso);white-space:nowrap;}
 .pity{margin-top:10px;font-size:11.5px;color:var(--dimmer);text-align:center;}
 .pity b{color:var(--gold);}
@@ -1194,11 +1223,19 @@ td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
       </div>
 
       <div class="pane" id="paneCube" role="tabpanel" aria-labelledby="tabCube" hidden>
-        <div class="opt" style="margin-bottom:11px">
-          <div><div class="t">블랙 큐브 다섯 벌</div><div class="d" id="c5Desc">한 번에 다섯 벌을 굴려 하나 고른다</div></div>
-          <button class="sw" id="swC5" role="switch" aria-checked="false" aria-label="블랙 큐브 다섯 벌"></button>
+        <div class="cubewrap">
+          <div class="cubenow">
+            <h4>지금 잠재</h4>
+            <div class="clines" id="cubePots"></div>
+          </div>
+          <div>
+            <div class="opt c5opt">
+              <div><div class="t">블랙 큐브 다섯 벌</div><div class="d" id="c5Desc">한 번에 다섯 벌을 굴려 하나 고른다</div></div>
+              <button class="sw" id="swC5" role="switch" aria-checked="false" aria-label="블랙 큐브 다섯 벌"></button>
+            </div>
+            <div class="cubes" id="cubeList"></div>
+          </div>
         </div>
-        <div class="cubes" id="cubeList"></div>
         <p class="pity" id="pityV"></p>
       </div>
 
@@ -2510,6 +2547,17 @@ function renderItem(){
     if(!l){ el.innerHTML='<span class="dot"></span><span class="t">'+(i===0?'— 잠재능력 미부여 —':'—')+'</span>'; continue; }
     el.innerHTML=lineHTML(l);
   }
+  // 같은 줄을 큐브 판에도 띄운다. 큐브 단추가 아래에 있어서 굴리고 나면
+  // 결과 줄이 화면 위로 밀려 안 보였다. 여기 것은 사본이지만 초이스 큐브로
+  // 고를 때는 이쪽도 눌린다 - 고르는 자리가 원래 여기다.
+  let h='';
+  for(let i=0;i<pn;i++){
+    const l=it.lines[i];
+    h+='<div class="potline">'+(l?lineHTML(l)
+      :'<span class="dot"></span><span class="t">'+(i===0?'— 잠재능력 미부여 —':'—')+'</span>')+'</div>';
+  }
+  $('cubePots').innerHTML=h;
+  if(choiceMode) markPickable(true);
 }
 /* ---------- 상태창 ---------- */
 // 흩어져 있던 걸 한 곳에 모은다. 값은 전부 실제로 쓰이는 함수에서 꺼낸다 -
@@ -3181,13 +3229,25 @@ let choiceMode=false;
 // 메소로 낼 때만 다섯 배였으니 가진 사람에게만 공짜였던 셈이다.
 const cubeNeed=cb=>c5On(cb)?C5N:1;
 const haveCube=cb=>!!(S.inv&&(S.inv[cb.k]|0)>=cubeNeed(cb));
+// 잠재 줄은 두 군데에 뜬다 - 장비창과 큐브 판. 초이스 큐브로 고를 때
+// 둘 다 눌리게 해둔다. 한쪽만 켜면 큐브 옆에서 고를 수가 없다.
+// 두 목록은 길이가 달라(장비창은 늘 네 칸, 사본은 실제 줄 수만큼)
+// 하나로 합쳐 훑으면 번호가 어긋난다 - 따로 훑는다.
+function markPickable(on){
+  const n=cur().lines.length;
+  ['.pots .potline','#cubePots .potline'].forEach(function(sel){
+    document.querySelectorAll(sel).forEach(function(el,i){
+      el.classList.toggle('pickable',!!on&&i<n);
+    });
+  });
+}
 function useCube(cb){
   const it=cur();
   if(busy||it.broken||(!haveCube(cb)&&S.meso<cubeCost(cb))) return;
   if(cb.k==='choice'&&!it.lines.length){ log('먼저 다른 큐브로 잠재능력을 부여하자',''); return; }
   if(cb.k==='choice'){
     choiceMode=!choiceMode;
-    document.querySelectorAll('.pots .potline').forEach(function(el,i){ el.classList.toggle('pickable',choiceMode&&i<it.lines.length); });
+    markPickable(choiceMode);
     renderCubes();
     log(choiceMode?'바꿀 줄을 고르자 (다시 누르면 취소)':'초이스 큐브 취소','');
     return;
@@ -3197,7 +3257,7 @@ function useCube(cb){
 function pickLine(i){
   if(!choiceMode||i>=cur().lines.length) return;
   choiceMode=false;
-  document.querySelectorAll('.pots .potline').forEach(function(el){ el.classList.remove('pickable'); });
+  markPickable(false);
   spendCube(CUBES.find(function(c){ return c.k==='choice'; }),i);
 }
 function spendCube(cb,only){
@@ -5780,6 +5840,11 @@ addEventListener('keydown',e=>{
 });
 $('swSafe').addEventListener('click',()=>{ S.useSafe=!S.useSafe; renderStarPane(); save(); });
 [0,1,2,3].forEach(i=>$('p'+i).addEventListener('click',()=>pickLine(i)));
+// 사본은 다시 그릴 때마다 갈리니 줄마다 달지 않고 상자에 한 번만 단다
+$('cubePots').addEventListener('click',function(e){
+  const el=e.target.closest('.potline');
+  if(el&&el.parentNode===this) pickLine([].indexOf.call(this.children,el));
+});
 $('swProt').addEventListener('click',()=>{ S.useProt=!S.useProt; renderStarPane(); save(); });
 $('swLuck').addEventListener('click',()=>{ S.useLuck=!S.useLuck; renderStarPane(); save(); });
 $('swC5').addEventListener('click',()=>{ ac(); S.cube5=!S.cube5; renderCubes(); save(); });
@@ -5888,7 +5953,7 @@ initOnline();
 
 // 균형 점검용 노출 (게임 동작에는 영향 없음)
 try{ window.__CFG={SF,MAXSTAR,starCost,SHIELD,SLOTS,OPT,POOL,GCAP,UPRATE,UPGRADE,CUBES,
-  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,skPct,SKMUL,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,cpAx,potAx,slotAx,atkPow,survPow,lineHTML,potGradeOf,evenGrade,c5On,C5N,showPick,again,openPeek,gearRec,forestRows,unequip,canOff,swapGain,deltaHTML,renderBag,ask,askClose,meltJunk,renderForestRank,autoPost,canAuto,betterThanPosted,pkNew,pkGrade,critRate,critMult,CRIT,FOR,fStart,fGrow,fStep,fRng,fMeters,fPx,fT,fVal,fEnter,fEnd,fReward,fRun,fRec,renderForest,renderStat,statOf,sumOpt,mastSum,slotPow,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,navViews,viewIdx,swipeTarget,swipeBlocked,VIEWS,topBoss,bossLabel,myRec,DNAME,ACH,achStat,MAXLV,lvBonus,lvMult,LVK,SLOT_ART,WEAPON_ART,stash,bagStar,bagLines,bagP4,dropSlot,BTYPE,renderAll,CRCOL,passTime,offerOffline,OFF_CAP,OFF_RATE,TR,carryLines,showDrop,cost,protUse,safeUse,IGCOST,igCost,MAST,MPS,mpFor,mastOf,mastFree,mastMult,mastSum,trStar,renderMast,starMult,expMult,IGSTAR,engrave,ENG,renderShop,renderCubes,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,crt2,bossSReq,SREQ_K,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
+  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,skPct,SKMUL,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,cpAx,potAx,slotAx,atkPow,survPow,lineHTML,potGradeOf,evenGrade,c5On,C5N,showPick,again,openPeek,gearRec,forestRows,unequip,canOff,swapGain,deltaHTML,renderBag,ask,askClose,meltJunk,markPickable,renderForestRank,autoPost,canAuto,betterThanPosted,pkNew,pkGrade,critRate,critMult,CRIT,FOR,fStart,fGrow,fStep,fRng,fMeters,fPx,fT,fVal,fEnter,fEnd,fReward,fRun,fRec,renderForest,renderStat,statOf,sumOpt,mastSum,slotPow,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,navViews,viewIdx,swipeTarget,swipeBlocked,VIEWS,topBoss,bossLabel,myRec,DNAME,ACH,achStat,MAXLV,lvBonus,lvMult,LVK,SLOT_ART,WEAPON_ART,stash,bagStar,bagLines,bagP4,dropSlot,BTYPE,renderAll,CRCOL,passTime,offerOffline,OFF_CAP,OFF_RATE,TR,carryLines,showDrop,cost,protUse,safeUse,IGCOST,igCost,MAST,MPS,mpFor,mastOf,mastFree,mastMult,mastSum,trStar,renderMast,starMult,expMult,IGSTAR,engrave,ENG,renderShop,renderCubes,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,crt2,bossSReq,SREQ_K,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
   get state(){return S;}, cur, power, income, mesoMult, dropMult, starMult, potMultOf, POTG, odds, potGrade, topGrade, totalStars, sfBonus}; }catch(e){}
 })();
 </script>
