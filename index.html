@@ -278,8 +278,28 @@ button:disabled{cursor:not-allowed;opacity:.45;}
    단추는 무엇을 얼마에 사는지만 말하고, 무슨 일이 일어나는지는 여기서 읽는다.
    상태에 따라 달라지는 말(각인이 왜 안 눌리는지, 승급하면 별이 얼마나
    깎이는지)도 버리지 않고 그대로 옮겨왔다 - 그건 안내가 아니라 경고다. */
-.cubehelp{margin-top:15px;border-top:1px solid var(--edge);padding-top:12px;}
-.cubehelp h4{margin:0 0 4px;font-size:10px;letter-spacing:.14em;color:var(--dimmer);font-weight:900;}
+/* 안내는 늘 펼쳐 두지 않는다. 처음 한 번 읽고 나면 다시 볼 일이 없는데
+   판 아래 절반을 차지하고 있었다. 물음표 하나로 접어 두고 누르면 뜬다. */
+.helprow{position:relative;display:flex;justify-content:flex-end;margin-top:11px;}
+.qbtn{width:24px;height:24px;border-radius:50%;border:1px solid var(--edge2);background:#15122C;
+  color:var(--dim);font-size:13px;font-weight:900;line-height:1;display:grid;place-items:center;
+  padding:0;font-family:inherit;}
+.qbtn:hover{border-color:var(--gold);color:var(--gold);}
+.qbtn[aria-expanded="true"]{border-color:var(--gold);color:var(--gold);background:#2A2208;}
+/* 말풍선은 위로 편다 - 이 판은 화면 아래쪽에 있어서 아래로 펴면 잘린다 */
+.pop{position:absolute;bottom:calc(100% + 10px);right:0;width:100%;z-index:30;
+  background:#1B1638;border:1px solid var(--edge2);border-radius:12px;padding:12px 13px;
+  box-shadow:0 16px 38px #000B;
+  /* 아주 낮은 화면에서는 내려도 다 안 들어간다 - 그때만 안에서 굴린다 */
+  max-height:calc(100vh - 190px);overflow-y:auto;scrollbar-width:thin;}
+/* 꼬리는 말풍선 안이 아니라 바깥 상자에 붙인다 - 안에 두면 overflow-y:auto 에
+   잘려 사라지고, 스크롤 막대도 괜히 생긴다 */
+.helprow.open::before{content:'';position:absolute;bottom:calc(100% + 4px);right:9px;
+  width:12px;height:12px;background:#1B1638;z-index:31;
+  border-right:1px solid var(--edge2);border-bottom:1px solid var(--edge2);
+  transform:rotate(45deg);}
+.pop .chrow:first-child{padding-top:0;}
+.pop .chstate{margin-top:11px;}
 .chrow{display:grid;grid-template-columns:24px 1fr auto;gap:10px;align-items:center;
   padding:9px 0;border-bottom:1px solid #1E1940;}
 .chrow:last-of-type{border-bottom:0;}
@@ -1265,10 +1285,12 @@ td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
             <div class="cubes" id="cubeList"></div>
           </div>
         </div>
-        <div class="cubehelp">
-          <h4>무엇을 하는 것들인가</h4>
-          <div id="cubeHelp"></div>
-          <div class="chstate" id="pityV"></div>
+        <div class="helprow">
+          <button class="qbtn" id="cubeQ" aria-expanded="false" aria-controls="cubeHelpPop" aria-label="큐브 설명">?</button>
+          <div class="pop" id="cubeHelpPop" hidden>
+            <div id="cubeHelp"></div>
+            <div class="chstate" id="pityV"></div>
+          </div>
         </div>
       </div>
 
@@ -5896,6 +5918,31 @@ $('cubePots').addEventListener('click',function(e){
 $('swProt').addEventListener('click',()=>{ S.useProt=!S.useProt; renderStarPane(); save(); });
 $('swLuck').addEventListener('click',()=>{ S.useLuck=!S.useLuck; renderStarPane(); save(); });
 $('swC5').addEventListener('click',()=>{ ac(); S.cube5=!S.cube5; renderCubes(); save(); });
+function cubeQClose(){
+  $('cubeHelpPop').hidden=true;
+  $('cubeQ').setAttribute('aria-expanded','false');
+  $('cubeQ').parentNode.classList.remove('open');
+}
+$('cubeQ').addEventListener('click',function(e){
+  e.stopPropagation(); ac();
+  const p=$('cubeHelpPop'); p.hidden=!p.hidden;
+  this.setAttribute('aria-expanded',String(!p.hidden));
+  this.parentNode.classList.toggle('open',!p.hidden);
+  if(p.hidden) return;
+  // 위로 펴는 말풍선이라 길면 화면 위로 넘친다. 위에 붙어 있는 바 아래까지
+  // 내려서 첫 줄부터 보이게 한다.
+  const nav=document.querySelector('.navwrap');
+  const lid=(nav?nav.getBoundingClientRect().bottom:0)+8;
+  const r=p.getBoundingClientRect();
+  // behavior:'smooth' 는 rAF 를 타서, 판이 안 그려지는 자리에서는 아무 일도
+  // 하지 않는다. 확인할 수 없는 것에 기대지 말고 그냥 옮긴다.
+  if(r.top<lid) scrollTo(0, scrollY+(r.top-lid));
+});
+// 바깥을 누르면 닫힌다. 단추가 propagation 을 끊으니 자기 클릭에는 안 걸린다.
+document.addEventListener('click',function(e){
+  const p=$('cubeHelpPop');
+  if(!p.hidden&&!p.contains(e.target)) cubeQClose();
+});
 $('fbSend').addEventListener('click',function(){ ac(); sendFeedback(); });
 $('fbText').addEventListener('input',fbCount);
 $('mastReset').addEventListener('click',function(){ const m=mastOf(S.sel||0); if(!mastUsed(S.sel||0)) return;
@@ -5960,6 +6007,7 @@ $('drop').addEventListener('click',function(e){ if(e.target===$('drop')) $('drop
 // 빠뜨렸을 때 또 갇힌다 - 여기서 한 번에 본다.
 addEventListener('keydown',function(e){
   if(e.key!=='Escape') return;
+  if(!$('cubeHelpPop').hidden){ cubeQClose(); return; }
   const open=[...document.querySelectorAll('.compare:not([hidden])')];
   if(!open.length){ if(!$('menu').hidden) $('menu').hidden=true; return; }
   const top=open[open.length-1];
@@ -6001,7 +6049,7 @@ initOnline();
 
 // 균형 점검용 노출 (게임 동작에는 영향 없음)
 try{ window.__CFG={SF,MAXSTAR,starCost,SHIELD,SLOTS,OPT,POOL,GCAP,UPRATE,UPGRADE,CUBES,
-  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,skPct,SKMUL,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,cpAx,potAx,slotAx,atkPow,survPow,lineHTML,potGradeOf,evenGrade,c5On,C5N,showPick,again,openPeek,gearRec,forestRows,unequip,canOff,swapGain,deltaHTML,renderBag,ask,askClose,meltJunk,markPickable,renderForestRank,autoPost,canAuto,betterThanPosted,pkNew,pkGrade,critRate,critMult,CRIT,FOR,fStart,fGrow,fStep,fRng,fMeters,fPx,fT,fVal,fEnter,fEnd,fReward,fRun,fRec,renderForest,renderStat,statOf,sumOpt,mastSum,slotPow,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,navViews,viewIdx,swipeTarget,swipeBlocked,VIEWS,topBoss,bossLabel,myRec,DNAME,ACH,achStat,MAXLV,lvBonus,lvMult,LVK,SLOT_ART,WEAPON_ART,stash,bagStar,bagLines,bagP4,dropSlot,BTYPE,renderAll,CRCOL,passTime,offerOffline,OFF_CAP,OFF_RATE,TR,carryLines,showDrop,cost,protUse,safeUse,IGCOST,igCost,MAST,MPS,mpFor,mastOf,mastFree,mastMult,mastSum,trStar,renderMast,starMult,expMult,IGSTAR,engrave,ENG,renderShop,renderCubes,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,crt2,bossSReq,SREQ_K,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
+  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,skPct,SKMUL,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,cpAx,potAx,slotAx,atkPow,survPow,lineHTML,potGradeOf,evenGrade,c5On,C5N,showPick,again,openPeek,gearRec,forestRows,unequip,canOff,swapGain,deltaHTML,renderBag,ask,askClose,meltJunk,markPickable,cubeQClose,renderForestRank,autoPost,canAuto,betterThanPosted,pkNew,pkGrade,critRate,critMult,CRIT,FOR,fStart,fGrow,fStep,fRng,fMeters,fPx,fT,fVal,fEnter,fEnd,fReward,fRun,fRec,renderForest,renderStat,statOf,sumOpt,mastSum,slotPow,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,navViews,viewIdx,swipeTarget,swipeBlocked,VIEWS,topBoss,bossLabel,myRec,DNAME,ACH,achStat,MAXLV,lvBonus,lvMult,LVK,SLOT_ART,WEAPON_ART,stash,bagStar,bagLines,bagP4,dropSlot,BTYPE,renderAll,CRCOL,passTime,offerOffline,OFF_CAP,OFF_RATE,TR,carryLines,showDrop,cost,protUse,safeUse,IGCOST,igCost,MAST,MPS,mpFor,mastOf,mastFree,mastMult,mastSum,trStar,renderMast,starMult,expMult,IGSTAR,engrave,ENG,renderShop,renderCubes,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,crt2,bossSReq,SREQ_K,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
   get state(){return S;}, cur, power, income, mesoMult, dropMult, starMult, potMultOf, POTG, odds, potGrade, topGrade, totalStars, sfBonus}; }catch(e){}
 })();
 </script>
