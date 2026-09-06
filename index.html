@@ -260,11 +260,12 @@ button:disabled{cursor:not-allowed;opacity:.45;}
 .cubenow .potline .v{margin-left:0;font-size:17px;line-height:1;}
 .cubenow .potline .t{font-size:11px;line-height:1.35;}
 /* 좁은 칸에 들어가니 큐브 단추도 두 줄로 접는다 — 값은 글 아래로 */
-.cubewrap .cube{grid-template-columns:auto 1fr;gap:8px;padding:9px 10px;}
+/* 설명을 아래로 내렸으니 단추는 한 줄이면 된다 - 무엇을 얼마에 사는지만 */
+.cubewrap .cube{gap:8px;padding:8px 10px;}
 .cubewrap .cube .ic{width:26px;height:26px;border-radius:7px;font-size:14px;}
-.cubewrap .cube .nm{font-size:12.5px;}
-.cubewrap .cube .rt{font-size:10px;margin-top:3px;}
-.cubewrap .cube .pr{grid-column:2;font-size:16px;justify-self:start;margin-top:3px;}
+.cubewrap .cube .nm{font-size:12.5px;min-width:0;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap;}
+.cubewrap .cube .pr{font-size:16px;}
 .cubewrap .cubes{gap:7px;}
 .c5opt{margin-bottom:9px;}
 /* 아주 좁은 폰에서는 두 칸이 서로를 조른다. 값 사본을 위로 올린다. */
@@ -272,6 +273,34 @@ button:disabled{cursor:not-allowed;opacity:.45;}
   .cubewrap{grid-template-columns:1fr;}
   .cubenow{position:static;}
 }
+/* 큐브 안내 — 단추에 붙어 있던 설명을 여기로 모았다.
+   설명이 단추 안에 있으니 칸마다 서너 줄이 붙어 세로가 한없이 길어졌다.
+   단추는 무엇을 얼마에 사는지만 말하고, 무슨 일이 일어나는지는 여기서 읽는다.
+   상태에 따라 달라지는 말(각인이 왜 안 눌리는지, 승급하면 별이 얼마나
+   깎이는지)도 버리지 않고 그대로 옮겨왔다 - 그건 안내가 아니라 경고다. */
+.cubehelp{margin-top:15px;border-top:1px solid var(--edge);padding-top:12px;}
+.cubehelp h4{margin:0 0 4px;font-size:10px;letter-spacing:.14em;color:var(--dimmer);font-weight:900;}
+.chrow{display:grid;grid-template-columns:24px 1fr auto;gap:10px;align-items:center;
+  padding:9px 0;border-bottom:1px solid #1E1940;}
+.chrow:last-of-type{border-bottom:0;}
+.chic{width:24px;height:24px;border-radius:7px;display:grid;place-items:center;font-size:13px;
+  background:linear-gradient(145deg,var(--c),#0000);border:1px solid var(--c);}
+.chrow .chn{min-width:0;}
+.chrow b{display:block;font-size:12.5px;font-weight:900;}
+.chrow .cd{display:block;font-size:11px;color:var(--dim);line-height:1.65;margin-top:3px;}
+.chrow .cd b{display:inline;font-size:inherit;color:var(--text);}
+.chrow i{font-style:normal;font-family:'Bebas Neue',sans-serif;font-size:14.5px;letter-spacing:.03em;
+  color:var(--gold);white-space:nowrap;}
+.chrow.off{opacity:.5;}
+.chrow.warn .cd b{color:var(--warn);}
+/* 안내표 아래 지금 상태. 가운데 정렬 글자 벽이던 것을 줄로 세운다 */
+.chstate{display:grid;gap:5px;margin-top:12px;}
+.chst{display:flex;justify-content:space-between;align-items:baseline;gap:12px;
+  background:#15122C;border:1px solid var(--edge);border-radius:8px;padding:7px 11px;}
+.chst>span{flex:0 0 auto;font-size:9.5px;letter-spacing:.12em;color:var(--dimmer);font-weight:900;}
+.chst>b{font-size:11.5px;font-weight:700;text-align:right;line-height:1.5;}
+.chnote{margin:10px 0 0;font-size:11px;color:var(--dimmer);line-height:1.75;}
+.chnote b{color:var(--dim);}
 .cubes{display:flex;flex-direction:column;gap:8px;}
 .cube{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;
   background:#15122C;border:1px solid var(--edge);border-radius:11px;padding:11px 13px;text-align:left;
@@ -1236,7 +1265,11 @@ td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
             <div class="cubes" id="cubeList"></div>
           </div>
         </div>
-        <p class="pity" id="pityV"></p>
+        <div class="cubehelp">
+          <h4>무엇을 하는 것들인가</h4>
+          <div id="cubeHelp"></div>
+          <div class="chstate" id="pityV"></div>
+        </div>
       </div>
 
       <div class="pane" id="paneMast" role="tabpanel" aria-labelledby="tabMast" hidden>
@@ -3042,21 +3075,25 @@ function renderCubes(){
   // 스위치는 큐브 판에 있다. 예전엔 스타포스 판(쉴드 옆)에 뒀는데,
   // 큐브를 굴리는 자리에서 안 보이니 있는 줄도 몰랐다.
   $('swC5').setAttribute('aria-checked',String(!!S.cube5));
+  // 긴 설명은 아래 안내표가 맡는다. 여기는 켜졌는지만.
   $('c5Desc').innerHTML=S.cube5
-    ? '블랙 큐브 <b>'+C5N+'개</b>를 한꺼번에 써서 다섯 벌 중 하나를 고른다'
-    : '블랙 큐브 '+C5N+'개를 한꺼번에 써서 다섯 벌 중 하나를 고른다 · 블랙에만 걸린다';
+    ? '블랙 <b>'+C5N+'개</b>씩 · 다섯 벌 중 하나'
+    : '블랙 '+C5N+'개씩 · 다섯 벌 중 하나';
   const up=UPGRADE[it.ig];
   const ub=document.createElement('button');
   ub.className='cube'; ub.style.setProperty('--c','#5CE68A');
   ub.disabled=busy||it.broken||!up||S.meso<upCost(up);
-  ub.innerHTML='<span class="ic">↑</span><span><span class="nm">장비 등급 — '+
-    (up?IGNAME[it.ig]+' 장비 → '+IGNAME[up.to]+' 장비':it.ig>=3?'레전더리 장비 (최고)':'유니크 장비 — 승급으로는 여기까지')+'</span><span class="rt">'+
-    (up?'성공 '+up.p+'% · <b>잠재 상한</b>이 '+GNAME[GCAP[up.to]]+'로 · <b>성수치 '+Math.round(UP_LOSS*100)+'% 감소 ('+
-        it.star+'★ → '+Math.floor(it.star*(1-UP_LOSS))+'★)</b> · 실패하면 메소만 잃는다'
-       :it.ig>=3?'<b>장비</b> 등급은 여기가 끝 · 잠재를 <b>레전더리</b>까지 올릴 수 있다':'<b>레전더리 장비</b>는 승급으로 못 만든다 — 요구 '+LEG_MIN+' 위 보스가 아주 가끔 떨군다')+
-    '</span></span><span class="pr">'+(up?fmt(upCost(up)):'—')+'</span>';
+  // 아래 안내표에 넣을 줄을 모아 둔다. 단추에는 이름과 값만 남긴다.
+  const help=[];
+  ub.innerHTML='<span class="ic">↑</span><span class="nm">장비 등급</span><span class="pr">'+(up?fmt(upCost(up)):'—')+'</span>';
   if(up) ub.addEventListener('click',upgradeItem);
   L.appendChild(ub);
+  help.push({c:'#5CE68A', ic:'↑', n:'장비 등급', off:!up,
+    d: up?(IGNAME[it.ig]+' 장비 → '+IGNAME[up.to]+' 장비 · 잠재 상한이 <b>'+GNAME[GCAP[up.to]]+'</b>로 · '+
+           '<b>성수치가 '+Math.round(UP_LOSS*100)+'% 깎인다 ('+it.star+'★ → '+Math.floor(it.star*(1-UP_LOSS))+'★)</b> · 실패하면 메소만 잃는다')
+      : it.ig>=3 ? '<b>장비</b> 등급은 여기가 끝 · 잠재는 <b>레전더리</b>까지 올릴 수 있다'
+      : '<b>레전더리 장비</b>는 승급으로 못 만든다 — 요구 '+LEG_MIN+' 위 보스가 아주 가끔 떨군다',
+    r: up?('성공 '+up.p+'%'):''});
   // 각인은 레전더리 장비에만 쓴다. 예전엔 레전더리를 낀 부위를 고르기 전까지
   // 이 칸 자체가 없어서, 사놓고도 쓸 데를 못 찾았다. 가진 게 있으면 칸을 띄우고
   // 왜 못 쓰는지, 어느 부위에 쓸 수 있는지 적어준다.
@@ -3076,9 +3113,10 @@ function renderCubes(){
       : it.p4 ? '이 장비는 이미 네 줄이다'
       : engHave<1 ? '가진 각인이 없다 — <b>상점</b>에서 산다'
       : '성공 <b>'+ENG.p+'%</b> · 실패하면 각인만 사라진다 · 열리면 그 자리에 한 줄이 바로 굴러간다';
-    eb.innerHTML='<span class="ic">❖</span><span><span class="nm">금빛 각인 — 잠재 '+
-      (it.p4?'네 줄 (열림)':'네 번째 줄 해금')+'</span><span class="rt">'+why+
-      '</span></span><span class="pr">'+(it.p4?'—':'보유 '+engHave)+'</span>';
+    eb.innerHTML='<span class="ic">❖</span><span class="nm">금빛 각인'+
+      (it.p4?' (열림)':'')+'</span><span class="pr">'+(it.p4?'—':'보유 '+engHave)+'</span>';
+    help.push({c:'#FFD23F', ic:'❖', n:'금빛 각인', off:eb.disabled, warn:wrong||engHave<1,
+      d:'잠재를 <b>네 줄</b>로 연다 · '+why, r:(it.p4||wrong||engHave<1)?'':('성공 '+ENG.p+'%')});
     // 쓸 수 있는 부위가 따로 있으면 눌러서 그리로 보낸다
     if(wrong&&legs.length){ eb.disabled=false;
       eb.addEventListener('click',function(){ ac(); S.sel=legs[0].i; renderAll(); save(); }); }
@@ -3095,23 +3133,33 @@ function renderCubes(){
     const gg=potGrade(), cap2=GCAP[it.ig], ur=upRate(cb.k,gg);
     const up=(gg>=0&&gg<cap2)
       ? (ur?' · <b>등급 상승 '+(ur*100).toFixed(1)+'%</b>':' · 등급 상승 없음') : '';
-    b.innerHTML='<span class="ic">'+cb.ic+'</span><span><span class="nm">'+cb.n+'</span>'+
-      '<span class="rt">'+cb.d.replace('{N}',POTN(it)>3?'네 ':'세 ').replace('{M}',POTN(it)>3?'세 ':'두 ')+up+
-      (c5On(cb)?' · <b>'+C5N+'개를 한꺼번에</b>':'')+'</span></span><span class="pr">'+
-      (fr?('보유 '+(S.inv[cb.k]|0)+(c5On(cb)?' → '+C5N+'개':'')):fmt(cc))+'</span>';
+    b.innerHTML='<span class="ic">'+cb.ic+'</span><span class="nm">'+cb.n+
+      (c5On(cb)?' ×'+C5N:'')+'</span><span class="pr">'+
+      (fr?('보유 '+(S.inv[cb.k]|0)):fmt(cc))+'</span>';
+    help.push({c:cb.c, ic:cb.ic, n:cb.n, off:b.disabled,
+      d:cb.d.replace('{N}',POTN(it)>3?'네 ':'세 ').replace('{M}',POTN(it)>3?'세 ':'두 ')+
+        (c5On(cb)?' · <b>'+C5N+'개를 한꺼번에 써서 다섯 벌 중 하나를 고른다</b>':''),
+      r:(gg>=0&&gg<cap2&&ur)?('등급 ↑ '+(ur*100).toFixed(1)+'%'):''});
     b.addEventListener('click',function(){ useCube(cb); });
     L.appendChild(b);
   });
+  $('cubeHelp').innerHTML=help.map(function(x){
+    return '<div class="chrow'+(x.off?' off':'')+(x.warn?' warn':'')+'">'+
+      '<span class="chic" style="--c:'+x.c+'">'+x.ic+'</span>'+
+      '<span class="chn"><b>'+x.n+'</b><span class="cd">'+x.d+'</span></span>'+
+      '<i>'+(x.r||'')+'</i></div>';
+  }).join('');
   const cap=GCAP[it.ig], g=potGrade();
+  // 등급 상승 확률은 안내표의 오른쪽 칸이 이미 말해 주니 여기서 또 적지 않는다.
   const nxt=g<0?'레어 부여'
-    :(g+1<=cap?GNAME[g]+' → '+GNAME[g+1]+' · 레드 '+(upRate('red',g)*100).toFixed(1)+
-      '% · 블랙 '+(upRate('black',g)*100).toFixed(1)+'% · 초이스 없음'
-     :'이 장비의 상한('+GNAME[cap]+')에 도달');
-  $('pityV').innerHTML='<b>장비 등급</b>과 <b>잠재 등급</b>은 따로다 — 위 버튼이 장비, 아래 큐브가 잠재.<br>'+
-    '지금 <b>'+IGNAME[it.ig]+' 장비</b>라서 잠재는 <b>'+GNAME[cap]+'</b>까지 · 다음 등급 — '+nxt+
-    '<br>큐브는 등급을 <b>올리기만 한다.</b> 등급이 오를수록 문이 좁아지고, '+
-    '<b>블랙은 레드의 두 배</b>로 오른다. <b>초이스는 등급을 못 올리는 대신</b> 좋은 줄을 지킨다.'+
-    '<br>지금 잠재가 좋을수록 <b>굴리는 값도 비싸진다</b> (레어 기준 ×1 · 에픽 ×2 · 유니크 ×4 · 레전더리 ×8).';
+    :(g+1<=cap?GNAME[g]+' → '+GNAME[g+1]:'상한('+GNAME[cap]+')에 도달');
+  const st=function(k,v){ return '<div class="chst"><span>'+k+'</span><b>'+v+'</b></div>'; };
+  $('pityV').innerHTML=
+    st('지금', IGNAME[it.ig]+' 장비 · 잠재 상한 '+GNAME[cap])+
+    st('다음 등급', nxt)+
+    st('굴리는 값', '레어 ×1 · 에픽 ×2 · 유니크 ×4 · 레전더리 ×8')+
+    '<p class="chnote"><b>장비 등급</b>과 <b>잠재 등급</b>은 따로다 — 맨 위 단추가 장비를, '+
+    '큐브가 잠재를 올린다. 큐브는 등급을 <b>올리기만 한다</b> — 굴려서 내려가는 일은 없다.</p>';
 }
 function renderRecs(){
   const r=S.st, rate=r.try?((r.suc/r.try)*100).toFixed(1):'0.0';
