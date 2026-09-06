@@ -196,10 +196,22 @@ button:disabled{cursor:not-allowed;opacity:.45;}
 /* 창을 닫는 x. 장비 창에는 닫을 길이 아예 없어서, 잘못 열면 셋 중
    하나를 고르는 수밖에 없었다. */
 .cmpcard{position:relative;}
-.cmpx{position:absolute;top:10px;right:12px;width:30px;height:30px;border-radius:50%;
+/* absolute 로 두면 카드가 길 때(기록 창은 장비 여덟 부위가 다 들어간다)
+   위로 스크롤돼 사라진다. 카드가 스크롤 상자라 sticky 로 붙여 둔다.
+   float 로 흐름에서 빼서 제목이 가운데 그대로 있게. */
+.cmpx{position:sticky;top:0;float:right;width:30px;height:30px;border-radius:50%;
+  top:-10px;margin:-2px -2px 0 8px;
   border:1px solid var(--edge);background:#15122C;color:var(--dim);
-  font-size:19px;line-height:1;display:grid;place-items:center;padding:0;z-index:2;}
+  font-size:19px;line-height:1;display:grid;place-items:center;padding:0;z-index:3;}
+/* 제목 줄도 같이 붙여 둔다. × 만 띄우면 스크롤한 내용이 그 밑을 지나가며
+   숫자를 가린다 - 제목 줄이 바탕째 덮어 준다. */
+/* top:-20px 인 건 카드 안쪽 여백(padding:20px) 때문이다. sticky 는 스크롤
+   상자의 padding 모서리를 0 으로 보므로, 0 으로 두면 띠 위로 20px 만큼
+   내용이 지나가는 게 보인다. 테두리 끝까지 끌어올린다. */
+.cmpcard>h2{position:sticky;top:-20px;z-index:2;margin:-20px -20px 12px;
+  padding:20px 20px 10px;background:var(--panel);}
 .cmpx:hover{border-color:var(--edge2);color:var(--text);}
+#drop .cmpx{position:absolute;top:10px;right:12px;margin:0;float:none;}
 .cmpbtns{display:flex;gap:10px;margin-top:14px;}
 .cmpbtns .btn{white-space:nowrap;padding-left:10px;padding-right:10px;}
 .askrow{display:flex;justify-content:space-between;align-items:baseline;gap:10px;
@@ -1489,6 +1501,7 @@ td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
 
 <div class="compare" id="attend" hidden>
   <div class="cmpcard">
+    <button class="cmpx" aria-label="닫기">&times;</button>
     <h2>출석</h2>
     <div class="attgrid" id="attList"></div>
     <p class="attnote" id="attNote"></p>
@@ -1514,6 +1527,7 @@ td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
 
 <div class="compare" id="peek" hidden>
   <div class="cmpcard">
+    <button class="cmpx" aria-label="닫기">&times;</button>
     <h2>기록</h2>
     <div id="pkBody"></div>
     <div class="cmpbtns"><button class="btn" id="pkClose">닫기</button></div>
@@ -1522,6 +1536,7 @@ td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
 
 <div class="compare" id="jobPick" hidden>
   <div class="cmpcard">
+    <button class="cmpx" aria-label="닫기">&times;</button>
     <h2 id="jobTitle">직업</h2>
     <div class="joblist" id="jobList"></div>
     <p class="attnote" id="jobNote"></p>
@@ -1533,6 +1548,7 @@ td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
 
 <div class="compare" id="bossPick" hidden>
   <div class="cmpcard bpcard">
+    <button class="cmpx" aria-label="닫기">&times;</button>
     <div class="bphead">
       <svg class="bpart" id="bpArt" viewBox="0 0 64 64" aria-hidden="true"></svg>
       <div>
@@ -6147,7 +6163,17 @@ $('askNo').addEventListener('click',function(){ ac(); askClose(); });
 $('askYes').addEventListener('click',function(){ const f=askYes; ac(); askClose(); if(f) f(); });
 $('ask').addEventListener('click',function(e){ if(e.target===$('ask')) askClose(); });
 $('peek').addEventListener('click',function(e){ if(e.target===$('peek')) $('peek').hidden=true; });
-$('dropX').addEventListener('click',function(){ ac(); $('drop').hidden=true; });
+// × 는 어느 창에 있든 그 창을 닫는다. 창마다 따로 달면 새 창을 만들 때
+// 또 빠뜨린다 - 장비 창에 달고 나서 기록 창을 빠뜨린 게 그거였다.
+document.addEventListener('click',function(e){
+  const x=e.target.closest&&e.target.closest('.cmpx');
+  if(!x) return;
+  const box=x.closest('.compare');
+  if(!box) return;
+  ac(); box.hidden=true; box.classList.remove('c5wrap');
+  if(box.id==='ask') askClose();
+  if(box.id==='compare') busy=false;
+});
 $('drop').addEventListener('click',function(e){ if(e.target===$('drop')) $('drop').hidden=true; });
 // ESC 는 맨 위에 떠 있는 창 하나만 닫는다. 창마다 따로 달면 하나를
 // 빠뜨렸을 때 또 갇힌다 - 여기서 한 번에 본다.
@@ -6180,6 +6206,7 @@ document.querySelectorAll('.mitem').forEach(function(b){   // data-v 없는 항�
 $('bpClose').addEventListener('click',function(){ $('bossPick').hidden=true; });
 $('bpGo').addEventListener('click',function(){ ac(); fightPicked(); });
 $('bossPick').addEventListener('click',function(e){ if(e.target===$('bossPick')) $('bossPick').hidden=true; });
+$('jobPick').addEventListener('click',function(e){ if(e.target===$('jobPick')) $('jobPick').hidden=true; });
 addEventListener('visibilitychange',()=>{ if(document.hidden){ save(); pushSave(true); } });
 
 /* ---------- 시작 ---------- */
