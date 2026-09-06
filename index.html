@@ -333,6 +333,28 @@ button:disabled{cursor:not-allowed;opacity:.45;}
 .cube .nm{display:block;font-weight:900;font-size:14px;}
 .cube .rt{display:block;font-size:11px;color:var(--dimmer);font-weight:500;margin-top:2px;}
 .cube .pr{font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--meso);white-space:nowrap;}
+/* 유니언 */
+.unihead{display:flex;align-items:baseline;gap:10px;background:#15122C;border:1px solid var(--edge);
+  border-radius:10px;padding:10px 13px;margin-bottom:8px;}
+.unihead b{font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:.02em;color:var(--gold);}
+.unihead span{font-size:11.5px;color:var(--dim);}
+.unilist{display:grid;gap:5px;margin-bottom:10px;}
+.unirow{display:grid;grid-template-columns:1fr auto auto 22px;gap:9px;align-items:center;
+  background:#15122C;border:1px solid var(--edge);border-radius:9px;padding:8px 11px;}
+.unirow.me{border-color:var(--edge2);background:#1B1638;}
+.unirow .n{font-size:12.5px;font-weight:900;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.unirow .n i{font-style:normal;font-size:9px;letter-spacing:.1em;color:var(--dimmer);
+  border:1px solid var(--edge2);border-radius:5px;padding:1px 4px;margin-left:5px;}
+.unirow .n i.k{color:var(--gold);border-color:var(--gold);}
+.unirow .p{font-family:'Bebas Neue',sans-serif;font-size:16px;color:var(--dim);
+  font-variant-numeric:tabular-nums;}
+.unirow .c{font-family:'Bebas Neue',sans-serif;font-size:16px;color:var(--gold);white-space:nowrap;}
+.ux{width:22px;height:22px;border-radius:50%;border:1px solid var(--edge);background:#0F0C1E;
+  color:var(--dimmer);font-size:14px;line-height:1;display:grid;place-items:center;padding:0;}
+.ux:hover{border-color:var(--bad);color:var(--bad);}
+.uin{width:100%;box-sizing:border-box;margin-bottom:7px;background:#0F0C1E;color:var(--text);
+  border:1px solid var(--edge2);border-radius:9px;padding:11px 12px;font:inherit;font-size:14px;}
+
 .pity{margin-top:10px;font-size:11.5px;color:var(--dimmer);text-align:center;}
 .pity b{color:var(--gold);}
 
@@ -2071,7 +2093,7 @@ const DEF=()=>({
   att:{last:0, day:0, total:0},
   bcd:BOSSES.map(function(){return 0;}), bk:BOSSES.map(function(){return 0;}),
   inv:defInv(), bag:[], useLuck:false, cube5:false, fbest:0,
-  st:{try:0,suc:0,keep:0,down:0,des:0,max:0,mg:0,cube:0,up:0,spent:0,best:0,hall:0}
+  st:{try:0,suc:0,keep:0,down:0,des:0,max:0,mg:0,cube:0,up:0,spent:0,best:0,bbest:0,hall:0}
 });
 let S=DEF();
 const OLD_KEY='byeol-hana-more-v1';
@@ -2180,13 +2202,27 @@ const critRate=()=>{
 // 치명타의 기댓값은 전투력에 미리 넣는다. 그래야 목록의 클리어 %가
 // 실제로 이길 확률이라는 게 유지된다 — 전투에서는 이 값으로 되나눈다.
 const critMult=()=>1+(CRIT.mul-1)*critRate()/100;
-const power=()=>Math.round(S.items.reduce((a,_,i)=>a+slotPow(i),0)*lvMult()*(1+sfBonus()/100)*(1+achStat().cp/100)*critMult());
+// ---- 유니언 ----
+// 계정 여럿을 묶으면 서로의 전투력을 올려준다. 몇 %인지는 서버가 세어
+// 보내주고 여기서는 받아 쓰기만 한다 - 브라우저에서 세면 고쳐 쓸 수 있다.
+// 세이브에 남겨두는 건 오프라인에서도 같은 숫자를 보여주기 위해서다.
+// 서버는 올라온 전투력을 그대로 안 믿고 기본값에 제 몫을 다시 곱한다.
+const UNION_CAP=20;
+// 로그인할 때 absorb() 가 먼저 돌고 그 뒤 enter() 가 S 를 통째로 갈아끼운다.
+// S 에만 넣으면 그 자리에서 지워지니 밖에도 한 벌 둔다. S.union 은 오프라인용 사본.
+let UNI=null;
+const unionPct=()=>Math.max(0,Math.min(UNION_CAP,+(((UNI||(S&&S.union))||{}).pct||0)));
+const unionMult=()=>1+unionPct()/100;
+// 기본 전투력 - 유니언을 빼고 잰 값. 유니언 기여도는 이걸로만 센다.
+// 완성된 전투력으로 재면 A 가 B 를 올리고 그 B 가 A 를 올려 서로 부푼다.
+const basePow=()=>Math.round(S.items.reduce((a,_,i)=>a+slotPow(i),0)*lvMult()*(1+sfBonus()/100)*(1+achStat().cp/100)*critMult());
+const power=()=>Math.round(basePow()*unionMult());
 // 공격력 — 보스 HP 를 깎는 속도. 지금 전투력에서 딜 옵션만 남긴 것이라
 // 값이 거의 같다. 사냥터·랭킹·업적은 계속 power() 를 쓴다.
-const atkPow=()=>Math.round(S.items.reduce((a,_,i)=>a+slotAx(i,'a'),0)*lvMult()*(1+sfBonus()/100)*(1+achStat().cp/100)*critMult());
+const atkPow=()=>Math.round(S.items.reduce((a,_,i)=>a+slotAx(i,'a'),0)*lvMult()*(1+sfBonus()/100)*(1+achStat().cp/100)*critMult()*unionMult());
 // 생존력 — 보스 딜을 버티는 시간. 레벨·스타포스는 몸도 키우니 같이 곱한다.
 // 업적과 치명타는 순수하게 딜이라 여기엔 안 넣는다.
-const survPow=()=>Math.round(S.items.reduce((a,_,i)=>a+slotAx(i,'s'),0)*lvMult()*(1+sfBonus()/100));
+const survPow=()=>Math.round(S.items.reduce((a,_,i)=>a+slotAx(i,'s'),0)*lvMult()*(1+sfBonus()/100)*unionMult());
 const xpRate=()=>{ const m=MAPS[S.map||0]; return m?m.xp*mapEff(S.map||0,power())*expMult():0; };
 // 첫 줄만 보면, 뒤에 더 높은 줄이 붙었을 때 태그가 낮게 거짓말을 한다.
 // (보스공격력만 레전더리인데 '유니크 잠재'라고 뜨던 것)
@@ -2687,7 +2723,10 @@ function renderStat(){
                ['레벨',lvMult(),base*lvMult()],
                ['스타포스',1+sfBonus()/100,base*lvMult()*(1+sfBonus()/100)],
                ['업적',1+achStat().cp/100,base*lvMult()*(1+sfBonus()/100)*(1+achStat().cp/100)],
-               ['치명타',critMult(),p]];
+               ['치명타',critMult(),basePow()]];
+  // 유니언이 걸려 있으면 사슬 끝에 한 칸 더 붙는다. 안 붙이면 마지막 값이
+  // 위에 적힌 전투력과 안 맞는다.
+  if(unionPct()>0) chain.push(['유니언',unionMult(),p]);
   h+='<div class="stsec">전투력이 어디서 오나</div><div class="stchain">';
   chain.forEach(function(c,i){
     const last=i===chain.length-1;
@@ -2727,6 +2766,32 @@ function renderStat(){
     });
     h+='</div>';
   });
+  // ---- 유니언 ----
+  if(SRV&&USER){
+    const U=UNI||S.union||{}, mem=Array.isArray(U.members)?U.members:[];
+    const role=U.role||'main', linked=Math.max(0,mem.length-1);
+    h+='<div class="stsec">유니언</div>';
+    h+='<div class="unihead"><b>+'+unionPct().toFixed(2)+'%</b>'+
+       '<span>'+(linked?('묶인 '+mem.length+'개 계정이 서로 올려준다'):'아직 묶인 계정이 없다')+'</span></div>';
+    if(linked) h+='<div class="unilist">'+mem.map(function(m){
+      return '<div class="unirow'+(m.me?' me':'')+'">'+
+        '<span class="n">'+esc(m.id)+(m.id===U.main?'<i>대표</i>':'')+(m.me?'<i class="k">나</i>':'')+'</span>'+
+        '<span class="p">'+(m.bp|0).toLocaleString('ko-KR')+'</span>'+
+        '<span class="c">'+(m.me?'—':'+'+(+m.pct).toFixed(2)+'%')+'</span>'+
+        ((role==='main'&&!m.me)?('<button class="ux" data-off="'+esc(m.id)+'" aria-label="풀기">&times;</button>'):'<span></span>')+
+      '</div>'; }).join('')+'</div>';
+    if(role==='main'){
+      h+='<div class="btnrow"><button class="btn" id="uAdd"'+
+         (linked>=(U.max||5)?' disabled':'')+'>부캐 걸기'+(linked?(' ('+linked+' / '+(U.max||5)+')'):'')+'</button></div>';
+      h+='<p class="stnote">기여도는 그 캐릭의 <b>기본 전투력</b>(유니언을 뺀 값)으로 센다 — '+
+         '한 명당 최대 '+(U.per||4)+'%, 합쳐 '+(U.cap||20)+'%까지. 서로에게 간다.<br>'+
+         '부캐로 걸린 아이디는 <b>랭킹에 안 오른다.</b> 대표 하나만 오른다.</p>';
+    } else {
+      h+='<div class="btnrow"><button class="btn" id="uLeave">묶음에서 나가기</button></div>';
+      h+='<p class="stnote"><b>'+esc(U.main)+'</b>의 부캐다 — 이 아이디는 <b>랭킹에 안 오른다.</b> '+
+         '언제든 스스로 나갈 수 있다.</p>';
+    }
+  }
   $('stBody').innerHTML=h;
 }
 
@@ -3264,6 +3329,7 @@ function resolveStar(){
     log(nm+' 유지 — <b>'+s+'★</b> 그대로','');
   }
   S.st.best=Math.max(S.st.best,power());
+  S.st.bbest=Math.max(S.st.bbest|0,basePow());   // 유니언을 뺀 값 — 남의 유니언은 이걸로 센다
   
   busy=false; renderAll(); save();
 }
@@ -3400,6 +3466,7 @@ function applyLines(lines,g,gBefore,cb){
     log(cb.n+' — '+GNAME[g]+' 옵션 재설정','');
   }
   S.st.best=Math.max(S.st.best,power());
+  S.st.bbest=Math.max(S.st.bbest|0,basePow());   // 유니언을 뺀 값 — 남의 유니언은 이걸로 센다
   
   busy=false; renderAll(); save();
 }
@@ -5276,8 +5343,57 @@ async function apiPost(payload){
     return {status:r.status, j:j};
   }catch(e){ return {status:0,j:null}; }
 }
-function absorb(j){                       // 서버 응답에서 랭킹을 흡수한다
+function absorb(j){                       // 서버 응답에서 랭킹과 유니언을 흡수한다
   if(j&&Array.isArray(j.board)){ BOARD=mergeBoard(j.board); lsSet(LK.board,BOARD); renderRank(); }
+  // 유니언은 서버가 센 것만 믿는다. 값이 달라졌을 때만 다시 그린다 -
+  // 90초마다 오는 응답마다 화면을 갈아엎을 이유가 없다.
+  if(j&&j.union){
+    const was=unionPct();
+    UNI=j.union; if(S) S.union=j.union;
+    if(Math.abs(was-unionPct())>0.001&&USER){ save(); renderAll(); }
+  }
+}
+const UNIERR={
+  is_alt:'부캐는 부캐를 걸 수 없다 — 대표 계정에서 걸자',
+  bad_id:'아이디 모양이 아니다', self:'자기 자신은 못 건다',
+  already:'이미 걸려 있는 아이디다', full:'더 걸 수 없다',
+  no_alt:'그런 아이디가 없다', alt_taken:'그 아이디는 이미 다른 유니언에 있다',
+  alt_is_main:'그 아이디는 제 부캐를 가진 대표다 — 그쪽을 먼저 풀어야 한다',
+  wrong_pw:'그 계정 비밀번호가 아니다', locked:'여러 번 틀려 잠시 막혔다',
+  bad_token:'로그인이 만료됐다 — 아이디 변경에서 다시 들어가자'
+};
+async function unionCall(op,extra){
+  if(!SRV||!TOKEN||!USER){ note('서버에 연결돼 있어야 유니언을 걸 수 있다'); return null; }
+  const r=await apiPost(Object.assign({action:'union',id:USER,token:TOKEN,op:op},extra||{}));
+  if(r.j&&r.j.union){ UNI=r.j.union; S.union=r.j.union; save(); renderAll(); }
+  if(r.j&&Array.isArray(r.j.board)) absorb({board:r.j.board});
+  return r;
+}
+function unionAdd(){
+  ask('부캐 걸기',
+    '<p class="asknote" style="margin-top:0">묶을 아이디와 <b>그 계정의 비밀번호</b>를 넣자. '+
+      '남의 계정을 제 부캐로 걸 수 없게 받는다.</p>'+
+    '<input class="uin" id="uAltId" placeholder="아이디" autocomplete="off">'+
+    '<input class="uin" id="uAltPw" type="password" placeholder="그 계정 비밀번호" autocomplete="off">'+
+    '<p class="asknote">걸린 아이디는 <b>랭킹에서 빠진다</b> — 대표 하나만 오른다.</p>',
+    '건다',
+    async function(){
+      const aid=($('uAltId').value||'').trim(), apw=$('uAltPw').value||'';
+      if(!okId(aid)) return note('아이디를 다시 보자');
+      const r=await unionCall('link',{altId:aid,altPw:apw});
+      if(!r) return;
+      const e=r.j&&r.j.error;
+      if(!e) log('<b>'+esc(aid)+'</b>을(를) 부캐로 걸었다 — 유니언 <b>+'+unionPct().toFixed(2)+'%</b>','up');
+      else note(UNIERR[e]||('걸지 못했다 ('+e+')'));
+    });
+}
+function unionDrop(altId){
+  ask(altId?'부캐 풀기':'묶음에서 나가기',
+    '<p class="asknote" style="margin-top:0">'+
+      (altId?('<b>'+esc(altId)+'</b>을(를) 묶음에서 뺀다.'):'이 계정이 묶음에서 나간다.')+
+      ' 서로 주고받던 전투력이 사라진다.</p>',
+    altId?'푼다':'나간다',
+    async function(){ await unionCall('unlink',{altId:altId||''}); });
 }
 const SAVE_MAX=20000;                  // 서버 MAX_SAVE(24000) 아래로 잡는다
 function saveBlob(){                   // 잘린 JSON 을 보내면 복구 불가라, 넘치면 아예 안 보낸다
@@ -5378,8 +5494,17 @@ const gearRec=()=>S.items.map(function(it,i){
           (it.lines||[]).slice(0,4).map(function(l){
             return [l.k, l.g|0, +(+l.v).toFixed(1)]; })];
 });
+// 유니언을 뺀 최고 전투력. 강화·보스에서 같이 세지만 두 군데가 비어 있다 —
+// 옛 세이브엔 이 칸이 아예 없고, 아직 아무것도 안 한 새 계정도 0 이다.
+// 0 으로 올라가면 서버가 그 캐릭의 기여도를 0 으로 본다.
+// 옛 best 에서 유니언을 걷어낸 값과 지금 기본값 중 큰 쪽으로 채운다.
+function baseBest(){
+  const old=Math.round((S.st.best|0)/unionMult());
+  S.st.bbest=Math.max(S.st.bbest|0, old, basePow());
+  return S.st.bbest;
+}
 function myRec(){
-  return {id:USER, star:S.st.max|0, grade:Math.max(S.st.mg||0,topGrade())|0, power:S.st.best|0,
+  return {id:USER, star:S.st.max|0, grade:Math.max(S.st.mg||0,topGrade())|0, power:S.st.best|0, bp:baseBest(),
           des:S.st.des|0, tries:S.st.try|0, boss:topBoss(), gear:gearRec(),
           mst:S.items.reduce(function(a,_,i){ return a+(mastOf(i).p|0); },0),
           fbest:S.fbest|0,
@@ -5918,6 +6043,13 @@ $('cubePots').addEventListener('click',function(e){
 $('swProt').addEventListener('click',()=>{ S.useProt=!S.useProt; renderStarPane(); save(); });
 $('swLuck').addEventListener('click',()=>{ S.useLuck=!S.useLuck; renderStarPane(); save(); });
 $('swC5').addEventListener('click',()=>{ ac(); S.cube5=!S.cube5; renderCubes(); save(); });
+// 상태창은 통째로 다시 그려지니 줄마다 달지 않고 상자에 한 번만 단다
+$('stBody').addEventListener('click',function(e){
+  const off=e.target.closest('[data-off]');
+  if(off){ ac(); unionDrop(off.getAttribute('data-off')); return; }
+  if(e.target.id==='uAdd'){ ac(); unionAdd(); return; }
+  if(e.target.id==='uLeave'){ ac(); unionDrop(''); return; }
+});
 function cubeQClose(){
   $('cubeHelpPop').hidden=true;
   $('cubeQ').setAttribute('aria-expanded','false');
@@ -6049,7 +6181,7 @@ initOnline();
 
 // 균형 점검용 노출 (게임 동작에는 영향 없음)
 try{ window.__CFG={SF,MAXSTAR,starCost,SHIELD,SLOTS,OPT,POOL,GCAP,UPRATE,UPGRADE,CUBES,
-  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,skPct,SKMUL,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,cpAx,potAx,slotAx,atkPow,survPow,lineHTML,potGradeOf,evenGrade,c5On,C5N,showPick,again,openPeek,gearRec,forestRows,unequip,canOff,swapGain,deltaHTML,renderBag,ask,askClose,meltJunk,markPickable,cubeQClose,renderForestRank,autoPost,canAuto,betterThanPosted,pkNew,pkGrade,critRate,critMult,CRIT,FOR,fStart,fGrow,fStep,fRng,fMeters,fPx,fT,fVal,fEnter,fEnd,fReward,fRun,fRec,renderForest,renderStat,statOf,sumOpt,mastSum,slotPow,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,navViews,viewIdx,swipeTarget,swipeBlocked,VIEWS,topBoss,bossLabel,myRec,DNAME,ACH,achStat,MAXLV,lvBonus,lvMult,LVK,SLOT_ART,WEAPON_ART,stash,bagStar,bagLines,bagP4,dropSlot,BTYPE,renderAll,CRCOL,passTime,offerOffline,OFF_CAP,OFF_RATE,TR,carryLines,showDrop,cost,protUse,safeUse,IGCOST,igCost,MAST,MPS,mpFor,mastOf,mastFree,mastMult,mastSum,trStar,renderMast,starMult,expMult,IGSTAR,engrave,ENG,renderShop,renderCubes,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,crt2,bossSReq,SREQ_K,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
+  MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,skPct,SKMUL,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,cpAx,potAx,slotAx,atkPow,survPow,lineHTML,potGradeOf,evenGrade,c5On,C5N,showPick,again,openPeek,gearRec,forestRows,unequip,canOff,swapGain,deltaHTML,renderBag,ask,askClose,meltJunk,markPickable,cubeQClose,unionPct,unionMult,basePow,unionCall,unionAdd,unionDrop,renderForestRank,autoPost,canAuto,betterThanPosted,pkNew,pkGrade,critRate,critMult,CRIT,FOR,fStart,fGrow,fStep,fRng,fMeters,fPx,fT,fVal,fEnter,fEnd,fReward,fRun,fRec,renderForest,renderStat,statOf,sumOpt,mastSum,slotPow,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,navViews,viewIdx,swipeTarget,swipeBlocked,VIEWS,topBoss,bossLabel,myRec,DNAME,ACH,achStat,MAXLV,lvBonus,lvMult,LVK,SLOT_ART,WEAPON_ART,stash,bagStar,bagLines,bagP4,dropSlot,BTYPE,renderAll,CRCOL,passTime,offerOffline,OFF_CAP,OFF_RATE,TR,carryLines,showDrop,cost,protUse,safeUse,IGCOST,igCost,MAST,MPS,mpFor,mastOf,mastFree,mastMult,mastSum,trStar,renderMast,starMult,expMult,IGSTAR,engrave,ENG,renderShop,renderCubes,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,crt2,bossSReq,SREQ_K,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
   get state(){return S;}, cur, power, income, mesoMult, dropMult, starMult, potMultOf, POTG, odds, potGrade, topGrade, totalStars, sfBonus}; }catch(e){}
 })();
 </script>

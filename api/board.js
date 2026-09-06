@@ -31,6 +31,53 @@ const ADMINS = String(process.env.ADMIN_IDS || '맹수학')
   .split(',').map(s => s.trim()).filter(Boolean);
 const isAdmin = id => ADMINS.indexOf(id) >= 0;
 
+// ---- 유니언 ----
+// 계정 여럿을 한 묶음으로 걸면 서로의 전투력을 올려준다. 하나가 대표고
+// 나머지가 부캐다. 보너스는 한쪽으로만 가지 않는다 - 각자 자기를 뺀
+// 나머지의 기여를 합쳐 받는다.
+//
+// 기여도는 그 계정의 '기본 전투력'(rec.bp — 유니언을 빼고 잰 값)으로 센다.
+// 완성된 전투력으로 재면 A 가 B 를 올리고 그 B 가 다시 A 를 올려 서로
+// 부풀린다. 기본값으로 재면 그 고리가 아예 안 생긴다.
+const UNION_MAX = 5;        // 대표 하나가 걸 수 있는 부캐 수
+const UNION_PER = 4;        // 부캐 하나가 줄 수 있는 최대 %
+const UNION_CAP = 20;       // 다 합쳐도 여기까지
+const UNION_REF = 20000;    // 이 전투력에서 한 칸이 꽉 찬다 (지금 천장)
+// 로그 곡선이다. 중간까지 키우면 값의 대부분이 들어오고 마지막이 더디다 —
+// 부캐 하나를 끝까지 미는 것보다 여럿을 중간까지 키우는 게 낫게.
+const unionPctOf = bp => {
+  const p = Math.max(0, Number(bp) || 0);
+  if (p <= 100) return 0;
+  const r = Math.log(p / 100) / Math.log(UNION_REF / 100);
+  return Math.min(UNION_PER, UNION_PER * r);
+};
+const r2 = v => Math.round(v * 100) / 100;
+
+// 묶음 하나를 통째로 읽어 각자의 몫을 센다. 최대 여섯 계정이라 그냥 하나씩 읽는다.
+async function unionOf(id, u) {
+  const solo = { main: id, role: 'main', pct: 0, members: [], max: UNION_MAX, cap: UNION_CAP, per: UNION_PER };
+  if (!u) return solo;
+  let mainId = id, mainU = u;
+  if (u.uMain) {
+    const m = await readUser(u.uMain);
+    // 한쪽만 남은 끊어진 고리는 없는 것으로 본다
+    if (!m || !Array.isArray(m.uAlts) || m.uAlts.indexOf(id) < 0) return solo;
+    mainId = u.uMain; mainU = m;
+  }
+  const alts = Array.isArray(mainU.uAlts) ? mainU.uAlts.slice(0, UNION_MAX) : [];
+  const ids = [mainId].concat(alts);
+  const members = [];
+  for (const m of ids) {
+    const mu = m === id ? u : (m === mainId ? mainU : await readUser(m));
+    const bp = (mu && mu.rec && mu.rec.bp) | 0;
+    members.push({ id: m, bp: bp, pct: r2(unionPctOf(bp)), me: m === id });
+  }
+  let pct = 0;
+  members.forEach(m => { if (!m.me) pct += unionPctOf(m.bp); });
+  return { main: mainId, role: u.uMain ? 'alt' : 'main', pct: r2(Math.min(UNION_CAP, pct)),
+           members: members, max: UNION_MAX, cap: UNION_CAP, per: UNION_PER };
+}
+
 async function redis(cmd) {
   const r = await fetch(URL_ENV, {
     method: 'POST',
@@ -83,6 +130,7 @@ function cleanRec(r) {
     fbest: n(r.fbest, 99999),
     ig:    n(r.ig, 2),
     power: n(r.power, 100000),
+    bp:    n(r.bp, 100000),     // 유니언을 뺀 전투력 — 유니언 계산은 이걸로만 한다
     des:   n(r.des, 1000000),
     tries: n(r.tries, 10000000),
     ts:    Date.now()
@@ -124,6 +172,9 @@ const writeUser = (id, u) => redis(['HSET', HKEY, id, JSON.stringify(u)]);
 async function board() {
   const all = await readAll();
   const rows = Object.keys(all)
+    // 유니언 부캐는 순위에 안 올린다 - 대표 하나만 오른다.
+    // 안 그러면 계정을 여럿 만들어 순위표를 제 것으로 채울 수 있다.
+    .filter(id => !(all[id] && all[id].uMain))
     .map(id => publicRow(id, all[id]))
     .filter(r => r.ts && (r.star > 0 || r.tries > 0 || r.boss > 0))   // 아직 아무것도 안 한 계정은 랭킹에 안 띄운다
     .filter(r => !isAdmin(r.id));                                    // 마스터는 뭐든 만들 수 있으니 순위에서 뺀다
@@ -199,7 +250,7 @@ module.exports = async (req, res) => {
         const salt = crypto.randomBytes(16).toString('hex');
         u = { salt, hash: hash(pw, salt), token: newToken(), rec: null, save: null, at: Date.now(), seen: Date.now() };
         await writeUser(id, u);
-        return res.status(200).json({ ok: true, created: true, admin: isAdmin(id), token: u.token, rec: null, save: null, board: await board() });
+        return res.status(200).json({ ok: true, created: true, admin: isAdmin(id), token: u.token, rec: null, save: null, board: await board(), union: await unionOf(id, u) });
       }
       if (!same(hash(pw, u.salt), u.hash)) {
         const n = await redis(['INCR', fkey]);
@@ -213,7 +264,7 @@ module.exports = async (req, res) => {
       u.token = u.token || newToken();
       u.seen = Date.now();
       await writeUser(id, u);
-      return res.status(200).json({ ok: true, created: false, admin: isAdmin(id), token: u.token, rec: u.rec, save: u.save, board: await board() });
+      return res.status(200).json({ ok: true, created: false, admin: isAdmin(id), token: u.token, rec: u.rec, save: u.save, board: await board(), union: await unionOf(id, u) });
     }
 
     // ---- 저장된 토큰으로 이어하기 (비밀번호를 다시 묻지 않는다) ----
@@ -221,7 +272,7 @@ module.exports = async (req, res) => {
       const u = await readUser(id);
       if (!u) return res.status(404).json({ error: 'no_user' });
       if (!u.token || !same(String(body.token || ''), u.token)) return res.status(401).json({ error: 'bad_token' });
-      return res.status(200).json({ ok: true, admin: isAdmin(id), rec: u.rec, save: u.save, board: await board() });
+      return res.status(200).json({ ok: true, admin: isAdmin(id), rec: u.rec, save: u.save, board: await board(), union: await unionOf(id, u) });
     }
 
     // ---- 기록/세이브 저장 (토큰으로만 인증) ----
@@ -249,9 +300,83 @@ module.exports = async (req, res) => {
         else saved = false;
       }
       u.seen = Date.now();
+      // 올라온 전투력을 그대로 믿지 않는다. 기본 전투력에 서버가 센 유니언을
+      // 곱해 여기서 다시 만든다 - 안 그러면 브라우저에서 유니언 값만 고쳐
+      // 순위표를 올릴 수 있다. bp 를 안 보내는 옛 클라이언트는 그냥 둔다.
+      const un = await unionOf(id, u);
+      if (u.rec && u.rec.bp) {
+        u.rec.power = Math.min(100000, Math.round(u.rec.bp * (1 + un.pct / 100)));
+      }
       await writeUser(id, u);
-      return res.status(200).json({ ok: true, rec: u.rec, board: await board(),
+      return res.status(200).json({ ok: true, rec: u.rec, board: await board(), union: un,
                                     saved: saved, saveMax: MAX_SAVE, saveAt: u.saveAt || 0 });
+    }
+
+    // ---- 유니언 걸고 풀기 ----
+    if (body.action === 'union') {
+      const u = await readUser(id);
+      if (!u) return res.status(404).json({ error: 'no_user' });
+      if (!authed(u, body.token)) return res.status(401).json({ error: 'bad_token' });
+      const op = String(body.op || 'get');
+
+      if (op === 'get') return res.status(200).json({ ok: true, union: await unionOf(id, u) });
+
+      if (op === 'link') {
+        if (u.uMain) return res.status(409).json({ error: 'is_alt' });      // 부캐는 부캐를 못 건다
+        const altId = String(body.altId || '').trim();
+        if (!ID_RE.test(altId)) return res.status(400).json({ error: 'bad_id' });
+        if (altId === id) return res.status(400).json({ error: 'self' });
+        u.uAlts = Array.isArray(u.uAlts) ? u.uAlts : [];
+        if (u.uAlts.indexOf(altId) >= 0) return res.status(409).json({ error: 'already' });
+        if (u.uAlts.length >= UNION_MAX) return res.status(409).json({ error: 'full' });
+        const a = await readUser(altId);
+        if (!a) return res.status(404).json({ error: 'no_alt' });
+        if (a.uMain) return res.status(409).json({ error: 'alt_taken' });
+        if (Array.isArray(a.uAlts) && a.uAlts.length) return res.status(409).json({ error: 'alt_is_main' });
+
+        // 그 계정의 비밀번호를 받는다. 안 받으면 남의 센 계정을 제 부캐로 걸어
+        // 스펙만 빨아올 수 있다. 로그인과 같은 잠금을 건다 - 여기가 비밀번호를
+        // 찍어보는 뒷문이 되면 안 된다.
+        const fkey = 'byeol:fail:' + altId;
+        const fails = Number(await redis(['GET', fkey])) || 0;
+        if (fails >= FAIL_MAX) {
+          const ttl = Number(await redis(['TTL', fkey])) || FAIL_WIN;
+          return res.status(429).json({ error: 'locked', wait: Math.max(1, ttl) });
+        }
+        if (!same(hash(String(body.altPw || ''), a.salt), a.hash)) {
+          const n = await redis(['INCR', fkey]);
+          if (n === 1) await redis(['EXPIRE', fkey, FAIL_WIN]);
+          return res.status(401).json({ error: 'wrong_pw', left: Math.max(0, FAIL_MAX - n) });
+        }
+        await redis(['DEL', fkey]);
+
+        a.uMain = id; u.uAlts.push(altId);
+        await writeUser(altId, a);
+        await writeUser(id, u);
+        return res.status(200).json({ ok: true, union: await unionOf(id, u), board: await board() });
+      }
+
+      if (op === 'unlink') {
+        const altId = String(body.altId || '').trim();
+        // 부캐는 제 발로 나갈 수 있다. 걸리고 나면 못 빠져나오면 안 된다.
+        if (u.uMain) {
+          const m = await readUser(u.uMain);
+          if (m && Array.isArray(m.uAlts)) {
+            m.uAlts = m.uAlts.filter(x => x !== id);
+            await writeUser(u.uMain, m);
+          }
+          delete u.uMain;
+          await writeUser(id, u);
+          return res.status(200).json({ ok: true, union: await unionOf(id, u), board: await board() });
+        }
+        if (!ID_RE.test(altId)) return res.status(400).json({ error: 'bad_id' });
+        u.uAlts = (Array.isArray(u.uAlts) ? u.uAlts : []).filter(x => x !== altId);
+        const a = await readUser(altId);
+        if (a && a.uMain === id) { delete a.uMain; await writeUser(altId, a); }
+        await writeUser(id, u);
+        return res.status(200).json({ ok: true, union: await unionOf(id, u), board: await board() });
+      }
+      return res.status(400).json({ error: 'bad_op' });
     }
 
     // ---- 피드백 보내기 ----
