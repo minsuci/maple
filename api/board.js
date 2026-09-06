@@ -143,7 +143,13 @@ const better = (a, b) =>
   a.power > b.power;
 
 // seen 은 마지막 활동 시각. hash/salt/token/save 는 절대 나가지 않는다.
-const publicRow = (id, u) => Object.assign({ id }, u.rec || {}, { seen: u.seen || (u.rec && u.rec.ts) || 0 });
+// um 은 그 계정이 속한 묶음의 대표 아이디다. 같은 유니언이면 값이 같으니
+// 순위표에서 한 식구를 알아볼 수 있다. 안 묶였으면 빈 값.
+const unionTag = (id, u) =>
+  u.uMain ? String(u.uMain)
+          : (Array.isArray(u.uAlts) && u.uAlts.length ? id : '');
+const publicRow = (id, u) => Object.assign({ id }, u.rec || {},
+  { seen: u.seen || (u.rec && u.rec.ts) || 0, um: unionTag(id, u) });
 
 // 토큰 대조 — 여러 곳에서 같은 방식으로 쓴다
 function authed(u, token) {
@@ -172,9 +178,6 @@ const writeUser = (id, u) => redis(['HSET', HKEY, id, JSON.stringify(u)]);
 async function board() {
   const all = await readAll();
   const rows = Object.keys(all)
-    // 유니언 부캐는 순위에 안 올린다 - 대표 하나만 오른다.
-    // 안 그러면 계정을 여럿 만들어 순위표를 제 것으로 채울 수 있다.
-    .filter(id => !(all[id] && all[id].uMain))
     .map(id => publicRow(id, all[id]))
     .filter(r => r.ts && (r.star > 0 || r.tries > 0 || r.boss > 0))   // 아직 아무것도 안 한 계정은 랭킹에 안 띄운다
     .filter(r => !isAdmin(r.id));                                    // 마스터는 뭐든 만들 수 있으니 순위에서 뺀다

@@ -528,6 +528,11 @@ button:disabled{cursor:not-allowed;opacity:.45;}
 .fhint{position:absolute;left:0;right:0;bottom:26px;text-align:center;pointer-events:none;
   font-size:12.5px;color:#CFE7FF;text-shadow:0 2px 6px #000C;font-weight:700;line-height:1.7;}
 /* 남의 장비 들여다보기 */
+/* 유니언 딱지 */
+.rum{display:inline-block;font-size:9.5px;letter-spacing:.04em;color:var(--dimmer);
+  border:1px solid var(--edge2);border-radius:5px;padding:1px 5px;margin-left:6px;
+  white-space:nowrap;vertical-align:middle;font-weight:700;}
+.rum.head{color:var(--gold);border-color:var(--gold);}
 .rcard,.rank tbody tr{cursor:pointer;}
 .rcard:hover{border-color:var(--edge2);}
 .rank tbody tr:hover td{background:#1B1638;}
@@ -2785,11 +2790,11 @@ function renderStat(){
          (linked>=(U.max||5)?' disabled':'')+'>부캐 걸기'+(linked?(' ('+linked+' / '+(U.max||5)+')'):'')+'</button></div>';
       h+='<p class="stnote">기여도는 그 캐릭의 <b>기본 전투력</b>(유니언을 뺀 값)으로 센다 — '+
          '한 명당 최대 '+(U.per||4)+'%, 합쳐 '+(U.cap||20)+'%까지. 서로에게 간다.<br>'+
-         '부캐로 걸린 아이디는 <b>랭킹에 안 오른다.</b> 대표 하나만 오른다.</p>';
+         '부캐도 <b>랭킹에 그대로 오른다</b> — 묶인 표시가 붙어 한 식구인 게 보인다.</p>';
     } else {
       h+='<div class="btnrow"><button class="btn" id="uLeave">묶음에서 나가기</button></div>';
-      h+='<p class="stnote"><b>'+esc(U.main)+'</b>의 부캐다 — 이 아이디는 <b>랭킹에 안 오른다.</b> '+
-         '언제든 스스로 나갈 수 있다.</p>';
+      h+='<p class="stnote"><b>'+esc(U.main)+'</b>의 부캐다. 랭킹에는 그대로 오르고 '+
+         '<b>'+esc(U.main)+'의 부캐</b>라고 붙는다. 언제든 스스로 나갈 수 있다.</p>';
     }
   }
   $('stBody').innerHTML=h;
@@ -5375,7 +5380,7 @@ function unionAdd(){
       '남의 계정을 제 부캐로 걸 수 없게 받는다.</p>'+
     '<input class="uin" id="uAltId" placeholder="아이디" autocomplete="off">'+
     '<input class="uin" id="uAltPw" type="password" placeholder="그 계정 비밀번호" autocomplete="off">'+
-    '<p class="asknote">걸린 아이디는 <b>랭킹에서 빠진다</b> — 대표 하나만 오른다.</p>',
+    '<p class="asknote">걸면 서로의 전투력을 올려준다. 랭킹에는 둘 다 그대로 오르고 <b>묶인 표시</b>가 붙는다.</p>',
     '건다',
     async function(){
       const aid=($('uAltId').value||'').trim(), apw=$('uAltPw').value||'';
@@ -5523,6 +5528,7 @@ function mergeBoard(){
              gear:Array.isArray(e.gear)?e.gear.slice(0,8):null,
              mst:Math.min(999,+e.mst||0), fbest:Math.min(99999,+e.fbest||0),
              boss:Math.min(200,+e.boss||0), ach:Math.min(99,+e.ach||0), lv:Math.min(300,+e.lv||1),
+             um:(typeof e.um==='string'&&okId(e.um))?e.um:'',
              seen:+e.seen||+e.ts||0, ts:+e.ts||0};
     // 잠금(h)은 가장 먼저 등록된 것을 끝까지 유지한다 — 나중 사람이 바꿔치기 못 하도록
     if(typeof e.h==='string'&&e.h){
@@ -5634,6 +5640,14 @@ function openPeek(id){
 // 탭으로 끼워 넣으니 둘 다 어정쩡했다.
 const forestRows=()=>BOARD.filter(function(e){ return (e.fbest|0)>0; })
   .sort(function(a,b){ return (b.fbest|0)-(a.fbest|0) || (b.power|0)-(a.power|0); });
+// 유니언 딱지. 같은 묶음은 같은 이름이 붙으니 순위표에서 한 식구가 보인다.
+// 대표에게는 금색으로 둔다 - 누가 묶음의 머리인지.
+function umTag(e){
+  if(!e||!e.um) return '';
+  const head=e.um===e.id;
+  return '<span class="rum'+(head?' head':'')+'" title="'+esc(e.um)+' 유니언">'+
+    (head?'\uC720\uB2C8\uC5B8':esc(e.um)+'\uC758 \uBD80\uCE90')+'</span>';
+}
 function renderRankCards(){
   const L=$('rankList'); if(!L) return;
   if(!BOARD.length){
@@ -5644,7 +5658,7 @@ function renderRankCards(){
   L.innerHTML=BOARD.map(function(e,i){
     return '<div class="rcard '+(F?'fr ':'')+(e.id===USER?'me':'')+'" data-id="'+esc(e.id)+'">'+
       '<div class="rtop"><b class="rno">'+(i+1)+'</b>'+
-        '<span class="rid">'+esc(e.id)+'</span>'+
+        '<span class="rid">'+esc(e.id)+'</span>'+umTag(e)+
         '<span class="rjob">'+((JOBS[e.job|0]||JOBS[0]).n)+'</span></div>'+
       (F
         ? '<div class="rmid"><span class="rpw">'+(e.fbest|0)+'m</span>'+
@@ -5673,7 +5687,7 @@ function renderRank(){
     body.innerHTML=rows.map((e,i)=>
       '<tr class="'+(e.id===USER?'me':'')+'" data-id="'+esc(e.id)+'">'+
       '<td class="no">'+(i+1)+'</td>'+
-      '<td>'+esc(e.id)+'</td>'+
+      '<td>'+esc(e.id)+umTag(e)+'</td>'+
       '<td>'+((JOBS[e.job|0]||JOBS[0]).n)+'</td>'+
       (F ? '<td class="num sv" style="color:#8FE3B0">'+(e.fbest|0)+'m</td>'+
            '<td class="num">'+fmt(Math.round(income()*FOR.RUNK*fVal(e.fbest|0)))+'</td>'
