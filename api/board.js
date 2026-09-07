@@ -295,6 +295,10 @@ module.exports = async (req, res) => {
         };
         if (better(rec, u.rec)) u.rec = rec;      // 기록은 더 좋을 때만 갱신
         if (u.rec) { u.rec.boss = keep.boss; u.rec.ach = keep.ach; u.rec.lv = keep.lv; }
+        // bp 는 기록이 더 좋아졌는지와 따로 받는다. 여기가 막혀 있으면 전투력이
+        // 그대로인 사람은 bp 가 영영 안 올라오고, 그러면 유니언에서 그 사람의
+        // 기여도가 0 으로 잡힌다 - 실제로 그렇게 되어 있었다.
+        if (u.rec && rec.bp) u.rec.bp = Math.max(u.rec.bp | 0, rec.bp);
       }
       // 못 받았으면 못 받았다고 말한다. 조용히 버리면 아무도 모른다.
       let saved = null;
