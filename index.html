@@ -3296,6 +3296,10 @@ function renderAll(){
   renderShop(); renderTShop(); renderLevel(); renderDaily(); checkAch(); renderAch();
   if(!$('bossPick').hidden) renderBossPick();
   if((S.view||'up')==='stat') renderStat();   // 보고 있는 동안에도 값이 움직인다
+  // 랭킹도 마찬가지다. 내 줄은 지금 기록을 얹어 그리는데(boardView), 화면을
+  // 다시 안 그리면 탭을 나갔다 와야 바뀐다 - 폰을 켜두고 보는 동안 내 숫자만
+  // 옛것으로 남아 있었다.
+  if((S.view||'up')==='rank') renderRank();
   renderForest();
   const fb=$('fbBox'); if(fb) fb.hidden=!(SRV&&TOKEN&&USER);
   const jv=$('jobV'); jv.hidden=!USER; jv.textContent=curJob().n;
@@ -5701,6 +5705,14 @@ function umTag(e){
   return '<span class="rum'+(head?' head':'')+'" title="'+esc(e.um)+' 유니언">'+
     (head?'\uC720\uB2C8\uC5B8':esc(e.um)+'\uC758 \uBD80\uCE90')+'</span>';
 }
+// 랭킹은 서버가 준 것을 보여준다. 그런데 내 줄까지 서버를 기다리면,
+// 올라가기 전이거나 폰이 옛 페이지를 붙들고 있는 동안 내 숫자만 옛것으로 남는다.
+// 내 기록은 지금 값을 얹어 본다 - mergeBoard 가 더 좋은 쪽을 고르니,
+// 서버 것이 이미 최신이면 그대로다.
+function boardView(){
+  if(!USER||!S.st||!S.st.try) return BOARD;
+  return mergeBoard(BOARD,[myRec()]);
+}
 function renderRankCards(){
   const L=$('rankList'); if(!L) return;
   if(!BOARD.length){
@@ -5708,7 +5720,7 @@ function renderRankCards(){
     return;
   }
   const F=false;
-  L.innerHTML=BOARD.map(function(e,i){
+  L.innerHTML=boardView().map(function(e,i){
     return '<div class="rcard '+(F?'fr ':'')+(e.id===USER?'me':'')+'" data-id="'+esc(e.id)+'">'+
       '<div class="rtop"><b class="rno">'+(i+1)+'</b>'+
         '<span class="rid">'+esc(e.id)+'</span>'+umTag(e)+
@@ -5729,7 +5741,7 @@ function renderRankCards(){
 }
 
 function renderRank(){
-  const body=$('rankBody'), F=false, rows=BOARD;
+  const body=$('rankBody'), F=false, rows=boardView();
   const cols=F?['','아이디','직업','최고 높이','받는 값','레벨','최고 전투력','최고 보스','마지막 접속']
              :['','아이디','직업','최고 성수치','잠재','레벨','최고 전투력','최고 보스','업적','파괴','강화 시도','마지막 접속'];
   $('rankHead').innerHTML='<tr>'+cols.map(function(c){ return '<th>'+c+'</th>'; }).join('')+'</tr>';
@@ -6259,7 +6271,7 @@ initOnline();
 
 // 균형 점검용 노출 (게임 동작에는 영향 없음)
 try{ window.__CFG={SF,MAXSTAR,starCost,SHIELD,SLOTS,OPT,POOL,GCAP,UPRATE,UPGRADE,CUBES,
-  LEG_PITY,MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,skPct,SKMUL,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,cpAx,potAx,slotAx,atkPow,survPow,lineHTML,potGradeOf,evenGrade,c5On,C5N,showPick,again,openPeek,gearRec,forestRows,unequip,canOff,swapGain,deltaHTML,renderBag,ask,askClose,meltJunk,markPickable,touchBest,baseBest,cubeQClose,unionPct,unionMult,basePow,unionCall,unionAdd,unionDrop,renderForestRank,autoPost,canAuto,betterThanPosted,pkNew,pkGrade,critRate,critMult,CRIT,FOR,fStart,fGrow,fStep,fRng,fMeters,fPx,fT,fVal,fEnter,fEnd,fReward,fRun,fRec,renderForest,renderStat,statOf,sumOpt,mastSum,slotPow,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,navViews,viewIdx,swipeTarget,swipeBlocked,VIEWS,topBoss,bossLabel,myRec,DNAME,ACH,achStat,MAXLV,lvBonus,lvMult,LVK,SLOT_ART,WEAPON_ART,stash,bagStar,bagLines,bagP4,dropSlot,BTYPE,renderAll,CRCOL,passTime,offerOffline,OFF_CAP,OFF_RATE,TR,carryLines,showDrop,cost,protUse,safeUse,IGCOST,igCost,MAST,MPS,mpFor,mastOf,mastFree,mastMult,mastSum,trStar,renderMast,starMult,expMult,IGSTAR,engrave,ENG,renderShop,renderCubes,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,crt2,bossSReq,SREQ_K,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
+  LEG_PITY,MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,skPct,SKMUL,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,cpAx,potAx,slotAx,atkPow,survPow,lineHTML,potGradeOf,evenGrade,c5On,C5N,showPick,again,openPeek,gearRec,forestRows,unequip,canOff,swapGain,deltaHTML,renderBag,ask,askClose,meltJunk,markPickable,touchBest,baseBest,boardView,cubeQClose,unionPct,unionMult,basePow,unionCall,unionAdd,unionDrop,renderForestRank,autoPost,canAuto,betterThanPosted,pkNew,pkGrade,critRate,critMult,CRIT,FOR,fStart,fGrow,fStep,fRng,fMeters,fPx,fT,fVal,fEnter,fEnd,fReward,fRun,fRec,renderForest,renderStat,statOf,sumOpt,mastSum,slotPow,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,navViews,viewIdx,swipeTarget,swipeBlocked,VIEWS,topBoss,bossLabel,myRec,DNAME,ACH,achStat,MAXLV,lvBonus,lvMult,LVK,SLOT_ART,WEAPON_ART,stash,bagStar,bagLines,bagP4,dropSlot,BTYPE,renderAll,CRCOL,passTime,offerOffline,OFF_CAP,OFF_RATE,TR,carryLines,showDrop,cost,protUse,safeUse,IGCOST,igCost,MAST,MPS,mpFor,mastOf,mastFree,mastMult,mastSum,trStar,renderMast,starMult,expMult,IGSTAR,engrave,ENG,renderShop,renderCubes,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,crt2,bossSReq,SREQ_K,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
   get state(){return S;}, cur, power, income, mesoMult, dropMult, starMult, potMultOf, POTG, odds, potGrade, topGrade, totalStars, sfBonus}; }catch(e){}
 })();
 </script>
