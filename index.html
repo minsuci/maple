@@ -864,9 +864,11 @@ td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
 .mrow .mn{font-weight:900;font-size:12.5px;}
 .mrow .md{display:block;font-size:10.5px;color:var(--dimmer);margin-top:3px;font-weight:700;}
 .mrow .mv{font-family:'Bebas Neue',sans-serif;font-size:19px;color:var(--gold);white-space:nowrap;}
-.mrow .mb{display:flex;gap:5px;}
-.mstep{width:30px;height:30px;border-radius:8px;font-size:15px;font-weight:900;
+.mrow .mb{display:flex;gap:7px;}
+/* 30px 이었다. 엄지로 연타하는 자리인데 표적이 작으면 옆을 짚는다. */
+.mstep{width:38px;height:38px;border-radius:10px;font-size:17px;font-weight:900;
   background:#1B1638;border:1px solid var(--edge2);color:var(--txt);line-height:1;}
+.mstep:active:not(:disabled){background:#2A2350;transform:scale(.94);}
 .mstep:disabled{opacity:.3;}
 .mstep.up{color:#7CFFB0;}
 
@@ -3924,31 +3926,85 @@ const SHOP=[
    buy:function(){ S.inv.eng=(S.inv.eng|0)+1; SND.up();
      log('<b>금빛 각인</b>을 샀다 — 강화대에서 레전더리 장비에 쓴다','up'); }},
 ];
-function renderMast(){
+// 한 점 옮기기. 못 옮기면 false - 끝에 닿았다는 뜻이라 연타가 거기서 멈춘다.
+function mastStep(i,x,d){
+  const m=mastOf(i), n=m.u[x.k]|0;
+  if(d>0){ if(mastFree(i)<1||n>=x.cap) return false; m.u[x.k]=n+1; return true; }
+  if(n<1) return false; m.u[x.k]=n-1; return true;
+}
+// 숫자만 갈아 끼운다. 붙잡고 있는 단추를 지우면 손가락이 붕 뜨니까,
+// 연타 도는 동안에는 renderMast 로 목록을 다시 만들지 않는다.
+function paintMast(){
   const i=S.sel||0, m=mastOf(i), free=mastFree(i);
   $('mpFree').textContent=free;
-  const L=$('mastList'); L.innerHTML='';
-  MAST.forEach(function(x){
+  $('mastList').querySelectorAll('.mrow').forEach(function(el,k){
+    const x=MAST[k]; if(!x) return;
     const n=m.u[x.k]|0;
-    const el=document.createElement('div');
-    el.className='mrow';
-    el.innerHTML='<span><span class="mn">'+x.n+'</span>'+
-        '<span class="md">1점당 +'+x.v+x.u+' · '+n+' / '+x.cap+'점</span></span>'+
-      '<span class="mv">+'+(+(n*x.v).toFixed(1))+x.u+'</span>'+
-      '<span class="mb"><button class="mstep" data-k="'+x.k+'" data-d="-1">−</button>'+
-        '<button class="mstep up" data-k="'+x.k+'" data-d="1">+</button></span>';
+    el.querySelector('.mc').textContent=n;
+    el.querySelector('.mv').textContent='+'+(+(n*x.v).toFixed(1))+x.u;
     const bs=el.querySelectorAll('.mstep');
     bs[0].disabled=n<1;
     bs[1].disabled=free<1||n>=x.cap;
-    bs[0].addEventListener('click',function(){ ac(); m.u[x.k]=Math.max(0,n-1); renderAll(); save(); });
-    bs[1].addEventListener('click',function(){ if(mastFree(i)<1||n>=x.cap) return; ac(); m.u[x.k]=n+1; renderAll(); save(); });
-    L.appendChild(el);
   });
   $('mastReset').disabled=mastUsed(i)<1;
+  $('mastMul').textContent='x'+mastMult(i).toFixed(3);
+}
+// 갈래마다 80점이다. 한 부위를 다 찍으려면 320번을 눌러야 했다 -
+// 누르고 있으면 이어서 오르게 한다. 점점 빨라지고, 끝에 닿으면 멈춘다.
+// 누름(pointerdown)에서 바로 한 점 올린다. 클릭을 기다리면 손가락이 조금만
+// 밀려도 스와이프가 그 클릭을 먹어버려서 '안 먹는' 탭이 생긴다.
+function mastHold(btn,x,d){
+  let t=null, on=false, cnt=0;
+  const stop=function(undo){
+    if(!on) return; on=false;
+    clearTimeout(t); t=null;
+    // pointercancel 은 브라우저가 그 손짓을 스크롤로 가져갔다는 뜻이다.
+    // 목록을 밀려고 단추를 짚은 것이니 딸려 들어간 한 점은 돌려놓는다.
+    // 이미 이어서 오르고 있었으면 일부러 붙잡고 있던 것이라 그대로 둔다.
+    if(undo&&cnt===1) mastStep(S.sel||0,x,-d);
+    renderAll(); save();
+  };
+  btn.addEventListener('pointerdown',function(e){
+    if(btn.disabled||on) return;
+    if(e.button!==undefined&&e.button!==0) return;
+    ac(); on=true; cnt=0;
+    if(!mastStep(S.sel||0,x,d)){ on=false; return; }
+    cnt=1; paintMast();
+    let sp=340;
+    const tick=function(){
+      if(!on) return;
+      if(!mastStep(S.sel||0,x,d)){ stop(false); return; }
+      cnt++; paintMast();
+      sp=Math.max(26,sp*0.72);
+      t=setTimeout(tick,sp);
+    };
+    t=setTimeout(tick,sp);
+  });
+  btn.addEventListener('pointerup',function(){ stop(false); });
+  btn.addEventListener('pointerleave',function(){ stop(false); });
+  btn.addEventListener('pointercancel',function(){ stop(true); });
+}
+function renderMast(){
+  const i=S.sel||0;
+  const L=$('mastList'); L.innerHTML='';
+  MAST.forEach(function(x){
+    const el=document.createElement('div');
+    el.className='mrow';
+    el.innerHTML='<span><span class="mn">'+x.n+'</span>'+
+        '<span class="md">1점당 +'+x.v+x.u+' · <b class="mc">0</b> / '+x.cap+'점</span></span>'+
+      '<span class="mv"></span>'+
+      '<span class="mb"><button class="mstep" data-k="'+x.k+'" data-d="-1" aria-label="'+x.n+' 한 점 빼기">−</button>'+
+        '<button class="mstep up" data-k="'+x.k+'" data-d="1" aria-label="'+x.n+' 한 점 주기">+</button></span>';
+    const bs=el.querySelectorAll('.mstep');
+    mastHold(bs[0],x,-1);
+    mastHold(bs[1],x, 1);
+    L.appendChild(el);
+  });
   $('mastNote').innerHTML='<b>'+SLOTS[i].n+'</b>의 마스터리다 — 부위마다 따로 쌓이고, 장비를 갈아타도 남는다.<br>'+
     '포인트는 <b>전수</b>로만 들어온다. 버린 별이 비쌀수록 많이 준다 (16성부터 붙고, 그 아래는 0).<br>'+
-    '갓챠가 아니라 <b>확정</b>이다 — 언제든 되돌려서 다시 찍을 수 있다. 지금 이 부위 배수 <b>x'+
-    mastMult(i).toFixed(3)+'</b>';
+    '갓챠가 아니라 <b>확정</b>이다 — 언제든 되돌려서 다시 찍을 수 있다. <b>꾹 누르면</b> 계속 올라간다.<br>'+
+    '지금 이 부위 배수 <b id="mastMul">x1.000</b>';
+  paintMast();
 }
 function renderShop(){
   const L=$('shopList'); L.innerHTML='';
@@ -4805,7 +4861,7 @@ function unequip(i){
 /* ---------- 화면 넘기기 — 스와이프 ---------- */
 // 손가락을 따라 화면이 밀리고, 충분히 밀면 넘어간다. 안 밀면 제자리로 돌아온다.
 // 세로 스크롤을 뺏으면 안 되니 첫 움직임에서 축을 정하고 그 제스처 내내 유지한다.
-const SW={el:null, x0:0, y0:0, dx:0, axis:'', t0:0};
+const SW={el:null, x0:0, y0:0, dx:0, axis:'', t0:0, need:8};
 function swipeTarget(dir){ const L=navViews(), c=viewIdx();
   if(c<0) return null;
   const i=c+dir; return (i<0||i>=L.length)?null:L[i]; }
@@ -4834,15 +4890,21 @@ function swipeStart(e){
   if(viewIdx()<0) return;                     // 줄에 없는 화면에서는 밀 곳이 없다
   const t=e.touches[0];
   SW.x0=t.clientX; SW.y0=t.clientY; SW.dx=0; SW.axis=''; SW.t0=Date.now();
+  // 단추 위에서 시작한 손짓은 웬만하면 누르려던 것이다. 축을 잡는 순간
+  // preventDefault 가 걸려 탭이 통째로 사라지는데, 엄지로 누르면 10px 쯤은
+  // 예사로 밀린다 - 8px 문턱이면 연타가 절반쯤 그냥 없어졌다.
+  SW.need=(e.target.closest&&e.target.closest('button,input,select,textarea,a,label,[role=switch],[role=tab]'))?30:8;
   SW.el=$(navViews()[viewIdx()][1]);
 }
 function swipeMove(e){
   if(!SW.el||e.touches.length!==1) return;
   const t=e.touches[0], dx=t.clientX-SW.x0, dy=t.clientY-SW.y0;
   if(!SW.axis){
-    if(Math.abs(dx)<8&&Math.abs(dy)<8) return;
-    SW.axis=Math.abs(dx)>Math.abs(dy)*1.4?'x':'y';   // 애매하면 세로 스크롤이 이긴다
-    if(SW.axis!=='x'){ SW.el=null; return; }
+    const ax=Math.abs(dx), ay=Math.abs(dy);
+    if(ax<8&&ay<8) return;
+    if(ax<=ay*1.4){ SW.axis='y'; SW.el=null; return; }   // 애매하면 세로 스크롤이 이긴다
+    if(ax<SW.need) return;                               // 단추 위에서는 확실할 때까지 기다린다
+    SW.axis='x';
     SW.el.classList.add('dragging');
   }
   e.preventDefault();
@@ -6271,7 +6333,7 @@ initOnline();
 
 // 균형 점검용 노출 (게임 동작에는 영향 없음)
 try{ window.__CFG={SF,MAXSTAR,starCost,SHIELD,SLOTS,OPT,POOL,GCAP,UPRATE,UPGRADE,CUBES,
-  LEG_PITY,MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,skPct,SKMUL,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,cpAx,potAx,slotAx,atkPow,survPow,lineHTML,potGradeOf,evenGrade,c5On,C5N,showPick,again,openPeek,gearRec,forestRows,unequip,canOff,swapGain,deltaHTML,renderBag,ask,askClose,meltJunk,markPickable,touchBest,baseBest,boardView,cubeQClose,unionPct,unionMult,basePow,unionCall,unionAdd,unionDrop,renderForestRank,autoPost,canAuto,betterThanPosted,pkNew,pkGrade,critRate,critMult,CRIT,FOR,fStart,fGrow,fStep,fRng,fMeters,fPx,fT,fVal,fEnter,fEnd,fReward,fRun,fRec,renderForest,renderStat,statOf,sumOpt,mastSum,slotPow,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,navViews,viewIdx,swipeTarget,swipeBlocked,VIEWS,topBoss,bossLabel,myRec,DNAME,ACH,achStat,MAXLV,lvBonus,lvMult,LVK,SLOT_ART,WEAPON_ART,stash,bagStar,bagLines,bagP4,dropSlot,BTYPE,renderAll,CRCOL,passTime,offerOffline,OFF_CAP,OFF_RATE,TR,carryLines,showDrop,cost,protUse,safeUse,IGCOST,igCost,MAST,MPS,mpFor,mastOf,mastFree,mastMult,mastSum,trStar,renderMast,starMult,expMult,IGSTAR,engrave,ENG,renderShop,renderCubes,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,crt2,bossSReq,SREQ_K,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
+  LEG_PITY,MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,skPct,SKMUL,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,cpAx,potAx,slotAx,atkPow,survPow,lineHTML,potGradeOf,evenGrade,c5On,C5N,showPick,again,openPeek,gearRec,forestRows,unequip,canOff,swapGain,deltaHTML,renderBag,ask,askClose,meltJunk,markPickable,touchBest,baseBest,boardView,cubeQClose,unionPct,unionMult,basePow,unionCall,unionAdd,unionDrop,renderForestRank,autoPost,canAuto,betterThanPosted,pkNew,pkGrade,critRate,critMult,CRIT,FOR,fStart,fGrow,fStep,fRng,fMeters,fPx,fT,fVal,fEnter,fEnd,fReward,fRun,fRec,renderForest,renderStat,statOf,sumOpt,mastSum,slotPow,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,navViews,viewIdx,swipeTarget,swipeBlocked,VIEWS,topBoss,bossLabel,myRec,DNAME,ACH,achStat,MAXLV,lvBonus,lvMult,LVK,SLOT_ART,WEAPON_ART,stash,bagStar,bagLines,bagP4,dropSlot,BTYPE,renderAll,CRCOL,passTime,offerOffline,OFF_CAP,OFF_RATE,TR,carryLines,showDrop,cost,protUse,safeUse,IGCOST,igCost,MAST,MPS,mpFor,mastOf,mastFree,mastMult,mastSum,trStar,renderMast,mastStep,paintMast,starMult,expMult,IGSTAR,engrave,ENG,renderShop,renderCubes,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,crt2,bossSReq,SREQ_K,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
   get state(){return S;}, cur, power, income, mesoMult, dropMult, starMult, potMultOf, POTG, odds, potGrade, topGrade, totalStars, sfBonus}; }catch(e){}
 })();
 </script>
