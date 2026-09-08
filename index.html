@@ -5623,9 +5623,15 @@ const esc=v=>String(v).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',
 const knownIds=()=>lsGet(LK.ids,[]).filter(okId);
 function rememberId(id){ const a=knownIds().filter(x=>x!==id); a.unshift(id); lsSet(LK.ids,a.slice(0,8)); }
 
-// 좋은 기록이 앞으로 오는 비교
+// 좋은 기록이 앞으로 오는 비교. 순위는 전투력이 먼저다.
+// 예전엔 최고 격파(boss)가 먼저였는데, 보스는 확률 뽑기라 결국 시도 횟수가
+// 순위였다 - 전투력 1위가 3위로 보였고, 옛 밸런스 때 잡아 둔 기록이
+// 지금 그 전투력으로는 확률 0인데도 맨 위에 앉아 있었다.
+// 항목은 그대로 다 남긴다. 이 함수가 «올릴 값어치가 있나» 도 겸해서,
+// 하나라도 빠지면 그 항목만 좋아진 날은 랭킹에 안 올라간다.
 function cmpRec(a,b){
-  return (b.boss-a.boss)||(b.star-a.star)||(b.grade-a.grade)||(b.power-a.power)||(a.ts-b.ts);
+  return (b.power-a.power)||(b.star-a.star)||(b.grade-a.grade)||
+         (b.boss-a.boss)||((b.fbest|0)-(a.fbest|0))||(a.ts-b.ts);
 }
 // 기록 잠금용 해시. 공개된 board.json 에 올라가므로 진짜 비밀번호를 넣을 자리가 아니다.
 async function pwHash(id,pw){

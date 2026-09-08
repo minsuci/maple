@@ -181,9 +181,10 @@ async function board() {
     .map(id => publicRow(id, all[id]))
     .filter(r => r.ts && (r.star > 0 || r.tries > 0 || r.boss > 0))   // 아직 아무것도 안 한 계정은 랭킹에 안 띄운다
     .filter(r => !isAdmin(r.id));                                    // 마스터는 뭐든 만들 수 있으니 순위에서 뺀다
+  // 전투력순. 보스는 확률 뽑기라 앞에 두면 시도 횟수가 곧 순위가 된다.
   const main = rows.slice().sort((a, b) =>
-      (b.boss - a.boss) || (b.star - a.star) || (b.grade - a.grade) ||
-      (b.power - a.power) || (a.ts - b.ts)).slice(0, 50);
+      (b.power - a.power) || (b.star - a.star) || (b.grade - a.grade) ||
+      (b.boss - a.boss) || (a.ts - b.ts)).slice(0, 50);
   // 시련의 숲 순위는 정렬 기준이 달라서, 보스 상위 50 만 보내면 숲만 잘하는
   // 사람이 통째로 잘린다. 숲 상위 30 을 합집합으로 얹는다.
   const forest = rows.slice().sort((a, b) => (b.fbest | 0) - (a.fbest | 0))
@@ -288,13 +289,19 @@ module.exports = async (req, res) => {
         const rec = cleanRec(body.rec);
         // 최고 보스는 어떤 기록이 이기든 가장 높은 것을 유지한다
         // 최고 보스·업적·레벨은 어떤 기록이 이기든 가장 높은 것을 유지한다
+        // fbest 도 여기 있어야 한다. better() 는 별·등급·전투력만 보는데,
+        // 숲만 오른 날은 그 셋이 그대로라 기록이 통째로 안 바뀐다 -
+        // 새 최고 높이가 조용히 버려지고 있었다. 숲이 매번 새로 자라게 된
+        // 지금은 그런 날이 훨씬 잦다.
         const keep = {
-          boss: Math.max((u.rec && u.rec.boss) || 0, rec.boss || 0),
-          ach:  Math.max((u.rec && u.rec.ach)  || 0, rec.ach  || 0),
-          lv:   Math.max((u.rec && u.rec.lv)   || 0, rec.lv   || 0)
+          boss:  Math.max((u.rec && u.rec.boss)  || 0, rec.boss  || 0),
+          ach:   Math.max((u.rec && u.rec.ach)   || 0, rec.ach   || 0),
+          lv:    Math.max((u.rec && u.rec.lv)    || 0, rec.lv    || 0),
+          fbest: Math.max((u.rec && u.rec.fbest) || 0, rec.fbest || 0)
         };
         if (better(rec, u.rec)) u.rec = rec;      // 기록은 더 좋을 때만 갱신
-        if (u.rec) { u.rec.boss = keep.boss; u.rec.ach = keep.ach; u.rec.lv = keep.lv; }
+        if (u.rec) { u.rec.boss = keep.boss; u.rec.ach = keep.ach;
+                     u.rec.lv = keep.lv; u.rec.fbest = keep.fbest; }
         // bp 는 기록이 더 좋아졌는지와 따로 받는다. 여기가 막혀 있으면 전투력이
         // 그대로인 사람은 bp 가 영영 안 올라오고, 그러면 유니언에서 그 사람의
         // 기여도가 0 으로 잡힌다 - 실제로 그렇게 되어 있었다.
