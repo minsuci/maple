@@ -2840,7 +2840,7 @@ const FOR={
   ICE:0.972, MVA:34, MVS:1.1,       // 얼음 감속 · 움직이는 발판 폭과 빠르기
   AHEAD:1600,                       // 머리 위로 이만큼 미리 지어둔다
   RUNK:620, RECK:620, POW:1.6,      // 값 곡선 - 아래 fVal 을 보라
-  HI:1000, BRK:0.5                  // 여기 위로는 계속 어려워진다 · 부서지는 발판이 버티는 시간
+  HI:1000, BRK:0.5, SPR:2           // 여기 위로는 계속 어려워진다 · 부서짐이 버티는 시간 · 스프링 배수
 };
 const fMeters=y=>Math.max(0,Math.round(y/FOR.PXM));
 // 난이도는 높이를 따라 계속 오르되 1 을 넘지 않는다. 상한이 없으면
@@ -2875,7 +2875,15 @@ function fMake(r,x,y,w,t,prev){
   // 얼음·이동과 겹치지 않는다. 부서지는 얼음은 사람이 할 게 못 된다.
   // 아래에서는 r() 을 부르지 않는다 - 한 번이라도 부르면 그 위 숲이 통째로 어긋난다.
   const hi=fHi(y);
-  if(hi>0&&r()<Math.min(0.40,hi*0.012)){ p.brk=1; p.w=Math.max(84,w); return p; }
+  if(hi>0){
+    // 한 번 뽑아 양 끝을 가른다 - 아래쪽은 부서지고 위쪽은 튀어오른다.
+    // 따로 뽑으면 난수를 하나 더 먹어서 그 위 숲이 통째로 어긋난다.
+    const hr=r();
+    if(hr<Math.min(0.40,hi*0.012)){ p.brk=1; p.w=Math.max(84,w); return p; }
+    // 스프링은 밟고 싶은 발판이니 넓게, 그리고 높이 따라 늘리지 않는다 -
+    // 도와주는 성격이 같이 늘면 어려워지는 만큼을 도로 물어준다.
+    if(hr>1-Math.min(0.10,hi*0.02)){ p.spr=1; p.w=Math.max(96,w); return p; }
+  }
   const roll=r();
   if(t>0.35&&roll<Math.min(0.5,(t-0.35)*1.6)){
     p.ice=1; p.w=Math.max(118,w);
@@ -2902,17 +2910,22 @@ function fGrow(G,upto){
     // 부서지는 발판 위에서는 0.5초에 발이 빠져 힘을 91% 까지밖에 못 모은다(212px).
     // 그 위 간격까지 최대로 벌어지면 아무리 잘해도 못 넘는 자리가 된다 - 거기만 재운다.
     const gcap=G.brk?196:200+32*(1-1/(1+hi/14));
-    const gap=Math.min(gcap,88+r()*(40+t*76+hi*1.2));
+    // 스프링 위는 일부러 크게 벌린다. 보통 점프는 아무리 모아도 235px 라
+    // 340px 은 못 넘는다 - 그 발판을 밟는 것 자체가 길이 된다.
+    // 두 배로 뛰면 힘을 27% 만 모아도 닿으니, 넘는 게 어려운 건 아니다.
+    const gap=G.spr?Math.min(340,150+r()*190):Math.min(gcap,88+r()*(40+t*76+hi*1.2));
     const w=Math.max(Math.round(36+32/(1+hi/20)),Math.round(132-t*72-hi*0.6+r()*26));
     G.y+=gap;
     const x=Math.round(r()*(FOR.W-w));
     const p=fMake(r,x,Math.round(G.y),w,t,G.prev);
-    G.prev=!!(p.ice||p.mv||p.brk); G.brk=!!p.brk;
+    G.prev=!!(p.ice||p.mv||p.brk||p.spr); G.brk=!!p.brk; G.spr=!!p.spr;
     G.P.push(p);
     if(r()<0.34-t*0.24){                           // 가끔 같은 높이에 하나 더
       const w2=Math.max(60,Math.round(88-t*34+r()*20));
       const x2=Math.round(r()*(FOR.W-w2));
-      if(Math.abs(x2-x)>w+20) G.P.push({x:x2,y:Math.round(G.y),w:w2});
+      // 스프링 옆에는 안 둔다 - 옆에 잘못 내려서면 못 넘는 간격 밑에 갇힌다.
+      // 자리는 r() 을 그대로 뽑아 두고 놓기만 안 한다(난수 소비를 지킨다).
+      if(!p.spr&&Math.abs(x2-x)>w+20) G.P.push({x:x2,y:Math.round(G.y),w:w2});
     }
   }
   return G.P;
@@ -2952,7 +2965,12 @@ function fStep(st,dt,P){
       if(st.press) st.chg=Math.min(1,st.chg+dt/FOR.CHARGE);
       else if(st.chg>0){                             // 뗐다 - 뛴다
         const q=FOR.JMIN+(FOR.JMAX-FOR.JMIN)*st.chg;
-        st.vy=q; st.vx=q*FOR.HX*st.dir;
+        // 스프링은 위로만 민다. 세로 속도가 두 배면 높이는 네 배다(235px -> 940px).
+        // 가로는 오히려 나눈다 - 체공이 두 배라 그냥 두면 가로로도 두 배를 흘러
+        // 벽을 튕겨 다니다 엉뚱한 데 내려선다(굴려 보니 조작의 41% 가 아래로 떨어졌다).
+        // 나눠 두면 가로 거리는 보통 점프와 같다 - 위로만 더 간다.
+        const sp=(p&&p.spr)?FOR.SPR:1;
+        st.vy=q*sp; st.vx=q*FOR.HX*st.dir/sp;
         st.grounded=false; st.on=-1; st.chg=0; st.jumps++;
       }
       if(st.grounded) return st;
@@ -2991,7 +3009,8 @@ function fEnter(){
   $('fGame').hidden=false;
   fResize(); fLoop(performance.now()); fWatchStart();
   $('fHint').innerHTML='화면 왼쪽을 누르면 왼쪽으로, 오른쪽을 누르면 오른쪽으로<br>길게 누를수록 멀리 뛴다'+
-    ((S.fbest|0)>=FOR.HI-100?'<br><span style="color:#E09A5A">'+FOR.HI+'m 위로는 주황 발판이 부서진다 — 오래 못 선다</span>':'');
+    ((S.fbest|0)>=FOR.HI-100?'<br><span style="color:#E09A5A">'+FOR.HI+'m 위로는 주황 발판이 부서진다 — 오래 못 선다</span>'+
+      '<br><span style="color:#FF8FC8">분홍 스프링은 두 배로 튀어오른다 — 크게 벌어진 자리는 여기로 넘는다</span>':'');
 }
 function fResize(){
   const c=$('fCv'); if(!c) return;
@@ -3056,6 +3075,7 @@ function fDraw(){
     const c=p.ice?['#4E86B8','#BFE4FF']
           :p.mv ?['#6E52B8','#C0AEFF']
           :p.brk?['#8A4B2B','#E09A5A']
+          :p.spr?['#8A2B5A','#FF8FC8']
                 :['#3E6B52','#5C9B78'];
     g.fillStyle=c[0]; g.fillRect(px,y,pw,7);
     g.fillStyle=c[1]; g.fillRect(px,y,pw,2.5);
@@ -3063,6 +3083,18 @@ function fDraw(){
     if(p.brk&&F.on===i&&F.bt>0){
       g.fillStyle='rgba(255,110,100,.9)';
       g.fillRect(px,y,pw*Math.min(1,F.bt/FOR.BRK),7); }
+    // 스프링. 힘을 모으는 동안 눌렸다가, 떼면 원래 길이로 돌아간다 -
+    // 얼마나 튈지가 발판에 그려져 있어야 밟기 전에 판단할 수 있다.
+    if(p.spr){
+      const comp=(F.on===i)?(1-Math.min(1,F.chg)*0.55):1;
+      const cx=px+pw/2, cw=Math.min(22*sc,pw*0.42), ch=15*sc*comp;
+      g.strokeStyle=c[1]; g.lineWidth=2; g.lineJoin='round';
+      g.beginPath(); g.moveTo(cx-cw/2,y);
+      for(let q=0;q<4;q++){
+        g.lineTo(cx+cw/2,y-ch*(q+0.5)/4);
+        g.lineTo(cx-cw/2,y-ch*(q+1)/4); }
+      g.stroke();
+      g.fillStyle=c[1]; g.fillRect(cx-cw/2-2,y-ch-3,cw+4,3); }
     if(p.mv){                                    // 어디까지 오가는지 그려준다
       g.strokeStyle='rgba(192,174,255,.28)'; g.lineWidth=1;
       g.beginPath(); g.moveTo((p.x-p.amp)*sc,y+3.5); g.lineTo((p.x+p.amp+p.w)*sc,y+3.5); g.stroke();
@@ -3123,7 +3155,7 @@ function renderForest(){
   const nx=best+100;
   $('fSub').innerHTML='지금 기록에서 그만두면 <b>'+fmt(fRun(best*FOR.PXM))+'</b>'+
     ' · '+nx+'m 까지 가면 <b>'+fmt(fRun(nx*FOR.PXM)+fRec(best*FOR.PXM,nx*FOR.PXM))+'</b>'+
-    (best>=FOR.HI-200?'<br><span style="color:#E09A5A">'+FOR.HI+'m 부터는 발판이 계속 좁아지고 멀어진다 · 부서지는 발판이 섞인다</span>':'');
+    (best>=FOR.HI-200?'<br><span style="color:#E09A5A">'+FOR.HI+'m 부터는 발판이 계속 좁아지고 멀어진다 · 부서지는 발판과 <span style="color:#FF8FC8">스프링</span>이 섞인다</span>':'');
 }
 
 function renderTop(){
