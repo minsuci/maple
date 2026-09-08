@@ -2839,13 +2839,20 @@ const FOR={
   CHARGE:0.55, BOUNCE:0.62, SEED:20260902,
   ICE:0.972, MVA:34, MVS:1.1,       // 얼음 감속 · 움직이는 발판 폭과 빠르기
   AHEAD:1600,                       // 머리 위로 이만큼 미리 지어둔다
-  RUNK:620, RECK:620, POW:1.6       // 값 곡선 - 아래 fVal 을 보라
+  RUNK:620, RECK:620, POW:1.6,      // 값 곡선 - 아래 fVal 을 보라
+  HI:1000, BRK:0.5                  // 여기 위로는 계속 어려워진다 · 부서지는 발판이 버티는 시간
 };
 const fMeters=y=>Math.max(0,Math.round(y/FOR.PXM));
 // 난이도는 높이를 따라 계속 오르되 1 을 넘지 않는다. 상한이 없으면
 // 언젠가 최대 점프(235px)로 못 닿는 간격이 나와서 거기서 탑이 끝난다.
 //   300m 0.63 · 600m 0.77 · 1000m 0.85 · 2000m 0.92
 const fT=y=>{ const m=y/FOR.PXM; return m/(m+180); };
+// fT 는 1 에서 멎는다. 그래서 1500m 와 10000m 가 같은 판이었다 - 폭은 68 바닥,
+// 간격은 200 상한, 얼음·이동은 50% 상한에 다 붙어 있다. 3300m 까지 굴려 봐도
+// 손가락 여유가 800m 대와 똑같았다. 보상은 1.6 승으로 계속 오르는데 난이도가
+// 멎으면 높이는 실력이 아니라 시간이 된다. HI 위로는 따로 센다 - 100m 에 한 눈금,
+// 상한 없이. 아래는 눈금이 0 이라 지금까지의 숲이 한 칸도 안 바뀐다.
+const fHi=y=>Math.max(0,y/FOR.PXM-FOR.HI)/100;
 // 높이의 값. 100m 를 1 로 두고 1.6 승이라 두 배 오르면 세 배를 받는다.
 //   100m 10분치 · 300m 1시간치 · 600m 3.1시간치 · 1000m 6.9시간치
 const fVal=m=>Math.pow(Math.max(0,m)/100,FOR.POW);
@@ -2864,6 +2871,11 @@ function fRng(seed){ let s=seed>>>0; return function(){
 function fMake(r,x,y,w,t,prev){
   const p={x:x,y:y,w:w};
   if(prev) return p;                              // 성격은 연달아 붙이지 않는다
+  // HI 위로 섞이는 성격. 밟으면 부서진다 - 자리가 아니라 시간을 빼앗는다.
+  // 얼음·이동과 겹치지 않는다. 부서지는 얼음은 사람이 할 게 못 된다.
+  // 아래에서는 r() 을 부르지 않는다 - 한 번이라도 부르면 그 위 숲이 통째로 어긋난다.
+  const hi=fHi(y);
+  if(hi>0&&r()<Math.min(0.40,hi*0.012)){ p.brk=1; p.w=Math.max(84,w); return p; }
   const roll=r();
   if(t>0.35&&roll<Math.min(0.5,(t-0.35)*1.6)){
     p.ice=1; p.w=Math.max(118,w);
@@ -2883,13 +2895,19 @@ function fStart(){
 }
 function fGrow(G,upto){
   while(G.y<upto){
-    const t=fT(G.y), r=G.r;
-    const gap=Math.min(200,88+r()*(40+t*76));
-    const w=Math.max(68,Math.round(132-t*72+r()*26));
+    const t=fT(G.y), hi=fHi(G.y), r=G.r;
+    // 간격이 200 에서 멎어 있었다. 최대 점프가 235px 이니 232 까지는 갈 수 있다 -
+    // 상한에 붙을수록 힘을 끝까지 정확히 모아야 해서 손가락 여유가 계속 줄어든다.
+    // 상한 자체를 232 로 재우니 아무리 올라가도 못 닿는 간격은 안 나온다.
+    // 부서지는 발판 위에서는 0.5초에 발이 빠져 힘을 91% 까지밖에 못 모은다(212px).
+    // 그 위 간격까지 최대로 벌어지면 아무리 잘해도 못 넘는 자리가 된다 - 거기만 재운다.
+    const gcap=G.brk?196:200+32*(1-1/(1+hi/14));
+    const gap=Math.min(gcap,88+r()*(40+t*76+hi*1.2));
+    const w=Math.max(Math.round(36+32/(1+hi/20)),Math.round(132-t*72-hi*0.6+r()*26));
     G.y+=gap;
     const x=Math.round(r()*(FOR.W-w));
     const p=fMake(r,x,Math.round(G.y),w,t,G.prev);
-    G.prev=!!(p.ice||p.mv);
+    G.prev=!!(p.ice||p.mv||p.brk); G.brk=!!p.brk;
     G.P.push(p);
     if(r()<0.34-t*0.24){                           // 가끔 같은 높이에 하나 더
       const w2=Math.max(60,Math.round(88-t*34+r()*20));
@@ -2907,6 +2925,7 @@ const fPx=(p,t)=>p.mv?(p.x+p.amp*Math.sin(t*p.spd+p.ph)):p.x;
 // 이 판에서는 rAF 가 안 돌아서 그러지 않으면 확인할 방법이 없다.
 function fStep(st,dt,P){
   st.t=(st.t||0)+dt;
+  if(!st.gone) st.gone={};                        // 부서뜨린 발판 - 한 판 동안만
   if(st.grounded){
     const p=(st.on>=0)?P[st.on]:null;
     if(p&&p.mv) st.x+=fPx(p,st.t)-fPx(p,st.t-dt);   // 발판이 나를 데리고 간다
@@ -2920,6 +2939,14 @@ function fStep(st,dt,P){
     if(p&&st.y>0){                                   // 발판 밖으로 미끄러졌나
       const px=fPx(p,st.t);
       if(st.x<px-7||st.x>px+p.w+7){ st.grounded=false; st.chg=0; st.on=-1; }
+    }
+    // 부서지는 발판. 밟고 BRK 초가 지나면 발이 빠진다. 힘을 다 모을 시간이
+    // 안 나오니 '멀리 뛸 수 있는 자리'가 아니라 '빨리 떠야 하는 자리'가 된다.
+    // 부서진 자리는 발판(P)이 아니라 나(st.gone)에 적는다 - P 를 건드리면
+    // fStep 이 순수 함수가 아니게 되고, 그러면 화면 없이 굴려볼 수가 없다.
+    if(st.grounded&&p&&p.brk){
+      st.bt=(st.bt||0)+dt;
+      if(st.bt>=FOR.BRK){ st.gone[st.on]=1; st.grounded=false; st.chg=0; st.on=-1; st.bt=0; }
     }
     if(st.grounded){
       if(st.press) st.chg=Math.min(1,st.chg+dt/FOR.CHARGE);
@@ -2937,9 +2964,9 @@ function fStep(st,dt,P){
   if(st.x<8){ st.x=8; st.vx=-st.vx*FOR.BOUNCE; }    // 벽에 튕긴다
   if(st.x>FOR.W-8){ st.x=FOR.W-8; st.vx=-st.vx*FOR.BOUNCE; }
   if(st.vy<0){                                      // 내려올 때만 발판을 탄다
-    for(let i=0;i<P.length;i++){ const p=P[i], px=fPx(p,st.t);
+    for(let i=0;i<P.length;i++){ if(st.gone[i]) continue; const p=P[i], px=fPx(p,st.t);
       if(py>=p.y&&st.y<=p.y&&st.x>=px-7&&st.x<=px+p.w+7){
-        st.y=p.y; st.vy=0; st.grounded=true; st.on=i;
+        st.y=p.y; st.vy=0; st.grounded=true; st.on=i; st.bt=0;
         st.vx=p.ice?st.vx*0.55:0;                   // 얼음은 속도를 남긴다
         break;
       } }
@@ -2960,10 +2987,11 @@ const fReward=h=>fRun(h)+fRec((S.fbest|0)*FOR.PXM,h);
 function fEnter(){
   const G=fStart(); fGrow(G,FOR.AHEAD);
   F={G:G, P:G.P, x:FOR.W/2, y:0, vx:0, vy:0, grounded:true, on:0, chg:0, dir:1,
-     press:false, best:0, jumps:0, t:0, done:false, acc:0, last:0};
+     press:false, best:0, jumps:0, t:0, gone:{}, bt:0, done:false, acc:0, last:0};
   $('fGame').hidden=false;
   fResize(); fLoop(performance.now()); fWatchStart();
-  $('fHint').innerHTML='화면 왼쪽을 누르면 왼쪽으로, 오른쪽을 누르면 오른쪽으로<br>길게 누를수록 멀리 뛴다';
+  $('fHint').innerHTML='화면 왼쪽을 누르면 왼쪽으로, 오른쪽을 누르면 오른쪽으로<br>길게 누를수록 멀리 뛴다'+
+    ((S.fbest|0)>=FOR.HI-100?'<br><span style="color:#E09A5A">'+FOR.HI+'m 위로는 주황 발판이 부서진다 — 오래 못 선다</span>':'');
 }
 function fResize(){
   const c=$('fCv'); if(!c) return;
@@ -3021,14 +3049,20 @@ function fDraw(){
     g.fillStyle='rgba(255,201,74,.8)'; g.font='700 10px sans-serif';
     g.fillText('최고 '+(S.fbest|0)+'m',6,y-5); }
   // 발판
-  F.P.forEach(function(p){
+  F.P.forEach(function(p,i){
+    if(F.gone[i]) return;                        // 밟아서 부서진 자리
     const y=Y(p.y); if(y<-20||y>H+20) return;
     const px=fPx(p,F.t)*sc, pw=p.w*sc;
     const c=p.ice?['#4E86B8','#BFE4FF']
           :p.mv ?['#6E52B8','#C0AEFF']
+          :p.brk?['#8A4B2B','#E09A5A']
                 :['#3E6B52','#5C9B78'];
     g.fillStyle=c[0]; g.fillRect(px,y,pw,7);
     g.fillStyle=c[1]; g.fillRect(px,y,pw,2.5);
+    // 지금 밟고 있는 부서지는 발판은 남은 시간이 눈으로 보여야 한다
+    if(p.brk&&F.on===i&&F.bt>0){
+      g.fillStyle='rgba(255,110,100,.9)';
+      g.fillRect(px,y,pw*Math.min(1,F.bt/FOR.BRK),7); }
     if(p.mv){                                    // 어디까지 오가는지 그려준다
       g.strokeStyle='rgba(192,174,255,.28)'; g.lineWidth=1;
       g.beginPath(); g.moveTo((p.x-p.amp)*sc,y+3.5); g.lineTo((p.x+p.amp+p.w)*sc,y+3.5); g.stroke();
@@ -3088,7 +3122,8 @@ function renderForest(){
   // 지금 기록에서 100m 를 더 가면 얼마인지가 제일 와닿는다.
   const nx=best+100;
   $('fSub').innerHTML='지금 기록에서 그만두면 <b>'+fmt(fRun(best*FOR.PXM))+'</b>'+
-    ' · '+nx+'m 까지 가면 <b>'+fmt(fRun(nx*FOR.PXM)+fRec(best*FOR.PXM,nx*FOR.PXM))+'</b>';
+    ' · '+nx+'m 까지 가면 <b>'+fmt(fRun(nx*FOR.PXM)+fRec(best*FOR.PXM,nx*FOR.PXM))+'</b>'+
+    (best>=FOR.HI-200?'<br><span style="color:#E09A5A">'+FOR.HI+'m 부터는 발판이 계속 좁아지고 멀어진다 · 부서지는 발판이 섞인다</span>':'');
 }
 
 function renderTop(){
@@ -6333,7 +6368,7 @@ initOnline();
 
 // 균형 점검용 노출 (게임 동작에는 영향 없음)
 try{ window.__CFG={SF,MAXSTAR,starCost,SHIELD,SLOTS,OPT,POOL,GCAP,UPRATE,UPGRADE,CUBES,
-  LEG_PITY,MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,skPct,SKMUL,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,cpAx,potAx,slotAx,atkPow,survPow,lineHTML,potGradeOf,evenGrade,c5On,C5N,showPick,again,openPeek,gearRec,forestRows,unequip,canOff,swapGain,deltaHTML,renderBag,ask,askClose,meltJunk,markPickable,touchBest,baseBest,boardView,cubeQClose,unionPct,unionMult,basePow,unionCall,unionAdd,unionDrop,renderForestRank,autoPost,canAuto,betterThanPosted,pkNew,pkGrade,critRate,critMult,CRIT,FOR,fStart,fGrow,fStep,fRng,fMeters,fPx,fT,fVal,fEnter,fEnd,fReward,fRun,fRec,renderForest,renderStat,statOf,sumOpt,mastSum,slotPow,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,navViews,viewIdx,swipeTarget,swipeBlocked,VIEWS,topBoss,bossLabel,myRec,DNAME,ACH,achStat,MAXLV,lvBonus,lvMult,LVK,SLOT_ART,WEAPON_ART,stash,bagStar,bagLines,bagP4,dropSlot,BTYPE,renderAll,CRCOL,passTime,offerOffline,OFF_CAP,OFF_RATE,TR,carryLines,showDrop,cost,protUse,safeUse,IGCOST,igCost,MAST,MPS,mpFor,mastOf,mastFree,mastMult,mastSum,trStar,renderMast,mastStep,paintMast,starMult,expMult,IGSTAR,engrave,ENG,renderShop,renderCubes,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,crt2,bossSReq,SREQ_K,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
+  LEG_PITY,MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,skPct,SKMUL,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,cpAx,potAx,slotAx,atkPow,survPow,lineHTML,potGradeOf,evenGrade,c5On,C5N,showPick,again,openPeek,gearRec,forestRows,unequip,canOff,swapGain,deltaHTML,renderBag,ask,askClose,meltJunk,markPickable,touchBest,baseBest,boardView,cubeQClose,unionPct,unionMult,basePow,unionCall,unionAdd,unionDrop,renderForestRank,autoPost,canAuto,betterThanPosted,pkNew,pkGrade,critRate,critMult,CRIT,FOR,fStart,fGrow,fStep,fRng,fMeters,fPx,fT,fHi,fVal,fEnter,fEnd,fReward,fRun,fRec,renderForest,renderStat,statOf,sumOpt,mastSum,slotPow,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,navViews,viewIdx,swipeTarget,swipeBlocked,VIEWS,topBoss,bossLabel,myRec,DNAME,ACH,achStat,MAXLV,lvBonus,lvMult,LVK,SLOT_ART,WEAPON_ART,stash,bagStar,bagLines,bagP4,dropSlot,BTYPE,renderAll,CRCOL,passTime,offerOffline,OFF_CAP,OFF_RATE,TR,carryLines,showDrop,cost,protUse,safeUse,IGCOST,igCost,MAST,MPS,mpFor,mastOf,mastFree,mastMult,mastSum,trStar,renderMast,mastStep,paintMast,starMult,expMult,IGSTAR,engrave,ENG,renderShop,renderCubes,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,crt2,bossSReq,SREQ_K,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
   get state(){return S;}, cur, power, income, mesoMult, dropMult, starMult, potMultOf, POTG, odds, potGrade, topGrade, totalStars, sfBonus}; }catch(e){}
 })();
 </script>
