@@ -2259,7 +2259,7 @@ const basePow=()=>Math.round(S.items.reduce((a,_,i)=>a+slotPow(i),0)*lvMult()*(1
 const power=()=>Math.round(basePow()*unionMult());
 // 공격력 — 보스 HP 를 깎는 속도. 지금 전투력에서 딜 옵션만 남긴 것이라
 // 값이 거의 같다. 사냥터·랭킹·업적은 계속 power() 를 쓴다.
-const atkPow=()=>Math.round(S.items.reduce((a,_,i)=>a+slotAx(i,'a'),0)*lvMult()*(1+sfBonus()/100)*(1+achStat().cp/100)*critMult()*unionMult());
+const atkPow=()=>Math.round(S.items.reduce((a,_,i)=>a+slotAx(i,'a'),0)*lvMult()*(1+sfBonus()/100)*(1+achStat().cp/100)*critMult()*unionMult()*(1+uskVal('bdm')/100));
 // 생존력 — 보스 딜을 버티는 시간. 레벨·스타포스는 몸도 키우니 같이 곱한다.
 // 업적과 치명타는 순수하게 딜이라 여기엔 안 넣는다.
 const survPow=()=>Math.round(S.items.reduce((a,_,i)=>a+slotAx(i,'s'),0)*lvMult()*(1+sfBonus()/100)*unionMult());
@@ -2270,8 +2270,26 @@ const potGradeOf=it=>(it&&it.lines.length)?it.lines.reduce(function(a,l){return 
 const potGrade=()=>potGradeOf(cur());
 const topGrade=()=>S.items.reduce((a,it)=>Math.max(a,potGradeOf(it)),-1);
 const sumOpt=key=>S.items.reduce((a,it)=>a+(it.broken?0:it.lines.reduce((b,l)=>b+partOf(l,key),0)),0);
-const mesoMult=()=>(1+(sumOpt('mes')+mastSum('mes'))/100)*(1+bufOn('mes'));
-const dropMult=()=>(1+sumOpt('drp')/100)*(1+bufOn('drp'));
+const mesoMult=()=>(1+(sumOpt('mes')+mastSum('mes')+uskVal('mes'))/100)*(1+bufOn('mes'));
+const dropMult=()=>(1+(sumOpt('drp')+uskVal('drp'))/100)*(1+bufOn('drp'));
+/* ---------- 유니언 스킬 ---------- */
+// 묶인 계정 레벨을 다 더한 게 유니언 레벨, 10 마다 1점(서버가 센다 - UNI.sp).
+// 점수는 세 갈래에 나눠 찍는다. 찍은 건 계정마다 따로 남는다(S.usk) -
+// 대표는 보스 쪽에, 부캐는 메소 쪽에 몰아도 된다.
+// 보스 대미지는 atkPow 에만 곱한다. power() 에 넣으면 랭킹이 부푼다.
+const USK=[
+  {k:'drp', n:'아이템 드롭률', v:1.0, cap:40},
+  {k:'mes', n:'메소 획득량',   v:1.0, cap:40},
+  {k:'bdm', n:'보스 대미지',   v:0.5, cap:40}
+];
+const uskPts=()=>Math.max(0,(+(((UNI||(S&&S.union))||{}).sp||0))|0);
+const uskOf=()=>{ if(!S.usk||typeof S.usk!=='object') S.usk={}; return S.usk; };
+const uskUsed=()=>USK.reduce(function(a,x){ return a+(uskOf()[x.k]|0); },0);
+const uskFree=()=>Math.max(0,uskPts()-uskUsed());
+// 묶음이 풀리거나 부캐가 나가면 점수가 줄어 찍어 둔 게 더 많아진다.
+// 지우지 않고 비율로 줄여서 쓴다 - 다시 묶으면 그대로 돌아온다.
+const uskLv=k=>{ const u=uskUsed(), p=uskPts(), n=uskOf()[k]|0; return (u>p&&u>0)?n*p/u:n; };
+const uskVal=k=>{ const x=USK.find(function(q){ return q.k===k; }); return x?uskLv(k)*x.v:0; };
 function mapEff(i,p){ const m=MAPS[i]; if(!m||!mapOpen(i)) return 0; if(!m.req) return 1;
   const r=Math.min(1,(p||0)/m.req); return r*r; }
 function mapIncome(i,p){ const m=MAPS[i]; return m?Math.round(m.rate*mapEff(i,p)*mesoMult()):0; }
@@ -2834,8 +2852,51 @@ function renderStat(){
       h+='<p class="stnote"><b>'+esc(U.main)+'</b>의 부캐다. 랭킹에는 그대로 오르고 '+
          '<b>'+esc(U.main)+'의 부캐</b>라고 붙는다. 언제든 스스로 나갈 수 있다.</p>';
     }
+    h+=uskHTML(U);
   }
   $('stBody').innerHTML=h;
+}
+function uskRow(x){
+  const n=uskOf()[x.k]|0;
+  return '<div class="mrow uskrow" data-k="'+x.k+'"><span><span class="mn">'+x.n+'</span>'+
+      '<span class="md">1점당 +'+x.v+'% · <b class="mc">'+n+'</b> / '+x.cap+'점</span></span>'+
+    '<span class="mv">+'+(+uskVal(x.k).toFixed(1))+'%</span>'+
+    '<span class="mb"><button class="mstep uskstep" data-usk="'+x.k+'" data-d="-1" aria-label="'+x.n+' 한 점 빼기"'+(n<1?' disabled':'')+'>−</button>'+
+      '<button class="mstep up uskstep" data-usk="'+x.k+'" data-d="1" aria-label="'+x.n+' 한 점 주기"'+((uskFree()<1||n>=x.cap)?' disabled':'')+'>+</button></span></div>';
+}
+function uskHTML(U){
+  const pts=uskPts(), used=uskUsed();
+  let h='<div class="stsec">유니언 스킬</div>';
+  if(!pts&&!used) return h+'<p class="stnote">계정을 하나라도 묶으면 열린다. 묶인 계정 레벨을 다 더한 게 '+
+    '<b>유니언 레벨</b>이고, 10 마다 1점이다.</p>';
+  h+='<div class="mhead"><span>남은 점수</span><b id="uskFree">'+uskFree()+'</b></div>';
+  h+='<div class="mlist" id="uskList">'+USK.map(uskRow).join('')+'</div>';
+  if(used>pts) h+='<p class="stnote" style="color:var(--warn)">묶음이 줄어 점수가 <b>'+pts+'점</b>뿐이다 — '+
+    '찍어 둔 '+used+'점이 비율로 줄어 들어간다. 다시 묶으면 돌아온다.</p>';
+  h+='<p class="stnote">유니언 레벨 <b>'+(U.ulv|0)+'</b> — 묶인 계정 레벨의 합, 10 마다 1점. 부캐를 키우면 늘어난다.<br>'+
+    '계정마다 따로 찍고, 언제든 되돌릴 수 있다. <b>꾹 누르면</b> 이어서 오른다.<br>'+
+    '보스 대미지는 보스전에만 붙는다 — 랭킹 전투력은 그대로다.</p>';
+  return h;
+}
+function uskStep(k,d){
+  const x=USK.find(function(q){ return q.k===k; }); if(!x) return false;
+  const o=uskOf(), n=o[k]|0;
+  if(d>0){ if(uskFree()<1||n>=x.cap) return false; o[k]=n+1; return true; }
+  if(n<1) return false; o[k]=n-1; return true;
+}
+// 붙잡고 있는 동안에는 숫자만 갈아 끼운다(마스터리와 같은 까닭). 요소는 매번
+// 새로 찾는다 - 그 사이 스탯 화면이 통째로 다시 그려져도 엉뚱한 걸 안 붙잡는다.
+function paintUsk(){
+  const f=$('uskFree'); if(!f) return;
+  f.textContent=uskFree();
+  document.querySelectorAll('#uskList .uskrow').forEach(function(el){
+    const k=el.getAttribute('data-k'), x=USK.find(function(q){ return q.k===k; }), n=uskOf()[k]|0;
+    if(!x) return;
+    el.querySelector('.mc').textContent=n;
+    el.querySelector('.mv').textContent='+'+(+uskVal(k).toFixed(1))+'%';
+    const bs=el.querySelectorAll('.uskstep');
+    bs[0].disabled=n<1; bs[1].disabled=uskFree()<1||n>=x.cap;
+  });
 }
 
 /* ---------- 시련의 숲 ---------- */
@@ -5550,9 +5611,9 @@ function absorb(j){                       // 서버 응답에서 랭킹과 유�
   // 유니언은 서버가 센 것만 믿는다. 값이 달라졌을 때만 다시 그린다 -
   // 90초마다 오는 응답마다 화면을 갈아엎을 이유가 없다.
   if(j&&j.union){
-    const was=unionPct(), wb=uniBoost();
+    const was=unionPct(), wb=uniBoost(), wp=uskPts();
     UNI=j.union; if(S) S.union=j.union;
-    if((Math.abs(was-unionPct())>0.001||Math.abs(wb-uniBoost())>0.001)&&USER){ save(); renderAll(); }
+    if((Math.abs(was-unionPct())>0.001||Math.abs(wb-uniBoost())>0.001||wp!==uskPts())&&USER){ save(); renderAll(); }
   }
 }
 const UNIERR={
@@ -6279,6 +6340,35 @@ $('swProt').addEventListener('click',()=>{ S.useProt=!S.useProt; renderStarPane(
 $('swLuck').addEventListener('click',()=>{ S.useLuck=!S.useLuck; renderStarPane(); save(); });
 $('swC5').addEventListener('click',()=>{ ac(); S.cube5=!S.cube5; renderCubes(); save(); });
 // 상태창은 통째로 다시 그려지니 줄마다 달지 않고 상자에 한 번만 단다
+// 유니언 스킬 -/+ . 마스터리처럼 누름에서 바로 한 점, 붙잡으면 점점 빨라진다.
+// 스탯 화면은 통째로 다시 그려지니 단추마다 달지 않고 여기서 받는다.
+$('stBody').addEventListener('pointerdown',function(e){
+  const b=e.target.closest('.uskstep'); if(!b||b.disabled) return;
+  if(e.button!==undefined&&e.button!==0) return;
+  const k=b.getAttribute('data-usk'), d=+b.getAttribute('data-d');
+  ac();
+  if(!uskStep(k,d)) return;
+  paintUsk();
+  let on=true, cnt=1, sp=340, t=null;
+  const up=function(){ stop(false); }, cancel=function(){ stop(true); };
+  const stop=function(undo){
+    if(!on) return; on=false; clearTimeout(t);
+    document.removeEventListener('pointerup',up); document.removeEventListener('pointercancel',cancel);
+    b.removeEventListener('pointerleave',up);
+    // 목록을 밀려다 짚은 한 점은 돌려놓는다(마스터리와 같다)
+    if(undo&&cnt===1) uskStep(k,-d);
+    renderAll(); save();
+  };
+  document.addEventListener('pointerup',up); document.addEventListener('pointercancel',cancel);
+  b.addEventListener('pointerleave',up);
+  const tick=function(){
+    if(!on) return;
+    if(!uskStep(k,d)){ stop(false); return; }
+    cnt++; paintUsk();
+    sp=Math.max(26,sp*0.72); t=setTimeout(tick,sp);
+  };
+  t=setTimeout(tick,sp);
+});
 $('stBody').addEventListener('click',function(e){
   const off=e.target.closest('[data-off]');
   if(off){ ac(); unionDrop(off.getAttribute('data-off')); return; }
@@ -6427,7 +6517,7 @@ initOnline();
 
 // 균형 점검용 노출 (게임 동작에는 영향 없음)
 try{ window.__CFG={SF,MAXSTAR,starCost,SHIELD,SLOTS,OPT,POOL,GCAP,UPRATE,UPGRADE,CUBES,
-  LEG_PITY,MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,skPct,SKMUL,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,cpAx,potAx,slotAx,atkPow,survPow,lineHTML,potGradeOf,evenGrade,c5On,C5N,showPick,again,openPeek,gearRec,forestRows,unequip,canOff,swapGain,deltaHTML,renderBag,ask,askClose,meltJunk,markPickable,touchBest,baseBest,boardView,cubeQClose,unionPct,unionMult,uniBoost,basePow,unionCall,unionAdd,unionDrop,renderForestRank,autoPost,canAuto,betterThanPosted,pkNew,pkGrade,critRate,critMult,CRIT,FOR,fStart,fGrow,fStep,fRng,fMeters,fPx,fT,fHi,fVal,fEnter,fEnd,fReward,fRun,fRec,renderForest,renderStat,statOf,sumOpt,mastSum,slotPow,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,navViews,viewIdx,swipeTarget,swipeBlocked,VIEWS,topBoss,bossLabel,myRec,DNAME,ACH,achStat,MAXLV,lvBonus,lvMult,LVK,SLOT_ART,WEAPON_ART,stash,bagStar,bagLines,bagP4,dropSlot,BTYPE,renderAll,CRCOL,passTime,offerOffline,OFF_CAP,OFF_RATE,TR,carryLines,showDrop,cost,protUse,safeUse,IGCOST,igCost,MAST,MPS,mpFor,mastOf,mastFree,mastMult,mastSum,trStar,renderMast,mastStep,paintMast,starMult,expMult,IGSTAR,engrave,ENG,renderShop,renderCubes,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,crt2,bossSReq,SREQ_K,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
+  LEG_PITY,MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,skPct,SKMUL,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,cpAx,potAx,slotAx,atkPow,survPow,lineHTML,potGradeOf,evenGrade,c5On,C5N,showPick,again,openPeek,gearRec,forestRows,unequip,canOff,swapGain,deltaHTML,renderBag,ask,askClose,meltJunk,markPickable,touchBest,baseBest,boardView,cubeQClose,unionPct,unionMult,uniBoost,USK,uskPts,uskVal,uskStep,uskFree,basePow,unionCall,unionAdd,unionDrop,renderForestRank,autoPost,canAuto,betterThanPosted,pkNew,pkGrade,critRate,critMult,CRIT,FOR,fStart,fGrow,fStep,fRng,fMeters,fPx,fT,fHi,fVal,fEnter,fEnd,fReward,fRun,fRec,renderForest,renderStat,statOf,sumOpt,mastSum,slotPow,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,navViews,viewIdx,swipeTarget,swipeBlocked,VIEWS,topBoss,bossLabel,myRec,DNAME,ACH,achStat,MAXLV,lvBonus,lvMult,LVK,SLOT_ART,WEAPON_ART,stash,bagStar,bagLines,bagP4,dropSlot,BTYPE,renderAll,CRCOL,passTime,offerOffline,OFF_CAP,OFF_RATE,TR,carryLines,showDrop,cost,protUse,safeUse,IGCOST,igCost,MAST,MPS,mpFor,mastOf,mastFree,mastMult,mastSum,trStar,renderMast,mastStep,paintMast,starMult,expMult,IGSTAR,engrave,ENG,renderShop,renderCubes,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,crt2,bossSReq,SREQ_K,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
   get state(){return S;}, cur, power, income, mesoMult, dropMult, starMult, potMultOf, POTG, odds, potGrade, topGrade, totalStars, sfBonus}; }catch(e){}
 })();
 </script>

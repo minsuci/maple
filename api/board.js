@@ -57,7 +57,7 @@ const r2 = v => Math.round(v * 100) / 100;
 // 묶음 하나를 통째로 읽어 각자의 몫을 센다. 최대 여섯 계정이라 그냥 하나씩 읽는다.
 async function unionOf(id, u) {
   const solo = { main: id, role: 'main', pct: 0, members: [], max: UNION_MAX, cap: UNION_CAP, per: UNION_PER,
-                 boost: 1, lead: '', boostMax: BOOST_MAX };
+                 boost: 1, lead: '', boostMax: BOOST_MAX, ulv: 0, sp: 0 };
   if (!u) return solo;
   let mainId = id, mainU = u;
   if (u.uMain) {
@@ -72,7 +72,7 @@ async function unionOf(id, u) {
   for (const m of ids) {
     const mu = m === id ? u : (m === mainId ? mainU : await readUser(m));
     const bp = (mu && mu.rec && mu.rec.bp) | 0;
-    members.push({ id: m, bp: bp, pct: r2(unionPctOf(bp)), me: m === id });
+    members.push({ id: m, bp: bp, lv: (mu && mu.rec && mu.rec.lv) | 0, pct: r2(unionPctOf(bp)), me: m === id });
   }
   let pct = 0;
   members.forEach(m => { if (!m.me) pct += unionPctOf(m.bp); });
@@ -84,9 +84,14 @@ async function unionOf(id, u) {
   const lead = members.reduce((a, m) => (!m.me && m.bp > a.bp) ? m : a, { id: '', bp: 0 });
   const mine = (members.find(m => m.me) || { bp: 0 }).bp;
   const boost = (lead.bp > 0 && mine < lead.bp) ? r2(1 + (BOOST_MAX - 1) * (1 - mine / lead.bp)) : 1;
+  // 유니언 레벨 - 묶인 계정 레벨을 다 더한 값. 10 마다 유니언 스킬 1점.
+  // 전투력이 아니라 레벨로 세는 건, 부캐를 키우는 게 곧 점수가 되게 하려는 것이다
+  // (전투력은 장비 운을 탄다). 혼자면 0 - 묶어야 열린다. 레벨은 submit 이 high-water 로 든다.
+  const ulv = members.length > 1 ? members.reduce((a, m) => a + (m.lv | 0), 0) : 0;
   return { main: mainId, role: u.uMain ? 'alt' : 'main', pct: r2(Math.min(UNION_CAP, pct)),
            members: members, max: UNION_MAX, cap: UNION_CAP, per: UNION_PER,
-           boost: boost, lead: boost > 1 ? lead.id : '', boostMax: BOOST_MAX };
+           boost: boost, lead: boost > 1 ? lead.id : '', boostMax: BOOST_MAX,
+           ulv: ulv, sp: Math.floor(ulv / 10) };
 }
 
 async function redis(cmd) {
