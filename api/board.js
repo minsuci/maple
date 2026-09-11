@@ -43,6 +43,7 @@ const UNION_MAX = 5;        // 대표 하나가 걸 수 있는 부캐 수
 const UNION_PER = 4;        // 부캐 하나가 줄 수 있는 최대 %
 const UNION_CAP = 20;       // 다 합쳐도 여기까지
 const UNION_REF = 20000;    // 이 전투력에서 한 칸이 꽉 찬다 (지금 천장)
+const BOOST_MAX = 3;        // 부캐 가속 상한 - 묶음에서 가장 센 사람과 차이가 클수록 붙는다
 // 로그 곡선이다. 중간까지 키우면 값의 대부분이 들어오고 마지막이 더디다 —
 // 부캐 하나를 끝까지 미는 것보다 여럿을 중간까지 키우는 게 낫게.
 const unionPctOf = bp => {
@@ -55,7 +56,8 @@ const r2 = v => Math.round(v * 100) / 100;
 
 // 묶음 하나를 통째로 읽어 각자의 몫을 센다. 최대 여섯 계정이라 그냥 하나씩 읽는다.
 async function unionOf(id, u) {
-  const solo = { main: id, role: 'main', pct: 0, members: [], max: UNION_MAX, cap: UNION_CAP, per: UNION_PER };
+  const solo = { main: id, role: 'main', pct: 0, members: [], max: UNION_MAX, cap: UNION_CAP, per: UNION_PER,
+                 boost: 1, lead: '', boostMax: BOOST_MAX };
   if (!u) return solo;
   let mainId = id, mainU = u;
   if (u.uMain) {
@@ -74,8 +76,17 @@ async function unionOf(id, u) {
   }
   let pct = 0;
   members.forEach(m => { if (!m.me) pct += unionPctOf(m.bp); });
+  // 부캐 가속. 위의 % 는 제 전투력에 곱해지니 작은 부캐에겐 티가 안 난다 -
+  // 대표 23,953 과 묶인 3,787 짜리 부캐가 받는 게 +238 이었다. 부캐에게 필요한 건
+  // 전투력이 아니라 크는 속도다. 사냥 수입과 경험치에 곱할 배수를 여기서 센다.
+  // 묶음에서 가장 센 사람과의 차이만큼 붙고, 따라잡을수록 1 로 줄어든다.
+  // 가장 센 사람 자신은 늘 1 이다 - 맨 위를 부풀리지 않는다.
+  const lead = members.reduce((a, m) => (!m.me && m.bp > a.bp) ? m : a, { id: '', bp: 0 });
+  const mine = (members.find(m => m.me) || { bp: 0 }).bp;
+  const boost = (lead.bp > 0 && mine < lead.bp) ? r2(1 + (BOOST_MAX - 1) * (1 - mine / lead.bp)) : 1;
   return { main: mainId, role: u.uMain ? 'alt' : 'main', pct: r2(Math.min(UNION_CAP, pct)),
-           members: members, max: UNION_MAX, cap: UNION_CAP, per: UNION_PER };
+           members: members, max: UNION_MAX, cap: UNION_CAP, per: UNION_PER,
+           boost: boost, lead: boost > 1 ? lead.id : '', boostMax: BOOST_MAX };
 }
 
 async function redis(cmd) {

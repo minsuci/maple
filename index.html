@@ -2247,6 +2247,12 @@ const UNION_CAP=20;
 let UNI=null;
 const unionPct=()=>Math.max(0,Math.min(UNION_CAP,+(((UNI||(S&&S.union))||{}).pct||0)));
 const unionMult=()=>1+unionPct()/100;
+// 부캐 가속 - 서버가 센 배수를 받아 쓴다(유니언 % 와 같은 길).
+// 사냥 수입과 경험치에만 곱한다. income() 자체는 안 건드린다 - 숲 보상·출석·
+// 전직 비용이 다 income() 을 쓰는데, 거기까지 곱하면 숲 반복 벌이가 부캐에서
+// 세 배로 불어나고 부캐 전직은 세 배 비싸진다.
+const BOOST_MAX=3;
+const uniBoost=()=>Math.max(1,Math.min(BOOST_MAX,+(((UNI||(S&&S.union))||{}).boost||1)));
 // 기본 전투력 - 유니언을 빼고 잰 값. 유니언 기여도는 이걸로만 센다.
 // 완성된 전투력으로 재면 A 가 B 를 올리고 그 B 가 A 를 올려 서로 부푼다.
 const basePow=()=>Math.round(S.items.reduce((a,_,i)=>a+slotPow(i),0)*lvMult()*(1+sfBonus()/100)*(1+achStat().cp/100)*critMult());
@@ -2807,6 +2813,8 @@ function renderStat(){
     h+='<div class="stsec">유니언</div>';
     h+='<div class="unihead"><b>+'+unionPct().toFixed(2)+'%</b>'+
        '<span>'+(linked?('묶인 '+mem.length+'개 계정이 서로 올려준다'):'아직 묶인 계정이 없다')+'</span></div>';
+    if(uniBoost()>1) h+='<div class="unihead"><b style="color:#8FE3B0">x'+uniBoost().toFixed(2)+'</b>'+
+       '<span><b>'+esc(U.lead||U.main)+'</b>이(가) 끌어준다 — 사냥 수입과 경험치가 빨라진다. 따라잡을수록 줄어든다</span></div>';
     if(linked) h+='<div class="unilist">'+mem.map(function(m){
       return '<div class="unirow'+(m.me?' me':'')+'">'+
         '<span class="n">'+esc(m.id)+(m.id===U.main?'<i>대표</i>':'')+(m.me?'<i class="k">나</i>':'')+'</span>'+
@@ -2819,6 +2827,7 @@ function renderStat(){
          (linked>=(U.max||5)?' disabled':'')+'>부캐 걸기'+(linked?(' ('+linked+' / '+(U.max||5)+')'):'')+'</button></div>';
       h+='<p class="stnote">기여도는 그 캐릭의 <b>기본 전투력</b>(유니언을 뺀 값)으로 센다 — '+
          '한 명당 최대 '+(U.per||4)+'%, 합쳐 '+(U.cap||20)+'%까지. 서로에게 간다.<br>'+
+         '부캐는 <b>대표와 차이가 클수록 빨리 큰다</b> — 사냥 수입과 경험치가 최대 '+(U.boostMax||BOOST_MAX)+'배, 따라잡을수록 줄어든다.<br>'+
          '부캐도 <b>랭킹에 그대로 오른다</b> — 묶인 표시가 붙어 한 식구인 게 보인다.</p>';
     } else {
       h+='<div class="btnrow"><button class="btn" id="uLeave">묶음에서 나가기</button></div>';
@@ -4549,12 +4558,13 @@ function offerOffline(sec){
   const el=Math.min(OFF_CAP,Math.floor(sec));
   if(el<60){ renderAll(); return; }
   offPend=el;
-  const meso=Math.round(income()*el*OFF_RATE), xp=Math.round(xpRate()*el*OFF_RATE);
+  const meso=Math.round(income()*el*OFF_RATE*uniBoost()), xp=Math.round(xpRate()*el*OFF_RATE*uniBoost());
   const real=Math.floor(sec), h=Math.floor(real/3600), m=Math.floor(real%3600/60);
   $('offTime').textContent=(h?h+'시간 ':'')+m+'분';
   $('offBody').innerHTML=
     '<div class="offrow"><span>사냥 수입</span><b>'+fmt(meso)+' 메소</b></div>'+
     '<div class="offrow"><span>경험치</span><b>'+xp.toLocaleString('ko-KR')+'</b></div>'+
+    (uniBoost()>1?'<div class="offrow"><span>유니언 가속</span><b style="color:#8FE3B0">x'+uniBoost().toFixed(2)+'</b></div>':'')+
     '<div class="offnote">자리를 비워도 사냥 속도는 그대로다 · 수입은 최대 12시간까지 쌓인다'+
       (sec>OFF_CAP?'<br><b>보스 쿨타임은 상한 없이 '+(h?h+'시간 ':'')+m+'분 전부 흘렀다</b>':'')+'</div>';
   $('offTake').onclick=function(){
@@ -5146,7 +5156,8 @@ function updateHunt(){
   const m=MAPS[S.map||0];
   $('animTog').setAttribute('aria-checked',String(S.anim!==false));
   $('huntNote').innerHTML='지금 <b>'+m.n+'</b>에서 사냥 중 · 효율 <b>'+Math.round(mapEff(S.map||0,p)*100)+
-    '%</b> · 초당 <b>'+fmt(mapIncome(S.map||0,p))+'</b> 메소 · <b>'+Math.round(xpRate())+'</b> 경험치'+
+    '%</b> · 초당 <b>'+fmt(mapIncome(S.map||0,p)*uniBoost())+'</b> 메소 · <b>'+Math.round(xpRate()*uniBoost())+'</b> 경험치'+
+    (uniBoost()>1?' · <b style="color:#8FE3B0">유니언 가속 x'+uniBoost().toFixed(2)+'</b>':'')+
     ' (메소획득량 +'+Math.round((mesoMult()-1)*100)+'%)<br>'+
     '사냥터는 <b>레벨로 열리고 전투력으로 효율이 정해진다</b> — 갓 열린 곳보다 앞 사냥터를 100%로 도는 게 나을 때가 많다.<br>'+
     '보스는 쿨타임이 따로 도니까 돌려가며 잡는 게 이득이고, <b>상위 보스일수록 좋은 장비를 떨군다</b> (드롭률 +'+Math.round((dropMult()-1)*100)+'%).';
@@ -5539,9 +5550,9 @@ function absorb(j){                       // 서버 응답에서 랭킹과 유�
   // 유니언은 서버가 센 것만 믿는다. 값이 달라졌을 때만 다시 그린다 -
   // 90초마다 오는 응답마다 화면을 갈아엎을 이유가 없다.
   if(j&&j.union){
-    const was=unionPct();
+    const was=unionPct(), wb=uniBoost();
     UNI=j.union; if(S) S.union=j.union;
-    if(Math.abs(was-unionPct())>0.001&&USER){ save(); renderAll(); }
+    if((Math.abs(was-unionPct())>0.001||Math.abs(wb-uniBoost())>0.001)&&USER){ save(); renderAll(); }
   }
 }
 const UNIERR={
@@ -6180,7 +6191,7 @@ function catchUp(sec){
   passTime(sec);                                  // 쿨은 상한 없이
   const el=Math.min(OFF_CAP,sec);                 // 수입만 8시간까지
   if(el<3){ renderAll(); return; }
-  const m=income()*el*OFF_RATE, xp=xpRate()*el*OFF_RATE;   // 창을 열어둔 채 묻어둬도 같은 값이다
+  const m=income()*el*OFF_RATE*uniBoost(), xp=xpRate()*el*OFF_RATE*uniBoost();   // 창을 열어둔 채 묻어둬도 같은 값이다
   S.meso+=m; gainXp(xp);
   const h=Math.floor(el/3600), mi=Math.floor(el%3600/60), s=Math.floor(el%60);
   const dur=h?(h+'시간 '+mi+'분'):(mi?(mi+'분'):(s+'초'));
@@ -6227,8 +6238,9 @@ function loop(t){
   if(!USER){ lastWall=Date.now(); fxStep(dt); requestAnimationFrame(loop); return; }
   const nw=Date.now(), gap=(nw-lastWall)/1000; lastWall=nw;
   if(gap>2) catchUp(gap);       // 프레임이 멈춰 있었다 — 백그라운드거나 절전
-  S.meso+=income()*dt;
-  gainXp(xpRate()*dt);   // 파괴 상태에서도 기본 수입은 흐른다
+  const ub=uniBoost();                        // 부캐면 유니언이 끌어준다
+  S.meso+=income()*ub*dt;
+  gainXp(xpRate()*ub*dt);   // 파괴 상태에서도 기본 수입은 흐른다
   if(!S.bcd||S.bcd.length!==BOSSES.length) S.bcd=BOSSES.map(function(){return 0;});
   if(!S.bk||S.bk.length!==BOSSES.length) S.bk=BOSSES.map(function(){return 0;});
   for(let i=0;i<S.bcd.length;i++) if(S.bcd[i]>0) S.bcd[i]=Math.max(0,S.bcd[i]-dt);
@@ -6415,7 +6427,7 @@ initOnline();
 
 // 균형 점검용 노출 (게임 동작에는 영향 없음)
 try{ window.__CFG={SF,MAXSTAR,starCost,SHIELD,SLOTS,OPT,POOL,GCAP,UPRATE,UPGRADE,CUBES,
-  LEG_PITY,MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,skPct,SKMUL,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,cpAx,potAx,slotAx,atkPow,survPow,lineHTML,potGradeOf,evenGrade,c5On,C5N,showPick,again,openPeek,gearRec,forestRows,unequip,canOff,swapGain,deltaHTML,renderBag,ask,askClose,meltJunk,markPickable,touchBest,baseBest,boardView,cubeQClose,unionPct,unionMult,basePow,unionCall,unionAdd,unionDrop,renderForestRank,autoPost,canAuto,betterThanPosted,pkNew,pkGrade,critRate,critMult,CRIT,FOR,fStart,fGrow,fStep,fRng,fMeters,fPx,fT,fHi,fVal,fEnter,fEnd,fReward,fRun,fRec,renderForest,renderStat,statOf,sumOpt,mastSum,slotPow,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,navViews,viewIdx,swipeTarget,swipeBlocked,VIEWS,topBoss,bossLabel,myRec,DNAME,ACH,achStat,MAXLV,lvBonus,lvMult,LVK,SLOT_ART,WEAPON_ART,stash,bagStar,bagLines,bagP4,dropSlot,BTYPE,renderAll,CRCOL,passTime,offerOffline,OFF_CAP,OFF_RATE,TR,carryLines,showDrop,cost,protUse,safeUse,IGCOST,igCost,MAST,MPS,mpFor,mastOf,mastFree,mastMult,mastSum,trStar,renderMast,mastStep,paintMast,starMult,expMult,IGSTAR,engrave,ENG,renderShop,renderCubes,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,crt2,bossSReq,SREQ_K,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
+  LEG_PITY,MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,skPct,SKMUL,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,cpAx,potAx,slotAx,atkPow,survPow,lineHTML,potGradeOf,evenGrade,c5On,C5N,showPick,again,openPeek,gearRec,forestRows,unequip,canOff,swapGain,deltaHTML,renderBag,ask,askClose,meltJunk,markPickable,touchBest,baseBest,boardView,cubeQClose,unionPct,unionMult,uniBoost,basePow,unionCall,unionAdd,unionDrop,renderForestRank,autoPost,canAuto,betterThanPosted,pkNew,pkGrade,critRate,critMult,CRIT,FOR,fStart,fGrow,fStep,fRng,fMeters,fPx,fT,fHi,fVal,fEnter,fEnd,fReward,fRun,fRec,renderForest,renderStat,statOf,sumOpt,mastSum,slotPow,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,navViews,viewIdx,swipeTarget,swipeBlocked,VIEWS,topBoss,bossLabel,myRec,DNAME,ACH,achStat,MAXLV,lvBonus,lvMult,LVK,SLOT_ART,WEAPON_ART,stash,bagStar,bagLines,bagP4,dropSlot,BTYPE,renderAll,CRCOL,passTime,offerOffline,OFF_CAP,OFF_RATE,TR,carryLines,showDrop,cost,protUse,safeUse,IGCOST,igCost,MAST,MPS,mpFor,mastOf,mastFree,mastMult,mastSum,trStar,renderMast,mastStep,paintMast,starMult,expMult,IGSTAR,engrave,ENG,renderShop,renderCubes,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,crt2,bossSReq,SREQ_K,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
   get state(){return S;}, cur, power, income, mesoMult, dropMult, starMult, potMultOf, POTG, odds, potGrade, topGrade, totalStars, sfBonus}; }catch(e){}
 })();
 </script>
