@@ -3306,7 +3306,8 @@ function renderStarPane(){
   el.classList.toggle('short',S.meso<c);
   const btn=$('starBtn');
   btn.disabled=busy||O.max||S.meso<c;
-  btn.innerHTML=it.broken?'장비가 부서졌다'
+  btn.innerHTML=chainOn?'연속 강화 <b>'+chainN()+'회</b>'
+    : it.broken?'장비가 부서졌다'
     : it.star>=MAXSTAR?'36★ 달성 — 끝이다'
     : '강화하기 <b>'+it.star+'★ → '+(it.star+1)+'★</b>';
   $('swProt').setAttribute('aria-checked',String(S.useProt));
@@ -3317,7 +3318,8 @@ function renderStarPane(){
   $('starNote').innerHTML='<b>'+IGNAME[it.ig]+' 장비</b>라 별값에 <b>x'+igCost(it).toFixed(1)+
     '</b>가 붙는다 (레어 1.0 · 에픽 1.2 · 유니크 1.5 · 레전더리 2.0) · <b>'+SLOTS[S.sel||0].n+
     '</b> 부위 배수 x'+SLOTS[S.sel||0].cost.toFixed(2)+
-    '<br>비싸게 박은 별은 <b>전수</b>할 때 마스터리 포인트로 그만큼 더 돌아온다.';
+    '<br>비싸게 박은 별은 <b>전수</b>할 때 마스터리 포인트로 그만큼 더 돌아온다.'+
+    '<br><b>꾹 누르면</b> 손을 뗄 때까지 이어서 강화한다 — 파괴가 붙는 구간에 닿거나 메소가 떨어지면 멈춘다.';
   $('luckDesc').textContent=EV()
     ? ('성공 두 배 · 비용 '+LUCK.mul+'배 — 손이 반만 간다')
     : ('성공 확률 2배 · 비용 '+LUCK.mul+'배 · 성공이 100%인 구간엔 켜도 소용없다');
@@ -3461,6 +3463,48 @@ function renderAll(){
 /* ---------- 스타포스 ---------- */
 let busy=false;
 let sureUse=false;
+/* ---------- 연속 강화 ---------- */
+// 0★ 대에서는 유지·하락을 수십 번 넘겨야 해서 손가락 일이 된다.
+// 단추를 붙잡고 있으면 이어서 누른 셈이 되게 했다. 대신 돈이 걸린 단추라
+// 멈추는 자리를 분명히 둔다 - 파괴가 있는 구간에 닿거나, 메소가 떨어지거나, 손을 떼면.
+let holdOn=false, chainOn=false, chainT=null, chainFrom=null, chainPtr=false;
+const desAt=s=>((SF[s]||[])[3]>0);                 // 그 별에 파괴가 붙어 있나 (방지 스위치와 무관)
+const chainN=()=>chainFrom?S.st.try-chainFrom.try:0;
+const starWait=()=>(chainOn&&chainN()>0)?150:260;  // 이어지는 동안에는 연출을 조금 줄인다
+function clog(t,c){ if(!chainOn||chainN()<=1) log(t,c); }   // 첫 판은 늘 적고, 이어지는 것만 끝에 한 줄로
+function chainStart(){
+  if(busy||chainOn) return;
+  const it=cur();
+  if(it.broken||it.star>=MAXSTAR||S.meso<cost()) return;
+  holdOn=true; chainOn=true;
+  // 끝에 한 줄로 요약하려고 눌린 값을 적어 둔다 - 갈래마다 세지 않고 차이로 센다
+  chainFrom={star:it.star, try:S.st.try, suc:S.st.suc, keep:S.st.keep, down:S.st.down, spent:S.st.spent};
+  starClick(false);
+  if(!busy) chainEnd('');                          // 첫 판이 아예 안 눌렸다
+}
+function chainRelease(){ if(!holdOn) return; holdOn=false; if(!busy) chainEnd(''); }
+function chainNext(){
+  if(!chainOn) return;
+  if(!holdOn) return chainEnd('');
+  const it=cur();
+  if(it.broken||it.star>=MAXSTAR) return chainEnd('');
+  if(S.meso<cost()) return chainEnd('메소가 떨어져 멈췄다');
+  if(odds().des>0) return chainEnd('파괴 확률이 있어 멈췄다 — 이어서 하려면 한 번씩 누르자');
+  // 파괴가 없는 구간에서 시작했으면 파괴 구간 앞에서 세운다. 값도 몇 배로 뛰는 자리다.
+  if(desAt(it.star)&&!desAt(chainFrom.star)) return chainEnd(it.star+'★ — 여기부터 파괴가 붙어 멈췄다');
+  chainT=setTimeout(function(){ if(chainOn&&holdOn) starClick(false); else chainEnd(''); },90);
+}
+function chainEnd(why){
+  if(!chainOn) return;
+  chainOn=false; holdOn=false; clearTimeout(chainT); chainT=null;
+  const f=chainFrom, it=cur(); chainFrom=null;
+  if(f&&S.st.try-f.try>1)
+    log('연속 강화 <b>'+(S.st.try-f.try)+'회</b> — '+f.star+'★ → '+(it.broken?'<b>파괴</b>':it.star+'★')+
+        ' · 성공 '+(S.st.suc-f.suc)+' · 유지 '+(S.st.keep-f.keep)+' · 하락 '+(S.st.down-f.down)+
+        ' · <b>'+fmt(S.st.spent-f.spent)+' 메소</b>'+(why?' — '+why:''),'');
+  else if(why) log(why,'');
+  renderStarPane();
+}
 function starClick(sure){
   const it=cur();
   if(busy||it.broken||it.star>=MAXSTAR) return;
@@ -3473,7 +3517,7 @@ function starClick(sure){
   S.meso-=c; S.st.spent+=c;
   busy=true; renderStarPane(); renderCubes();
   showResult('go',sureUse?'확정 성공권 사용 — 강화 중…':'강화 중…');
-  setTimeout(resolveStar,260);
+  setTimeout(resolveStar,starWait());
 }
 function resolveStar(){
   const it=cur(), s=it.star, O=odds(), nm=SLOTS[S.sel||0].n;
@@ -3488,7 +3532,7 @@ function resolveStar(){
     if(st){ st.classList.add('on','pop'); setTimeout(function(){ st.classList.remove('pop'); },260); }
     burst(it.star>=20?70:34,'#FFC94A');
     showResult('ok','성공 <b>'+s+'★ → '+it.star+'★</b>');
-    log(nm+' 강화 성공 — <b>'+s+'★ → '+it.star+'★</b>','ok');
+    clog(nm+' 강화 성공 — <b>'+s+'★ → '+it.star+'★</b>','ok');
     if(it.star===MAXSTAR) flash('36 ★','더 올릴 별이 없다','#FF6BD6');
     else if(it.star===20) flash('20 ★','여기서부터는 성공 6% 고정','#FFC94A');
     else if(it.star===16) flash('16 ★','이제 파괴가 시작된다','#B15CFF');
@@ -3498,7 +3542,7 @@ function resolveStar(){
     SND.fail();
     const box=$('itembox'); box.classList.remove('shake'); void box.offsetWidth; box.classList.add('shake');
     showResult('down','하락 <b>'+s+'★ → '+it.star+'★</b>');
-    log(nm+' 하락 — <b>'+s+'★ → '+it.star+'★</b>','fail');
+    clog(nm+' 하락 — <b>'+s+'★ → '+it.star+'★</b>','fail');
   } else if(roll<O.suc+O.down+O.des){
     S.st.des++; it.broken=true; repairShown=false;
     SND.des();
@@ -3511,12 +3555,13 @@ function resolveStar(){
     S.st.keep++;
     tone(300,240,.12,'square',.035);
     showResult('keep','유지 <b>'+s+'★</b> — 메소만 날아갔다');
-    log(nm+' 유지 — <b>'+s+'★</b> 그대로','');
+    clog(nm+' 유지 — <b>'+s+'★</b> 그대로','');
   }
   S.st.best=Math.max(S.st.best,power());
   S.st.bbest=Math.max(S.st.bbest|0,basePow());   // 유니언을 뺀 값 — 남의 유니언은 이걸로 센다
   
   busy=false; renderAll(); save();
+  if(chainOn) chainNext();
 }
 /* ---------- 잠재능력 큐브 ---------- */
 function rollOpt(slot){
@@ -6321,14 +6366,28 @@ function loop(t){
 }
 
 /* ---------- 이벤트 ---------- */
-$('starBtn').addEventListener('click',()=>{ ac(); starClick(false); });
+// 누름에서 시작해 뗄 때까지 이어진다. 클릭까지 받으면 뗄 때 한 판이 더 들어가서,
+// 손가락으로 누른 것이면 뒤따라오는 click 은 흘린다.
+$('starBtn').addEventListener('pointerdown',e=>{
+  if(e.button!==undefined&&e.button!==0) return;
+  chainPtr=true; ac(); chainStart();
+});
+$('starBtn').addEventListener('pointerleave',chainRelease);
+document.addEventListener('pointerup',chainRelease);
+document.addEventListener('pointercancel',chainRelease);
+$('starBtn').addEventListener('click',()=>{ if(chainPtr){ chainPtr=false; return; } ac(); chainStart(); });
 $('sureBtn').addEventListener('click',()=>{ ac(); starClick(true); });
+// 스페이스도 같다 - 누르고 있으면 이어지고, 떼면 멈춘다(키 반복은 흘린다)
 addEventListener('keydown',e=>{
   if(e.key===' '){
     e.preventDefault();
-    if(!busy&&$('tabStar').getAttribute('aria-selected')==='true'){ ac(); starClick(false); }
+    if(e.repeat) return;
+    if(!busy&&$('tabStar').getAttribute('aria-selected')==='true'){ ac(); chainStart(); }
   }
 });
+addEventListener('keyup',e=>{ if(e.key===' ') chainRelease(); });
+addEventListener('blur',chainRelease);
+document.addEventListener('visibilitychange',()=>{ if(document.hidden) chainRelease(); });
 $('swSafe').addEventListener('click',()=>{ S.useSafe=!S.useSafe; renderStarPane(); save(); });
 [0,1,2,3].forEach(i=>$('p'+i).addEventListener('click',()=>pickLine(i)));
 // 사본은 다시 그릴 때마다 갈리니 줄마다 달지 않고 상자에 한 번만 단다
