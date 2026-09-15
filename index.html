@@ -3982,9 +3982,10 @@ function showDrop(slot,g,fromName,bagIdx){
       meltCard(slot,g,nStar,nLines,drop?drop.name:'')+
       '<p class="asknote">없애고 <b>'+fmt(m)+'</b> 메소를 받는다. <b>되돌릴 수 없다.</b></p>',
       '분해한다',
-      function(){ S.meso+=m; drophere();
+      function(){ legGuard([{slot:slot, ig:g, star:nStar, lines:nLines, name:drop?drop.name:''}], function(){
+        S.meso+=m; drophere();
         log(IGNAME[g]+' '+SLOTS[slot].n+'을(를) 분해했다 — <b>+'+fmt(m)+'</b> 메소','');
-        SND.coin(); renderAll(); save(); });
+        SND.coin(); renderAll(); save(); }); });
   };
   // 자세한 건 단추를 누르면 나온다. 여기는 무엇을 고르는 자리인지만.
   $('dropNote').innerHTML=
@@ -4850,7 +4851,7 @@ function meltJunk(){
     (doomed.length>top.length?('<p class="asknote">그 밖에 '+(doomed.length-top.length)+'개 더</p>'):'')+
     '<p class="asknote">모두 합쳐 <b>'+fmt(m)+'</b> 메소를 받는다. <b>되돌릴 수 없다.</b></p>',
     doomed.length+'개 분해한다',
-    function(){
+    function(){ legGuard(doomed, function(){
       let n=0;
       S.bag=S.bag.filter(function(b){
         if(b.ig>S.items[b.slot].ig) return true;
@@ -4859,7 +4860,21 @@ function meltJunk(){
       S.meso+=m; SND.coin();
       log('가방의 <b>'+n+'개</b>를 분해했다 — <b>+'+fmt(m)+'</b> 메소','ok');
       renderAll(); save();
-    });
+    }); });
+}
+// 레전더리가 섞였으면 한 번 더 묻는다. 요구 500 위 보스가 아주 가끔 떨구는 물건이라
+// 첫 확인창을 습관처럼 넘기다 날리면 다시 구할 길이 멀다. 섞인 게 없으면 바로 간다.
+// (ask 의 예 단추는 창을 닫고 나서 부르니, 여기서 새 창을 띄워도 겹치지 않는다)
+function legGuard(items,go){
+  const leg=items.filter(function(b){ return (b.ig|0)>=3; });
+  if(!leg.length) return go();
+  ask('레전더리가 들어 있다',
+    '<p class="asknote" style="margin-top:0">분해할 것 중 <b>레전더리 '+leg.length+'개</b>. '+
+      '요구 '+LEG_MIN+' 위 보스가 아주 가끔 떨구는 장비다.</p>'+
+    leg.slice(0,4).map(function(b){ return meltCard(b.slot,b.ig,bagStar(b),bagLines(b),b.name); }).join('')+
+    (leg.length>4?('<p class="asknote">그 밖에 '+(leg.length-4)+'개 더</p>'):'')+
+    '<p class="asknote">레전더리까지 정말 없앤다. <b>되돌릴 수 없다.</b></p>',
+    '레전더리까지 분해한다', go);
 }
 
 /* ---------- 되돌릴 수 없는 것은 한 번 묻는다 ---------- */
