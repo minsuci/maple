@@ -96,6 +96,88 @@ async function unionOf(id, u) {
            ulv: ulv, sp: Math.floor(ulv / 10) };
 }
 
+// ---- 길드 레이드 «떨어진 별» ----
+// 한 주에 한 마리를 길드 전체가 같이 깎는다. 체력은 여기(서버)가 든다.
+// 치는 건 반응속도 게임이다 - 별이 아주 잠깐 나타났다 사라지고, 빨리 누를수록 세게 들어간다.
+// 대미지는 클라이언트가 보낸 숫자를 안 믿는다. 반응 시간(ms)만 받아서, 서버가 들고 있는
+// 그 사람의 전투력 기록(rec.bp high-water)으로 센다. 다 맞혀도 전투력만큼이 끝이다.
+const RAID_KEY = 'byeol:raid';                            // 상태 {week,max,stage,killedAt,prev}
+const RAID_DMG = w => 'byeol:raid:d:' + w;                // id -> 이번 주 누적 대미지
+const RAID_TIX = (w, d) => 'byeol:raid:t:' + w + ':' + d; // id -> 그날 친 횟수
+const RAID_CLM = w => 'byeol:raid:c:' + w;                // id -> 보상 받음
+const RAID_RUN = 'byeol:raid:run';                        // id -> 판을 연 시각
+const RAID_TRIES = 3;          // 하루에 칠 수 있는 판
+const RAID_POPS = 8;           // 한 판에 별이 나타나는 횟수
+const RAID_FIRST = 800000;     // 첫 주 체력 - 지금 여덟 계정이 절반쯤 나와야 잡히는 크기
+const RAID_MIN = 300000;
+const RAID_WIN = [560, 500, 440, 380];   // 네 단계. 깎일수록 별이 짧게 머문다(ms)
+const RAID_RT_MIN = 100;       // 이보다 빠른 반응은 사람이 아니다 - 헛것으로 센다
+const RAID_RUN_MIN = RAID_POPS * 600;    // 한 판이 이보다 빨리 끝날 수는 없다
+const KST = 9 * 3600e3, DAY = 86400e3, WEEK = 7 * DAY;
+const weekOf = t => Math.floor((t + KST - 4 * DAY) / WEEK);   // 월요일 0시(한국) 기준
+const dayOf = t => Math.floor((t + KST) / DAY);
+const weekStart = w => w * WEEK + 4 * DAY - KST;
+// 한 번 누른 값. 220ms 안이면 꽉, 머무는 시간 끝에 닿으면 0.35. 놓치면 0.
+const raidMul = (rt, win) => (typeof rt !== 'number' || !isFinite(rt) || rt < RAID_RT_MIN || rt > RAID_WIN[0]) ? 0
+  : 1 - 0.65 * Math.max(0, Math.min(1, (rt - 220) / Math.max(1, win - 220)));
+// 잡으면 친 사람 전원이 받는다. 많이 넣은 셋은 메소만 조금 더 - 차이를 작게 둬서 약한 부캐가 쳐도 손해가 아니게.
+const raidReward = (stage, rank) => ({
+  meso: Math.round(50000000 * (1 + 0.25 * (stage - 1)) * (rank < 3 ? 1.2 : 1)),
+  sure: 2, leg: stage >= 2 ? 1 : 0 });
+
+async function hnum(key) {
+  const flat = await redis(['HGETALL', key]); const o = {};
+  if (Array.isArray(flat)) for (let i = 0; i < flat.length; i += 2) o[flat[i]] = +flat[i + 1] || 0;
+  else if (flat && typeof flat === 'object') for (const k in flat) o[k] = +flat[k] || 0;
+  return o;
+}
+// 주가 바뀌었으면 넘긴다. 사흘 안에 잡았으면 1.3배, 잡았으면 1.1배, 못 잡았으면 0.8배.
+// 몇 주를 아무도 안 왔어도 한 주씩 넘긴다(못 잡은 주로). 같은 값을 둘이 써도 결과가 같다.
+async function raidState(now) {
+  let st = null;
+  try { st = JSON.parse((await redis(['GET', RAID_KEY])) || 'null'); } catch (e) { st = null; }
+  const w = weekOf(now);
+  if (!st || typeof st.week !== 'number') st = { week: w, max: RAID_FIRST, stage: 1, killedAt: 0, prev: null };
+  if (st.week < w) {
+    let s = st;
+    for (let k = 0; k < 12 && s.week < w; k++) {
+      const fast = s.killedAt && s.killedAt - weekStart(s.week) <= 3 * DAY;
+      const max = s.killedAt ? s.max * (fast ? 1.3 : 1.1) : Math.max(RAID_MIN, s.max * 0.8);
+      s = { week: s.week + 1, max: Math.round(max / 1000) * 1000, stage: s.killedAt ? s.stage + 1 : s.stage,
+            killedAt: 0, prev: { week: s.week, stage: s.stage, killedAt: s.killedAt || 0 } };
+    }
+    s.week = w; st = s;
+    await redis(['SET', RAID_KEY, JSON.stringify(st)]);
+  }
+  return st;
+}
+// 받을 보상 - 이번 주나 지난 주에 잡았고, 쳤고, 아직 안 받은 것 하나.
+async function raidClaimOf(id, st) {
+  const cands = [];
+  if (st.killedAt) cands.push({ week: st.week, stage: st.stage });
+  if (st.prev && st.prev.killedAt && st.prev.week === st.week - 1) cands.push({ week: st.prev.week, stage: st.prev.stage });
+  for (const c of cands) {
+    const d = await hnum(RAID_DMG(c.week));
+    if (!(d[id] > 0)) continue;
+    if (+(await redis(['HGET', RAID_CLM(c.week), id])) > 0) continue;
+    const rank = Object.keys(d).sort((a, b) => d[b] - d[a]).indexOf(id);
+    return { week: c.week, stage: c.stage, rank: rank, reward: raidReward(c.stage, rank) };
+  }
+  return null;
+}
+async function raidView(id, st, now) {
+  const d = await hnum(RAID_DMG(st.week));
+  const total = Object.keys(d).reduce((a, k) => a + d[k], 0);
+  const hp = Math.max(0, st.max - total);
+  const phase = Math.min(3, Math.floor((1 - hp / st.max) * 4));
+  const rows = Object.keys(d).map(k => ({ id: k, dmg: d[k] })).sort((a, b) => b.dmg - a.dmg);
+  const used = +(await redis(['HGET', RAID_TIX(st.week, dayOf(now)), id])) || 0;
+  return { week: st.week, stage: st.stage, max: st.max, hp: hp, phase: phase, win: RAID_WIN[phase],
+           pops: RAID_POPS, tries: RAID_TRIES, used: Math.min(RAID_TRIES, used), killedAt: st.killedAt || 0,
+           ends: weekStart(st.week + 1), dayEnds: (dayOf(now) + 1) * DAY - KST,
+           rows: rows.slice(0, 12), mine: d[id] || 0, claim: await raidClaimOf(id, st) };
+}
+
 async function redis(cmd) {
   const r = await fetch(URL_ENV, {
     method: 'POST',
@@ -407,6 +489,65 @@ module.exports = async (req, res) => {
         if (a && a.uMain === id) { delete a.uMain; await writeUser(altId, a); }
         await writeUser(id, u);
         return res.status(200).json({ ok: true, union: await unionOf(id, u), board: await board() });
+      }
+      return res.status(400).json({ error: 'bad_op' });
+    }
+
+    // ---- 길드 레이드 ----
+    if (body.action === 'raid') {
+      const u = await readUser(id);
+      if (!u) return res.status(404).json({ error: 'no_user' });
+      if (!authed(u, body.token)) return res.status(401).json({ error: 'bad_token' });
+      const op = String(body.op || 'get'), now = Date.now();
+      let st = await raidState(now);
+      const view = async () => raidView(id, st, now);
+
+      if (op === 'get') return res.status(200).json({ ok: true, raid: await view() });
+
+      // 판을 연다 - 여기서 하루 몫을 쓴다. 치고 나서 쓰면 잘 안 된 판을 버리고 다시 칠 수 있다.
+      if (op === 'start') {
+        const v = await view();
+        if (v.hp <= 0) return res.status(409).json({ error: 'dead', raid: v });
+        const tk = RAID_TIX(st.week, dayOf(now));
+        const n = await redis(['HINCRBY', tk, id, 1]);
+        await redis(['EXPIRE', tk, 3 * 86400]);
+        if (n > RAID_TRIES) { await redis(['HINCRBY', tk, id, -1]); return res.status(409).json({ error: 'no_tries', raid: v }); }
+        await redis(['HSET', RAID_RUN, id, String(now)]);
+        return res.status(200).json({ ok: true, raid: await view() });
+      }
+
+      if (op === 'hit') {
+        const at = +(await redis(['HGET', RAID_RUN, id])) || 0;
+        if (!at) return res.status(409).json({ error: 'no_run', raid: await view() });
+        await redis(['HDEL', RAID_RUN, id]);                 // 한 판에 한 번만 받는다
+        const hits = Array.isArray(body.hits) ? body.hits.slice(0, RAID_POPS) : [];
+        const took = now - at;
+        // 여덟 번이 나타나려면 시간이 걸린다. 그보다 빨리 온 건 사람이 친 게 아니다.
+        const tooFast = took < RAID_RUN_MIN;
+        const before = await view();
+        const win = RAID_WIN[before.phase];
+        const score = tooFast ? 0 : hits.reduce((a, rt) => a + raidMul(rt, win), 0);
+        const P = (u.rec && (u.rec.bp | 0)) || (u.rec && (u.rec.power | 0)) || 0;
+        const dmg = before.hp > 0 ? Math.round(P * score / RAID_POPS) : 0;
+        if (dmg > 0) await redis(['HINCRBY', RAID_DMG(st.week), id, dmg]);
+        let killed = false;
+        if (dmg > 0 && !st.killedAt && before.hp - dmg <= 0) {
+          st = Object.assign({}, st, { killedAt: now });
+          await redis(['SET', RAID_KEY, JSON.stringify(st)]);
+          killed = true;
+        }
+        return res.status(200).json({ ok: true, dmg: dmg, score: Math.round(score * 100) / 100, killed: killed,
+                                      tooFast: tooFast, raid: await view() });
+      }
+
+      // 보상 - 받았다고 먼저 적고(HINCRBY 가 1 이면 처음), 그다음에 준다. 두 번 눌러도 한 번.
+      if (op === 'claim') {
+        const c = await raidClaimOf(id, st);
+        if (!c) return res.status(409).json({ error: 'no_claim', raid: await view() });
+        const n = await redis(['HINCRBY', RAID_CLM(c.week), id, 1]);
+        await redis(['EXPIRE', RAID_CLM(c.week), 21 * 86400]);
+        if (n !== 1) return res.status(409).json({ error: 'claimed', raid: await view() });
+        return res.status(200).json({ ok: true, claim: c, raid: await view() });
       }
       return res.status(400).json({ error: 'bad_op' });
     }

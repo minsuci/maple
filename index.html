@@ -525,6 +525,49 @@ button:disabled{cursor:not-allowed;opacity:.45;}
   font-variant-numeric:tabular-nums;}
 .frow2 .g{font-size:10.5px;color:var(--dimmer);min-width:56px;text-align:right;}
 .fempty{font-size:11.5px;color:var(--dimmer);padding:14px 2px;text-align:center;line-height:1.7;}
+/* ---------- 길드 레이드 ---------- */
+.raid{border-color:#5A3A12;background:radial-gradient(120% 90% at 85% -10%,#3A2508 0%,transparent 55%),linear-gradient(180deg,var(--panel),#15122C);}
+.rtop{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+.rname{font-family:'Gowun Batang',serif;font-size:20px;color:var(--gold);}
+.rstage{font-size:11px;font-weight:900;color:#2A1A00;background:var(--gold);border-radius:6px;padding:2px 7px;margin-left:6px;vertical-align:3px;}
+.rleft{font-size:11.5px;color:var(--dim);}
+.rhp{position:relative;height:14px;border-radius:7px;background:#1B1030;border:1px solid var(--edge);overflow:hidden;margin:12px 0 6px;}
+.rhp span{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,#FF4D6A,#FF8A3C 45%,var(--gold));transition:width .5s;}
+.rhp i{position:absolute;top:0;bottom:0;width:1px;background:rgba(255,255,255,.28);}
+.rhpt{font-size:11.5px;color:var(--dim);font-variant-numeric:tabular-nums;}
+.rhpt b{color:var(--text);}
+.rbtns{display:grid;gap:8px;margin:12px 0 4px;}
+.rrows{display:grid;gap:5px;margin-top:12px;}
+.rrow{display:grid;grid-template-columns:minmax(64px,auto) 1fr auto;gap:9px;align-items:center;font-size:12px;}
+.rrow>span{color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px;}
+.rrow>i{height:7px;border-radius:4px;background:#FF8A3C;opacity:.75;min-width:2px;}
+.rrow>b{font-variant-numeric:tabular-nums;color:var(--text);font-size:12px;}
+.rrow.me>span{color:var(--gold);font-weight:900;}
+.rrow.me>i{background:var(--gold);opacity:1;}
+.rgame{position:fixed;inset:0;z-index:90;background:radial-gradient(120% 80% at 50% 0%,#1D1340,#070612 70%);
+  display:flex;flex-direction:column;touch-action:none;user-select:none;-webkit-user-select:none;}
+.rgame[hidden]{display:none;}
+.rfield{position:relative;flex:1;min-height:0;overflow:hidden;cursor:crosshair;}
+.rboss{position:absolute;width:var(--rs,90px);height:var(--rs,90px);margin:0;padding:0;border:0;background:none;
+  transform:translate(-50%,-50%);cursor:crosshair;filter:drop-shadow(0 0 14px var(--rc,#FFC94A));animation:rpop .09s ease-out;}
+.rboss[hidden]{display:none;}
+.rboss svg{width:100%;height:100%;display:block;pointer-events:none;}
+@keyframes rpop{from{transform:translate(-50%,-50%) scale(.55);}to{transform:translate(-50%,-50%) scale(1);}}
+.rmsg{position:absolute;left:0;right:0;top:40%;text-align:center;pointer-events:none;
+  font-family:'Gowun Batang',serif;font-size:22px;color:var(--dim);}
+.rtag{position:absolute;transform:translate(-50%,-50%);pointer-events:none;font-family:'Bebas Neue',sans-serif;
+  font-size:26px;letter-spacing:.03em;animation:rtag .7s ease-out forwards;text-shadow:0 2px 0 #000;}
+@keyframes rtag{from{opacity:1;margin-top:0;}to{opacity:0;margin-top:-46px;}}
+.rres{position:absolute;inset:0;display:grid;place-items:center;padding:20px;background:rgba(7,6,18,.72);}
+.rres[hidden]{display:none;}
+.rres .in{width:min(380px,100%);text-align:center;display:grid;gap:10px;}
+.rres .big{font-family:'Bebas Neue',sans-serif;font-size:54px;color:var(--gold);line-height:1;}
+.rres .sub{font-size:12.5px;color:var(--dim);line-height:1.7;}
+.rres .sub b{color:var(--text);}
+.rdots{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;}
+.rdots span{font-size:11px;font-variant-numeric:tabular-nums;padding:3px 6px;border-radius:6px;background:#1B1030;border:1px solid var(--edge);color:var(--dim);}
+.rdots span.hit{color:#2A1A00;background:var(--gold);border-color:var(--gold);font-weight:900;}
+@media (prefers-reduced-motion:reduce){.rboss,.rtag{animation:none;}}
 .fgame{position:fixed;inset:0;z-index:90;background:#070B12;display:flex;flex-direction:column;
   touch-action:none;user-select:none;-webkit-user-select:none;}
 .fgame canvas{flex:1;width:100%;min-height:0;display:block;}
@@ -1394,6 +1437,10 @@ td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
   </div>
 
   <div class="view" id="viewHunt" hidden>
+  <section class="card raid" id="raidCard" hidden>
+    <h2>길드 레이드</h2>
+    <div id="raidBody"></div>
+  </section>
   <section class="card">
     <h2>사냥</h2>
     <div class="hunt">
@@ -1592,6 +1639,19 @@ td.seen{color:var(--dimmer);font-size:11px;white-space:nowrap;}
   </div>
   <canvas id="fCv"></canvas>
   <div class="fhint" id="fHint"></div>
+</div>
+
+<div class="rgame" id="rGame" hidden>
+  <div class="fbar">
+    <span class="h" id="rCnt">0<small>/ 8</small></span>
+    <button class="fquit" id="rQuit">그만두기</button>
+    <span class="b" id="rInfo"></span>
+  </div>
+  <div class="rfield" id="rField">
+    <button class="rboss" id="rBoss" hidden aria-label="떨어진 별"></button>
+    <div class="rmsg" id="rMsg"></div>
+    <div class="rres" id="rRes" hidden><div class="in" id="rResIn"></div></div>
+  </div>
 </div>
 
 <div class="battle" id="battle" hidden>
@@ -4760,6 +4820,7 @@ function showView(k){
   if(k==='adm') renderAdm();
   if(k==='stat') renderStat();
   if(k==='forest') renderForest();
+  if(k==='hunt') raidLoad();
   if(to>=0&&from>=0&&to!==from){              // 들어오는 쪽만 밀어 넣는다 — 화면마다 높이가 달라서
     const el=$((navViews()[to]||VIEWS[0])[1]);   // 두 장을 나란히 끌면 아래가 출렁인다
     el.classList.remove('vnext','vprev');
@@ -5667,6 +5728,199 @@ async function apiPost(payload){
     return {status:r.status, j:j};
   }catch(e){ return {status:0,j:null}; }
 }
+/* ---------- 길드 레이드 «떨어진 별» ---------- */
+// 한 주에 한 마리를 길드 전체가 같이 깎는다. 체력·하루 세 판·대미지는 서버가 센다.
+// 치는 건 반응속도 게임이다 - 별이 아주 잠깐 나타났다 사라지고, 빨리 누를수록 세게 들어간다.
+// 여기서는 반응 시간(ms)만 재서 보낸다. 대미지는 서버가 전투력 기록으로 계산해 돌려준다.
+const RAID={v:null, t:0, busy:false};
+const RCOL=['#FFC94A','#FF8A3C','#FF4D6A','#B15CFF'];   // 깎일수록 색이 바뀐다
+const RSIZE=[92,82,72,64];                               // 그리고 작아진다
+// 서버 raidMul 과 같은 식 - 결과창에서 한 번씩 얼마나 들어갔는지 보여주는 데만 쓴다
+const raidMul=(rt,win)=>(rt<100||rt>560)?0:1-0.65*Math.max(0,Math.min(1,(rt-220)/Math.max(1,win-220)));
+const RAID_ART=function(c){
+  return '<svg viewBox="0 0 100 100" aria-hidden="true"><defs><radialGradient id="rsg" cx="50%" cy="42%" r="62%">'+
+    '<stop offset="0" stop-color="#FFF8D8"/><stop offset=".5" stop-color="'+c+'"/><stop offset="1" stop-color="#3A1405"/></radialGradient></defs>'+
+    '<path d="M50 5 L61.5 36 L95 37.5 L68.5 58 L78.5 92 L50 72.5 L21.5 92 L31.5 58 L5 37.5 L38.5 36 Z" fill="url(#rsg)" stroke="#1A0A02" stroke-width="3" stroke-linejoin="round"/>'+
+    '<path d="M34 44 L45 49" stroke="#1A0A02" stroke-width="3.4" stroke-linecap="round"/>'+
+    '<path d="M66 44 L55 49" stroke="#1A0A02" stroke-width="3.4" stroke-linecap="round"/>'+
+    '<circle cx="41" cy="54" r="3.6" fill="#1A0A02"/><circle cx="59" cy="54" r="3.6" fill="#1A0A02"/>'+
+    '<path d="M42 66 Q50 61 58 66" fill="none" stroke="#1A0A02" stroke-width="3" stroke-linecap="round"/></svg>';
+};
+function leftTxt(ms){
+  ms=Math.max(0,ms); const d=Math.floor(ms/86400e3), h=Math.floor(ms%86400e3/3600e3), m=Math.floor(ms%3600e3/60e3);
+  return d?(d+'일 '+h+'시간'):h?(h+'시간 '+m+'분'):(m+'분');
+}
+async function raidCall(op,extra){
+  if(!SRV||!USER||!TOKEN) return null;
+  const r=await apiPost(Object.assign({action:'raid',op:op,id:USER,token:TOKEN},extra||{}));
+  if(r.j&&r.j.raid){ RAID.v=r.j.raid; RAID.t=Date.now(); }
+  return r;
+}
+// 사냥 탭을 열 때마다 부른다. 15초 안에 다시 열면 들고 있던 걸로 그린다.
+async function raidLoad(force){
+  const card=$('raidCard'); if(!card) return;
+  if(!SRV||!USER||!TOKEN){ card.hidden=true; return; }
+  if(!force&&RAID.v&&Date.now()-RAID.t<15000){ renderRaid(); return; }
+  await raidCall('get'); renderRaid();
+}
+function renderRaid(){
+  const card=$('raidCard'), v=RAID.v; if(!card) return;
+  if(!v||!SRV||!USER){ card.hidden=true; return; }
+  card.hidden=false;
+  const left=v.tries-v.used, dead=v.hp<=0;
+  let h='<div class="rtop"><div><span class="rname">떨어진 별</span><span class="rstage">'+v.stage+'단계</span></div>'+
+    '<span class="rleft">'+(dead?'처치했다 — ':'')+'월요일 0시까지 '+leftTxt(v.ends-Date.now())+'</span></div>';
+  h+='<div class="rhp"><span style="width:'+(v.hp/v.max*100).toFixed(2)+'%"></span><i style="left:25%"></i><i style="left:50%"></i><i style="left:75%"></i></div>';
+  h+='<div class="rhpt">체력 <b>'+v.hp.toLocaleString('ko-KR')+'</b> / '+v.max.toLocaleString('ko-KR')+
+     (dead?'':' · 별이 머무는 시간 <b>'+v.win+'ms</b>')+'</div>';
+  h+='<div class="rbtns">';
+  if(v.claim){ const rw=v.claim.reward;
+    h+='<button class="btn gold" id="raidClaim">보상 받기 — '+fmt(rw.meso)+' 메소 · 성공권 '+rw.sure+(rw.leg?' · 레전더리 장비':'')+'</button>'; }
+  h+=dead?'<button class="btn" disabled>잡았다 — 월요일에 새 별이 떨어진다</button>'
+    : left>0?'<button class="btn gold big" id="raidGo">공격 <b>'+left+' / '+v.tries+'</b></button>'
+    : '<button class="btn" disabled>오늘은 다 쳤다 — '+leftTxt(v.dayEnds-Date.now())+' 뒤에 다시</button>';
+  h+='</div>';
+  if(v.rows&&v.rows.length){
+    const top=v.rows[0].dmg||1;
+    h+='<div class="rrows">'+v.rows.map(function(r){
+      return '<div class="rrow'+(r.id===USER?' me':'')+'"><span>'+esc(r.id)+'</span><i style="width:'+Math.max(1,r.dmg/top*100).toFixed(1)+'%"></i><b>'+r.dmg.toLocaleString('ko-KR')+'</b></div>';
+    }).join('')+'</div>';
+  }
+  h+='<p class="hnote">별이 <b>아주 잠깐</b> 나타났다 사라진다 — 보이면 바로 누르자. 한 판에 여덟 번, 하루 세 판.<br>'+
+    '빨리 누를수록 세게 들어가고, 다 빨리 맞히면 <b>내 전투력만큼</b>이다. 안 보일 때 누르면 그 한 번은 날아간다.<br>'+
+    '잡으면 한 번이라도 친 사람 모두가 보상을 받는다. 빨리 잡을수록 다음 주 별이 단단해진다.</p>';
+  $('raidBody').innerHTML=h;
+}
+let R=null;                                  // 지금 치고 있는 판
+async function rOpen(){
+  if(RAID.busy||R) return;
+  RAID.busy=true;
+  const r=await raidCall('start');
+  RAID.busy=false;
+  if(!r||!r.j||!r.j.ok){
+    const e=r&&r.j&&r.j.error;
+    log(e==='no_tries'?'오늘 레이드는 다 쳤다':e==='dead'?'떨어진 별은 이미 잡혔다':'레이드 서버에 닿지 않았다 — 잠시 뒤에 다시','fail');
+    renderRaid(); return;
+  }
+  const v=RAID.v;
+  R={i:0, hits:[], win:v.win, pops:v.pops, phase:v.phase, t:null, up:false, shownAt:0, done:false};
+  const b=$('rBoss');
+  b.style.setProperty('--rc',RCOL[v.phase]); b.style.setProperty('--rs',RSIZE[v.phase]+'px');
+  b.innerHTML=RAID_ART(RCOL[v.phase]); b.hidden=true;
+  $('rRes').hidden=true; $('rQuit').hidden=false;
+  $('rInfo').innerHTML='떨어진 별 <b>'+v.stage+'단계</b><br>머무는 시간 '+v.win+'ms';
+  rCount(); $('rMsg').textContent='준비…';
+  $('rGame').hidden=false;
+  R.t=setTimeout(rNext,1100);
+}
+function rCount(){ $('rCnt').innerHTML=Math.min(R.i+1,R.pops)+'<small>/ '+R.pops+'</small>'; }
+function rNext(){
+  if(!R||R.done) return;
+  if(R.i>=R.pops) return rFinish();
+  rCount(); $('rMsg').textContent='';
+  R.t=setTimeout(rShow,700+Math.random()*1300);   // 언제 나올지 모르게
+}
+function rShow(){
+  if(!R||R.done) return;
+  const f=$('rField'), b=$('rBoss'), m=RSIZE[R.phase]/2+14;
+  const w=f.clientWidth, h=f.clientHeight;
+  b.style.left=(m+Math.random()*Math.max(1,w-2*m))+'px';
+  b.style.top=(m+Math.random()*Math.max(1,h-2*m))+'px';
+  b.hidden=false; R.up=true; R.shownAt=performance.now();
+  const n=R.i;
+  // 그려진 순간부터 잰다. 숨은 창에서는 이 프레임이 안 와서 위에서 잰 값 그대로 간다.
+  requestAnimationFrame(function(){ if(R&&R.up&&R.i===n) R.shownAt=performance.now(); });
+  R.t=setTimeout(function(){ rDone(-1,null); },R.win);
+}
+function rTag(x,y,txt,col){
+  const el=document.createElement('div'); el.className='rtag'; el.textContent=txt; el.style.color=col;
+  el.style.left=x+'px'; el.style.top=y+'px'; $('rField').appendChild(el);
+  setTimeout(function(){ el.remove(); },720);
+}
+// 한 번이 끝났다 - rt 는 ms, 놓치면 -1
+function rDone(rt,ev){
+  if(!R||R.done) return;
+  clearTimeout(R.t);
+  const b=$('rBoss'), f=$('rField').getBoundingClientRect();
+  const x=ev?ev.clientX-f.left:parseFloat(b.style.left)||f.width/2, y=ev?ev.clientY-f.top:parseFloat(b.style.top)||f.height/2;
+  b.hidden=true; R.up=false;
+  R.hits.push(rt); R.i++;
+  if(rt>0){ const k=raidMul(rt,R.win);
+    rTag(x,y,rt+'ms',k>=0.9?'#FFE9A8':k>=0.6?'#FFC94A':'#FF8A3C'); tone(880,1320+k*400,.06,'triangle',.05); }
+  else { rTag(x,y,'놓쳤다','#8B84B8'); tone(220,160,.08,'square',.03); }
+  rNext();
+}
+function rEarly(ev){
+  if(!R||R.done||R.up||R.i>=R.pops) return;
+  clearTimeout(R.t);
+  const f=$('rField').getBoundingClientRect();
+  R.hits.push(-1); R.i++;
+  rTag(ev.clientX-f.left,ev.clientY-f.top,'너무 빨랐다','#FF4D6A'); tone(300,120,.12,'square',.035);
+  rNext();
+}
+async function rFinish(){
+  if(!R||R.done) return;
+  R.done=true; clearTimeout(R.t);
+  $('rBoss').hidden=true; $('rQuit').hidden=true; $('rMsg').textContent='';
+  while(R.hits.length<R.pops) R.hits.push(-1);
+  const hits=R.hits.slice(), win=R.win;
+  $('rResIn').innerHTML='<div class="sub">대미지를 세는 중…</div>'; $('rRes').hidden=false;
+  const r=await raidCall('hit',{hits:hits});
+  const ok=hits.filter(function(x){ return x>0; });
+  const avg=ok.length?Math.round(ok.reduce(function(a,b){ return a+b; },0)/ok.length):0;
+  let h='';
+  if(r&&r.j&&r.j.ok){
+    const j=r.j;
+    h+='<div class="big">'+j.dmg.toLocaleString('ko-KR')+'</div>';
+    h+='<div class="sub">'+(j.killed?'<b style="color:var(--gold)">막타! 떨어진 별을 잡았다</b><br>':'')+
+       '맞힌 것 <b>'+ok.length+' / '+hits.length+'</b>'+(ok.length?' · 평균 <b>'+avg+'ms</b> · 가장 빠른 <b>'+Math.min.apply(null,ok)+'ms</b>':'')+
+       (j.tooFast?'<br>너무 빨리 끝난 판이라 서버가 세지 않았다':'')+'</div>';
+    log('떨어진 별 — <b>'+j.dmg.toLocaleString('ko-KR')+'</b> 대미지 ('+ok.length+'/'+hits.length+' 맞힘'+(ok.length?' · 평균 '+avg+'ms':'')+')'+(j.killed?' — <b>막타</b>':''),j.killed?'up':'ok');
+    if(j.killed) flash('떨어진 별','잡았다 — 사냥 탭에서 보상을 받자','#FFC94A');
+  } else {
+    h+='<div class="sub">서버에 닿지 않아 이 판은 세지 못했다.</div>';
+  }
+  h+='<div class="rdots">'+hits.map(function(x){ return x>0?'<span class="hit">'+x+'</span>':'<span>—</span>'; }).join('')+'</div>';
+  h+='<button class="btn gold" id="rBack">돌아가기</button>';
+  $('rResIn').innerHTML=h;
+}
+function rClose(){ $('rGame').hidden=true; if(R){ clearTimeout(R.t); } R=null; renderRaid(); }
+async function raidClaim(){
+  if(RAID.busy) return; RAID.busy=true;
+  const r=await raidCall('claim');
+  RAID.busy=false;
+  if(r&&r.j&&r.j.ok){
+    const c=r.j.claim, rw=c.reward;
+    if(!S.inv) S.inv=defInv(); if(!Array.isArray(S.bag)) S.bag=[];
+    S.meso+=rw.meso; S.inv.sure=(S.inv.sure|0)+rw.sure;
+    let legTxt='';
+    for(let q=0;q<(rw.leg|0);q++){
+      const slot=(Math.random()*SLOTS.length)|0;
+      if(S.bag.length<BAG_MAX){ S.bag.push({slot:slot, ig:3, name:pickName(slot), from:'떨어진 별', ts:Date.now()}); legTxt+=' · <b>레전더리 '+SLOTS[slot].n+'</b>(가방으로)'; }
+      else { S.meso+=meltValue(3); legTxt+=' · 레전더리(가방이 꽉 차 분해 +'+fmt(meltValue(3))+')'; }
+    }
+    SND.coin(); flash('보상','떨어진 별 '+c.stage+'단계 — '+fmt(rw.meso)+' 메소','#FFC94A');
+    log('떨어진 별 '+c.stage+'단계 보상 — <b>+'+fmt(rw.meso)+'</b> 메소 · 확정 성공권 '+rw.sure+'장'+legTxt+(c.rank<3?' (기여 '+(c.rank+1)+'등)':''),'up');
+    renderAll(); save();
+  } else log('보상을 받지 못했다 — 이미 받았거나 서버에 닿지 않았다','fail');
+  renderRaid();
+}
+$('raidBody').addEventListener('click',function(e){
+  if(e.target.closest('#raidGo')){ ac(); rOpen(); }
+  else if(e.target.closest('#raidClaim')){ ac(); raidClaim(); }
+});
+$('rBoss').addEventListener('pointerdown',function(e){
+  e.preventDefault(); e.stopPropagation();
+  if(!R||!R.up) return;
+  rDone(Math.max(1,Math.round(performance.now()-R.shownAt)),e);
+});
+$('rField').addEventListener('pointerdown',function(e){
+  if(e.target.closest('#rRes')) return;
+  rEarly(e);
+});
+$('rQuit').addEventListener('click',function(){ if(R&&!R.done) rFinish(); });
+$('rRes').addEventListener('click',function(e){ if(e.target.closest('#rBack')) rClose(); });
+
 function absorb(j){                       // 서버 응답에서 랭킹과 유니언을 흡수한다
   if(j&&Array.isArray(j.board)){ BOARD=mergeBoard(j.board); lsSet(LK.board,BOARD); renderRank(); }
   // 유니언은 서버가 센 것만 믿는다. 값이 달라졌을 때만 다시 그린다 -
@@ -6592,7 +6846,7 @@ initOnline();
 
 // 균형 점검용 노출 (게임 동작에는 영향 없음)
 try{ window.__CFG={SF,MAXSTAR,starCost,SHIELD,SLOTS,OPT,POOL,GCAP,UPRATE,UPGRADE,CUBES,
-  LEG_PITY,MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,skPct,SKMUL,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,cpAx,potAx,slotAx,atkPow,survPow,lineHTML,potGradeOf,evenGrade,c5On,C5N,showPick,again,openPeek,gearRec,forestRows,unequip,canOff,swapGain,deltaHTML,renderBag,ask,askClose,meltJunk,markPickable,touchBest,baseBest,boardView,cubeQClose,unionPct,unionMult,uniBoost,USK,uskPts,uskVal,uskStep,uskFree,basePow,unionCall,unionAdd,unionDrop,renderForestRank,autoPost,canAuto,betterThanPosted,pkNew,pkGrade,critRate,critMult,CRIT,FOR,fStart,fGrow,fStep,fRng,fMeters,fPx,fT,fHi,fVal,fEnter,fEnd,fReward,fRun,fRec,renderForest,renderStat,statOf,sumOpt,mastSum,slotPow,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,navViews,viewIdx,swipeTarget,swipeBlocked,VIEWS,topBoss,bossLabel,myRec,DNAME,ACH,achStat,MAXLV,lvBonus,lvMult,LVK,SLOT_ART,WEAPON_ART,stash,bagStar,bagLines,bagP4,dropSlot,BTYPE,renderAll,CRCOL,passTime,offerOffline,OFF_CAP,OFF_RATE,TR,carryLines,showDrop,cost,protUse,safeUse,IGCOST,igCost,MAST,MPS,mpFor,mastOf,mastFree,mastMult,mastSum,trStar,renderMast,mastStep,paintMast,starMult,expMult,IGSTAR,engrave,ENG,renderShop,renderCubes,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,crt2,bossSReq,SREQ_K,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
+  LEG_PITY,MAPS,ZONES,zoneOf,mapOpen,xpRate,renderNav,TSHOP,tokFor,buyTok,renderTShop,SKILLS,skReady,skLearned,skHit,skPct,SKMUL,renderSkills,clearRate,dropCube,BAG_MAX,meltJunk,showDrop,renderBag,BAG,ago,myRec,JOBS,jobW,curJob,jobIdx,jobCost,setJob,upRate,nextGrade,BOSS_ART,bossArt,catchUp,BOSSES,deadOpt,earns,cpOf,cpAx,potAx,slotAx,atkPow,survPow,lineHTML,potGradeOf,evenGrade,c5On,C5N,showPick,again,openPeek,gearRec,forestRows,unequip,canOff,swapGain,deltaHTML,renderBag,ask,askClose,meltJunk,markPickable,touchBest,baseBest,boardView,cubeQClose,unionPct,unionMult,uniBoost,USK,uskPts,uskVal,uskStep,uskFree,basePow,unionCall,unionAdd,unionDrop,RAID,raidLoad,renderRaid,raidMul,rOpen,rDone,rEarly,rFinish,rClose,raidClaim,renderForestRank,autoPost,canAuto,betterThanPosted,pkNew,pkGrade,critRate,critMult,CRIT,FOR,fStart,fGrow,fStep,fRng,fMeters,fPx,fT,fHi,fVal,fEnter,fEnd,fReward,fRun,fRec,renderForest,renderStat,statOf,sumOpt,mastSum,slotPow,POTN,POTMAX,legChance,LEG_MIN,IGNAME,rollDrop,navViews,viewIdx,swipeTarget,swipeBlocked,VIEWS,topBoss,bossLabel,myRec,DNAME,ACH,achStat,MAXLV,lvBonus,lvMult,LVK,SLOT_ART,WEAPON_ART,stash,bagStar,bagLines,bagP4,dropSlot,BTYPE,renderAll,CRCOL,passTime,offerOffline,OFF_CAP,OFF_RATE,TR,carryLines,showDrop,cost,protUse,safeUse,IGCOST,igCost,MAST,MPS,mpFor,mastOf,mastFree,mastMult,mastSum,trStar,renderMast,mastStep,paintMast,starMult,expMult,IGSTAR,engrave,ENG,renderShop,renderCubes,openBoss,renderBossPick,updateHunt,showView,bossHas,bossReqAt,bossRewAt,clearRate2,crt2,bossSReq,SREQ_K,dIdx,killsOf,fightBoss,DNAME,BTYPE,SFTIERS,meltValue,mapIncome,mapEff,bestMap,clearRate,bossReward,
   get state(){return S;}, cur, power, income, mesoMult, dropMult, starMult, potMultOf, POTG, odds, potGrade, topGrade, totalStars, sfBonus}; }catch(e){}
 })();
 </script>
